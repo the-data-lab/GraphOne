@@ -1,7 +1,7 @@
 # GraphOne
 This repository is for following FAST'19 paper: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs"
 
-The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. 
+The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. Two main attraction of the GraphOne are Data Visibility and GraphView abstractions. They are described below. 
 
 ## Data Visibility:
 GraphOne offers a fine-grained ingestion, but leaves the visibility of data ingestion to analytics writer, called data visibility. That is within the same system an analytics can choose to work on fine-grained ingestion or coarse-grained ingestion.
@@ -13,7 +13,7 @@ GraphOne offers a set of vertex-centric API to access the data. However differen
 This piece of code is an academic prototype, and currently does not have a full-fledged query engine integrated. Your query or analytics need to use the GraphView APIs. We are working to improve the code quality, as well as support more type of analytics and Data. Please let us know if you have found any bug, or need a new feature. You can also contribute to the code. 
 
 # Input Graph Data
-GraphOne is designed to work with variety of input graph data. I have listed few types here:
+GraphOne is designed to work with variety of input graph data. As of now, we only have interface with data from a file. We treat that as streaming/evolving/dynamic data. It would be possible to integrate with other data sources such as Apache Kafka, database change logs etc. I have listed few data types here that we support:
 
 ## Text Edge Data (With or Without Weights):
 If you have downloaded some popular Graph Data sets from the Internet, it is possbily in this format. 
