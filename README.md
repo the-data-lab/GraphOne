@@ -60,20 +60,24 @@ If you want to install intel tbb, then current MakeFile is sufficient. Just run 
   
   ## Running
   If you have used getopt.h in any of your c++ coding, then you will be able to figure out following command-line options. 
-        {"vcount",      required_argument,  0, 'v'},
-        {"help",        no_argument,        0, 'h'},
-        {"idir",        required_argument,  0, 'i'},
-        {"odir",        required_argument,  0, 'o'},
-        {"category",    required_argument,  0, 'c'},
-        {"job",         required_argument,  0, 'j'},
-        {"residue",     required_argument,  0, 'r'},
-        {"qfile",       required_argument,  0, 'q'},
-        {"fileconf",    required_argument,  0, 'f'},
-        {"threadcount", required_argument,  0, 't'},
-        
-An example would be 
+  ```
+  {"vcount",      required_argument,  0, 'v'},
+  {"help",        no_argument,        0, 'h'},
+  {"idir",        required_argument,  0, 'i'},
+  {"odir",        required_argument,  0, 'o'},
+  {"category",    required_argument,  0, 'c'},
+  {"job",         required_argument,  0, 'j'},
+  {"residue",     required_argument,  0, 'r'},
+  {"qfile",       required_argument,  0, 'q'},
+  {"fileconf",    required_argument,  0, 'f'},
+  {"threadcount", required_argument,  0, 't'},
+  ```
+       
+`Example1:`
    `./graphone32 -i ./kron21_16/edge_file/ -o ./del2/ -c 0 -j 25 -v 2097152`
 
 This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. 
 
 You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
+
+`Example 2:`
