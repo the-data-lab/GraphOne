@@ -1,7 +1,9 @@
 # GraphOne
 This repository is for following FAST'19 paper: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs"
 
-The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. Two main attraction of the GraphOne are Data Visibility and GraphView abstractions. They are described below. 
+The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. As of GraphOne, we only discussed ingestion for a single type of edges, called single stream graph. E.g. Twitter's follower-followee graph, or facebook's friendship graph. However, this code-base can ingest multi-stream graph, i.e. property graph. However, that a paper for that portion of codebase is under review. So, I am going to explain single stream graph. Send me an email, if your graph is multi-stream graph.
+
+Two main attraction of the GraphOne are Data Visibility and GraphView abstractions. They are described below. 
 
 ## Data Visibility:
 GraphOne offers a fine-grained ingestion, but leaves the visibility of data ingestion to analytics writer, called data visibility. That is within the same system an analytics can choose to work on fine-grained ingestion or coarse-grained ingestion.
@@ -252,3 +254,7 @@ void ingestion_fulld(const string& idir, const string& odir, typename callback<T
     manager.prep_graph_fromtext(idir, odir, parsefile_fn);\\ parsefile_fn is the plug-in you wrote in new_func.h
     //g->store_graph_baseline(); \\ If you want to store the adjacency store data at the end.
 }
+```
+
+- Executing the Testcase: Run this command: 
+ `./graphone32 -i lanl_2017/text_file/ -o ./del2/ -c 0 -j 35 -v 162315`
