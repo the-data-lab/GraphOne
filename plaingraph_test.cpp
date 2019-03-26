@@ -1288,11 +1288,11 @@ void update_fromtext(const string& idir, const string& odir,
 {
     plaingraph_manager_t<T> manager;
     THD_COUNT = omp_get_max_threads() - 1;
-    manager.schema_plaingraphuni();
+    manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    //manager.run_bfsd();
+    manager.run_bfs();
     g->store_graph_baseline();    
 }
 
@@ -1397,6 +1397,11 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 17:
             paper_test_hop2_chain(idir, odir);
             break;
+        //plain graph in text format with ID
+        case 18: 
+            update_fromtext<sid_t>(idir, odir, parsefile_and_insert);
+            break;
+
         //plaingrah benchmark testing    
         case 21: 
             test_archive<sid_t>(idir, odir);

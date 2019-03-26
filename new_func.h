@@ -59,8 +59,18 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
+    cout << "No plugin found for reading and understandin the input files" << endl;
+    assert(0); 
+    return 0;
+}
+
+template <>
+inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const string& ofile, pgraph_t<netflow_dst_t>* pgraph) 
+{
+    FILE* file = fopen(textfile.c_str(), "r");
+    assert(file);
     
-    edgeT_t<T> netflow;
+    edgeT_t<netflow_dst_t> netflow;
     index_t icount = 0;
 	char sss[512];
     char* line = sss;
@@ -70,6 +80,43 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
         if (eOK == parse_netflow_line(line, netflow)) {
             pgraph->batch_edge(netflow);
         }
+        icount++;
+    }
+    
+    fclose(file);
+    return 0;
+}
+
+template <>
+inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string& ofile, pgraph_t<sid_t>* pgraph) 
+{
+    FILE* file = fopen(textfile.c_str(), "r");
+    assert(file);
+    
+    edgeT_t<sid_t> edge;
+    index_t icount = 0;
+	char sss[512];
+    const char* del = " \t\n";
+    char* line = sss;
+
+    while (fgets(sss, sizeof(sss), file)) {
+        line = sss;
+        
+        if (line[0] == '%') {
+            continue;
+        }
+    
+        //const char* del = ",\n";
+        char* token = 0;
+        
+        token = strtok_r(line, del, &line);
+        sscanf(token, "%d", &edge.src_id);
+        //edge.src_id = g->type_update(token);
+        token = strtok_r(line, del, &line);
+        //edge.dst_id = g->type_update(token);
+        sscanf(token, "%d", &edge.dst_id);
+
+        pgraph->batch_edge(edge);
         icount++;
     }
     
