@@ -59,7 +59,7 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
-    cout << "No plugin found for reading and understandin the input files" << endl;
+    cout << "No plugin found for reading and parsing the input files" << endl;
     assert(0); 
     return 0;
 }
@@ -109,12 +109,17 @@ inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string&
         //const char* del = ",\n";
         char* token = 0;
         
+        #ifdef B32
         token = strtok_r(line, del, &line);
-        sscanf(token, "%d", &edge.src_id);
-        //edge.src_id = g->type_update(token);
+        sscanf(token, "%u", &edge.src_id);
         token = strtok_r(line, del, &line);
-        //edge.dst_id = g->type_update(token);
-        sscanf(token, "%d", &edge.dst_id);
+        sscanf(token, "%u", &edge.dst_id);
+        #else
+        token = strtok_r(line, del, &line);
+        sscanf(token, "%lu", &edge.src_id);
+        token = strtok_r(line, del, &line);
+        sscanf(token, "%lu", &edge.dst_id);
+        #endif
 
         pgraph->batch_edge(edge);
         icount++;
@@ -124,7 +129,29 @@ inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string&
     return 0;
 }
 
+// 2nd function to show how to read binary file and insert.
+template <class T>
+inline index_t readfile_and_insert(const string& binfile, const string& ofile, pgraph_t<T>* pgraph) 
+{
+    /*
+    edgeT_t<T>* edges = 0;
+    
+    //implement following function, the way you want
+    //index_t total_edge_count = read_file(binfile, &edges, allocate_memory_for_edges);
+    
+    //Batch and Make Graph
+    
+    double start = mywtime();
+    for (index_t i = 0; i < total_edge_count; ++i) {
+        pgraph->batch_edge(edges[i]);
+    }
 
+    //free the allocation of edges
+    */
+    return 0;
+}
+
+/* Use this function to convert text file to binary file*/
 template <class T>
 index_t parsefile_to_bin(const string& textfile, const string& ofile, pgraph_t<T>*pgraph)
 {

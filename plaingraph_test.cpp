@@ -984,9 +984,31 @@ void ingestion_fulluni(const string& idir, const string& odir,
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    g->store_graph_baseline();
-    cout << "stroing done" << endl;
     //manager.run_bfsd();    
+    //g->store_graph_baseline();
+    cout << "stroing done" << endl;
+    
+    /*
+    //Run using prior static view.
+    prior_snap_t<T>* snaph;
+    manager.create_prior_static_view(&snaph, 0, 33554432);
+    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
+    mem_wbfs(snaph, level_array, 1);
+    */
+}
+
+template <class T>
+void ingestion_fulld(const string& idir, const string& odir,
+                     typename callback<T>::parse_fn_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraphd();
+    //do some setup for plain graphs
+    manager.setup_graph_vert_nocreate(v_count);    
+    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
+    manager.run_bfsd();    
+    //g->store_graph_baseline();
+    cout << "stroing done" << endl;
     
     /*
     //Run using prior static view.
@@ -1283,12 +1305,26 @@ void test_ingestion_memoryd(const string& idir, const string& odir)
 
 
 template <class T>
-void update_fromtext(const string& idir, const string& odir,
+void ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
     THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
+    manager.run_bfs();
+    g->store_graph_baseline();    
+}
+
+template <class T>
+void ingestion_fromtextd(const string& idir, const string& odir,
+                     typename callback<T>::parse_fn_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    THD_COUNT = omp_get_max_threads() - 1;
+    manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
@@ -1397,9 +1433,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 17:
             paper_test_hop2_chain(idir, odir);
             break;
-        //plain graph in text format with ID
+        //plain graph in text format with ID. Not for performance
         case 18: 
-            update_fromtext<sid_t>(idir, odir, parsefile_and_insert);
+            ingestion_fromtext<sid_t>(idir, odir, parsefile_and_insert);
             break;
 
         //plaingrah benchmark testing    
@@ -1447,11 +1483,12 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 34:
             recover_test0d<netflow_dst_t>(idir, odir);
             break;
+        //These are not for performance.    
         case 35://text to our format
-            update_fromtext<netflow_dst_t>(idir, odir, parsefile_and_insert);
+            ingestion_fulld<netflow_dst_t>(idir, odir, parsefile_and_insert);
             break;
         case 36://text to binary file
-            update_fromtext<netflow_dst_t>(idir, odir, parsefile_to_bin);
+            ingestion_fulld<netflow_dst_t>(idir, odir, parsefile_to_bin);
             break;
         case 37://text to our format
             ingestion_fulluni<netflow_dst_t>(idir, odir, parsefile_and_insert);

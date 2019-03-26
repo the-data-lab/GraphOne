@@ -431,7 +431,7 @@ void plaingraph_manager_t<T>::prep_graph_fromtext(const string& idirname, const 
                                                   typename callback<T>::parse_fn_t parsefile_fn)
 {
     //-----
-    g->create_wthread();
+    //g->create_wthread();
     g->create_snapthread();
     usleep(1000);
     //-----

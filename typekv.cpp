@@ -105,7 +105,7 @@ sid_t typekv_t::type_update(const string& src, tid_t type_id)
     
 	//allocate class specific ids.
     sid_t str2vid_iter = str2vid.find(src);
-    if (UINT64_MAX == str2vid_iter) {
+    if (INVALID_SID == str2vid_iter) {
         src_id = super_id++;
         t_info[type_id].vert_id = super_id;
         ++g->vert_count;
