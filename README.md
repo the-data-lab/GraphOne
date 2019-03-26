@@ -81,12 +81,13 @@ This command ingests the data from binary files present in kron21_16/edge_file/ 
 You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
 
 `Example 2:`
-   `./graphone32 -i /mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16/text_file/ -o ./del2/ -c 0 -j 18 -v 2097152`
+   `./graphone32 -i kron_21_16/text_file/ -o ./del2/ -c 0 -j 18 -v 2097152`
 
 This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
 
 `Example 3:`
-   
+   `./graphone32 -i lanl_2017/text_file/ -o ./del2/ -c 0 -j 35 -v 162315`
 
+This command ingests the data from text files present in lanl_2017/text_file/ directory, where vertex count is 162315. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside lanl_2017/text_file/ directory have graph data in text raw edge list format. The data need to convert to ID format, as the edges are in string format. This test case is good for all the data that you would download from Internet where data is format but are in string format, such as LANL 2017, etc. that are available as benchmarks.
 
  
