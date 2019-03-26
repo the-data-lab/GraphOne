@@ -430,12 +430,6 @@ template <class T>
 void plaingraph_manager_t<T>::prep_graph_fromtext(const string& idirname, const string& odirname, 
                                                   typename callback<T>::parse_fn_t parsefile_fn)
 {
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
-    
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
     
     //Batch and Make Graph

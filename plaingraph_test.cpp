@@ -983,6 +983,11 @@ void ingestion_fulluni(const string& idir, const string& odir,
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     //manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1005,6 +1010,11 @@ void ingestion_fulld(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1313,6 +1323,11 @@ void ingestion_fromtext(const string& idir, const string& odir,
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1327,6 +1342,11 @@ void ingestion_fromtextd(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
