@@ -76,8 +76,17 @@ If you want to install intel tbb, then current MakeFile is sufficient. Just run 
 `Example1:`
    `./graphone32 -i ./kron21_16/edge_file/ -o ./del2/ -c 0 -j 25 -v 2097152`
 
-This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. 
+This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data.  The files inside kron21_16/edge_file/ directory have graph data in binary edge list format.
 
 You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
 
 `Example 2:`
+   `./graphone32 -i /mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16/text_file/ -o ./del2/ -c 0 -j 18 -v 2097152`
+
+This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
+
+`Example 3:`
+   
+
+
+ 
