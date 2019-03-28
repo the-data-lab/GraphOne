@@ -634,6 +634,7 @@ struct callback {
       typedef void(*func)(stream_t<T>*);
 
       typedef index_t (*parse_fn_t)(const string&, const string&, pgraph_t<T>*);
+      typedef index_t (*parse_fn2_t)(const char*, pgraph_t<T>*);
 };
 
 
