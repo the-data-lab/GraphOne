@@ -73,6 +73,10 @@ template <>
 inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph) 
 {
     
+    if (0 == buf) {
+        return 0;
+    }
+    
     edgeT_t<netflow_dst_t> netflow;
     index_t icount = 0;
     const char* start = 0;
@@ -80,10 +84,11 @@ inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netf
     //const char* buf_backup_for_debug = buf; 
     char  sss[512];
     char* line = sss;
+        
+    start = buf;
+    buf = strchr(start, '\n');
 
     while (buf) {
-        start = buf + 1;
-        buf = strchr(buf+1, '\n');
         end = buf;
         memcpy(sss, start, end - start); 
         sss[end-start] = '\0';
@@ -91,8 +96,9 @@ inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netf
         if (eOK == parse_netflow_line(line, netflow)) {
             pgraph->batch_edge(netflow);
         }
+        start = buf + 1;
+        buf = strchr(start, '\n');
         icount++;
-
     }
     return icount;
 }

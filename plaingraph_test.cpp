@@ -1019,15 +1019,27 @@ void ingestion_fulld(const string& idir, const string& odir,
     manager.run_bfsd();    
     //g->store_graph_baseline();
     cout << "stroing done" << endl;
-    
-    /*
-    //Run using prior static view.
-    prior_snap_t<T>* snaph;
-    manager.create_prior_static_view(&snaph, 0, 33554432);
-    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
-    mem_wbfs(snaph, level_array, 1);
-    */
 }
+
+template <class T>
+void test_ingestion_fulld(const string& idir, const string& odir,
+                     typename callback<T>::parse_fn2_t parsebuf_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraphd();
+    //do some setup for plain graphs
+    manager.setup_graph_vert_nocreate(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
+    manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
+    manager.run_bfsd();    
+    //g->store_graph_baseline();
+    cout << "stroing done" << endl;
+}
+
 /*
 void plain_test6(const string& odir)
 {
@@ -1515,6 +1527,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 38:
             prior_snap_testuni<netflow_dst_t>(odir);
+            break;
+        case 39://text to our format
+            test_ingestion_fulld<netflow_dst_t>(idir, odir, parsebuf_and_insert);
             break;
         
         case 94:
