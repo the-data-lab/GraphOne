@@ -68,6 +68,30 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
     return eOK;
 }
 
+// Actual parse function, one line at a time
+inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
+{
+    if (line[0] == '%') {
+        return eNotValid;
+    }
+    
+    const char* del = " \t\n";
+    char* token = 0;
+    
+    #ifdef B32
+    token = strtok_r(line, del, &line);
+    sscanf(token, "%u", &edge.src_id);
+    token = strtok_r(line, del, &line);
+    sscanf(token, "%u", &edge.dst_id);
+    #else
+    token = strtok_r(line, del, &line);
+    sscanf(token, "%lu", &edge.src_id);
+    token = strtok_r(line, del, &line);
+    sscanf(token, "%lu", &edge.dst_id);
+    #endif
+
+    return eOK;
+}
 
 template <>
 inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph) 
@@ -128,6 +152,40 @@ inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const
 //---------------netflow functions done---------
 
 template <>
+inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgraph) 
+{
+    
+    if (0 == buf) {
+        return 0;
+    }
+    
+    edgeT_t<sid_t> edge;
+    index_t icount = 0;
+    const char* start = 0;
+    const char* end = 0;
+    //const char* buf_backup_for_debug = buf; 
+    char  sss[512];
+    char* line = sss;
+        
+    start = buf;
+    buf = strchr(start, '\n');
+
+    while (buf) {
+        end = buf;
+        memcpy(sss, start, end - start); 
+        sss[end-start] = '\0';
+        line = sss;
+        if (eOK == parse_plaingraph_line(line, edge)) {
+            pgraph->batch_edge(edge);
+        }
+        start = buf + 1;
+        buf = strchr(start, '\n');
+        icount++;
+    }
+    return icount;
+}
+
+template <>
 inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string& ofile, pgraph_t<sid_t>* pgraph) 
 {
     FILE* file = fopen(textfile.c_str(), "r");
@@ -136,32 +194,14 @@ inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string&
     edgeT_t<sid_t> edge;
     index_t icount = 0;
 	char sss[512];
-    const char* del = " \t\n";
     char* line = sss;
 
     while (fgets(sss, sizeof(sss), file)) {
         line = sss;
         
-        if (line[0] == '%') {
-            continue;
+        if (eOK == parse_plaingraph_line(line, edge)) {
+            pgraph->batch_edge(edge);
         }
-    
-        //const char* del = ",\n";
-        char* token = 0;
-        
-        #ifdef B32
-        token = strtok_r(line, del, &line);
-        sscanf(token, "%u", &edge.src_id);
-        token = strtok_r(line, del, &line);
-        sscanf(token, "%u", &edge.dst_id);
-        #else
-        token = strtok_r(line, del, &line);
-        sscanf(token, "%lu", &edge.src_id);
-        token = strtok_r(line, del, &line);
-        sscanf(token, "%lu", &edge.dst_id);
-        #endif
-
-        pgraph->batch_edge(edge);
         icount++;
     }
     

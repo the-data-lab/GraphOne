@@ -1365,6 +1365,25 @@ void ingestion_fromtextd(const string& idir, const string& odir,
 }
 
 template <class T>
+void test_ingestion_fromtext(const string& idir, const string& odir,
+                     typename callback<T>::parse_fn2_t parsebuf_fn)
+{
+    plaingraph_manager_t<T> manager;
+    THD_COUNT = omp_get_max_threads() - 1;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    //-----
+    //g->create_wthread();
+    g->create_snapthread();
+    usleep(1000);
+    //-----
+    manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
+    manager.run_bfs();
+    g->store_graph_baseline();    
+}
+
+template <class T>
 void test_ingestion(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
@@ -1468,6 +1487,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         //plain graph in text format with ID. Not for performance
         case 18: 
             ingestion_fromtext<sid_t>(idir, odir, parsefile_and_insert);
+            break;
+        case 19: 
+            test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
             break;
 
         //plaingrah benchmark testing    
