@@ -289,8 +289,8 @@ void plaingraph_manager_t<T>::recover_graph_adj(const string& idirname, const st
         while (marker < blog->blog_head) {
             marker = min(blog->blog_head, marker+batch_size);
             ugraph->create_marker(marker);
-            g->incr_snapid();
             ugraph->create_snapshot();
+            g->incr_snapid();
             /*
             if (eOK != ugraph->move_marker(snap_marker)) {
                 assert(0);
@@ -336,8 +336,8 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     while (marker < blog->blog_head) {
         marker = min(blog->blog_head, marker+batch_size);
         ugraph->create_marker(marker);
-        g->incr_snapid();
         ugraph->create_snapshot();
+        g->incr_snapid();
         /*
         if (eOK != ugraph->move_marker(snap_marker)) {
             assert(0);
@@ -734,8 +734,8 @@ void* serial_sstream_func(void* arg)
             marker = blog->blog_head;
             //cout << "marker = " << marker << endl;
             ugraph->create_marker(marker);
-            g->incr_snapid();
             ugraph->create_snapshot();
+            g->incr_snapid();
             /*
             if (eOK != ugraph->move_marker(snap_marker)) {
                 assert(0);
@@ -989,8 +989,8 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     
     uint8_t* level_array = 0;
     level_array = (uint8_t*) calloc(snaph->v_count, sizeof(uint8_t));
-    //mem_bfs<T>(snaph, level_array, root);
-    mem_bfs_simple<T>(snaph, level_array, root);
+    mem_bfs<T>(snaph, level_array, root);
+    //mem_bfs_simple<T>(snaph, level_array, root);
     free(level_array);
     delete_static_view(snaph);
 }

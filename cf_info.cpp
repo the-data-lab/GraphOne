@@ -112,7 +112,7 @@ status_t cfinfo_t::create_snapshot()
 void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 */)
 {
     snapshot_t* next = new snapshot_t;
-    next->snap_id = g->get_snapid();
+    next->snap_id = g->get_snapid()+ 1;
     
     if (snapshot) {
         if (durable_marker == 0) {
