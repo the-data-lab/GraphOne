@@ -52,6 +52,9 @@ class plaingraph_manager_t {
                              typename callback<T>::parse_fn_t);
     void prep_graph_fromtext2(const string& idirname, const string& odirname, 
                               typename callback<T>::parse_fn2_t parsebuf_fn);
+    void prep_graph_edgelog_fromtext(const string& idirname, 
+        const string& odirname, typename callback<T>::parse_fn2_t parsefile_fn);
+
     void prep_graph_edgelog(const string& idirname, const string& odirname);
     void prep_graph_adj(const string& idirname, const string& odirname);
     void prep_graph(const string& idirname, const string& odirname);
@@ -65,6 +68,7 @@ class plaingraph_manager_t {
                                 stream_t<T>* streamh);
     void waitfor_archive();
     
+    void run_pr_simple();
     void run_pr();
     void run_prd();
     void run_bfs(sid_t root = 1);
@@ -427,6 +431,19 @@ void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname, const s
         ugraph->batch_edge(edges[i]);
     }
     double end = mywtime ();
+    cout << "Batch Update Time = " << end - start << endl;
+}
+
+template <class T>
+void plaingraph_manager_t<T>::prep_graph_edgelog_fromtext(const string& idirname, 
+        const string& odirname, typename callback<T>::parse_fn2_t parsefile_fn)
+{
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    
+    //Batch and Make Graph
+    double start = mywtime();
+    read_idir_text2(idirname, odirname, pgraph, parsefile_fn);    
+    double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
 }
 
@@ -965,11 +982,11 @@ void plaingraph_manager_t<T>::run_prd()
     }
 
     cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-    /*
-    mem_pagerank_push<sid_t>(graph_out, degree_array_out, 
-               snapshot, marker, blog->blog_beg,
-               v_count, 5);
-   */ 
+    
+    //mem_pagerank_push<sid_t>(graph_out, degree_array_out, 
+    //           snapshot, marker, blog->blog_beg,
+    //           v_count, 5);
+    
    
     
     mem_pagerank<T>(graph_in, degree_array_in, degree_array_out, 
@@ -980,18 +997,46 @@ void plaingraph_manager_t<T>::run_prd()
     free(degree_array_in);
 }
 
+
+template <class T>
+void plaingraph_manager_t<T>::run_pr_simple()
+{
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    double start = mywtime();
+    snap_t<T>* snaph = create_static_view(pgraph, true, true, true);
+    double end = mywtime();
+    cout << "static View creation = " << end - start << endl;    
+    
+    mem_pagerank_simple<T>(snaph, 5);
+    
+    delete_static_view(snaph);
+}
 template <class T>
 void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
 {
+    double start, end;
+
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
+    
+    start = mywtime();
     snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
-    //cout << "old marker = " << old_marker << " New marker = " << marker << endl;
+    end = mywtime();
+    cout << "static View creation = " << end - start << endl;    
     
     uint8_t* level_array = 0;
     level_array = (uint8_t*) calloc(snaph->v_count, sizeof(uint8_t));
+    start = mywtime();
     mem_bfs<T>(snaph, level_array, root);
-    //mem_bfs_simple<T>(snaph, level_array, root);
+    end = mywtime();
+    cout << "BFS time1 = " << end - start << endl;    
+    
     free(level_array);
+    level_array = (uint8_t*) calloc(snaph->v_count, sizeof(uint8_t));
+    start = mywtime();
+    mem_bfs_simple<T>(snaph, level_array, root);
+    end = mywtime();
+    cout << "BFS time2 = " << end - start << endl;    
+    
     delete_static_view(snaph);
 }
 

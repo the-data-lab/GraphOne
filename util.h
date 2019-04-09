@@ -184,14 +184,20 @@ void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>
     
     //allocate accuately
     char* buf = 0;
+    double start = mywtime(); 
     index_t total_size = alloc_mem_dir(idirname, &buf, true);
     if (total_size != read_text_dir(idirname, buf)) {
         assert(0);
     }
+    double end = mywtime();
+    cout << "  Read/alloc time = " << end - start << endl;
     
-    parsebuf_and_insert(buf, pgraph);
-    vid_t vid = g->get_type_scount();
-    cout << "vertex count" << vid << endl;
+    start = mywtime(); 
+    index_t line = parsebuf_and_insert(buf, pgraph);
+    end = mywtime();
+    //vid_t vid = g->get_type_scount();
+    //cout << "vertex count " << vid << endl;
+    cout << "  Batching time = " << end - start << " Edges = " << line << endl;
     return;
 }
 

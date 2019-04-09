@@ -1206,6 +1206,22 @@ void test_loggingd(const string& idir, const string& odir)
 }
 
 template <class T>
+void test_logging_fromtext(const string& idir, const string& odir,
+                    typename callback<T>::parse_fn2_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    manager.prep_graph_edgelog_fromtext(idir, odir, parsefile_fn);
+    
+    //Run BFS
+    for (int i = 0; i < 1; i++){
+        manager.run_bfs();
+    }
+}
+
+template <class T>
 void test_archive(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
@@ -1220,13 +1236,14 @@ void test_archive(const string& idir, const string& odir)
         manager.run_bfs();
     }
 
-    g->store_graph_baseline();
-    /*
+    //g->store_graph_baseline();
     //Run PageRank
     for (int i = 0; i < 1; i++){
         manager.run_pr();
+        manager.run_pr_simple();
     }
     
+    /*
     //Run 1-HOP query
     for (int i = 0; i < 1; i++){
         manager.run_1hop();
@@ -1342,7 +1359,7 @@ void ingestion_fromtext(const string& idir, const string& odir,
     //-----
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
-    g->store_graph_baseline();    
+    //g->store_graph_baseline();    
 }
 
 template <class T>
@@ -1490,6 +1507,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 19: 
             test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
+            break;
+        case 20: 
+            test_logging_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
             break;
 
         //plaingrah benchmark testing    

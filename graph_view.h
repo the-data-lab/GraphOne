@@ -20,7 +20,7 @@ struct snap_t {
     snapshot_t*      snapshot;
     pgraph_t<T>*     pgraph;  
     edgeT_t<T>*      edges; //new edges
-    vid_t            edge_count;//their count
+    index_t          edge_count;//their count
     vid_t            v_count;
 public:
 
@@ -178,7 +178,7 @@ public:
 };
 
 template <class T>
-degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges, degree_t* degree_array)
+degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges, degree_t* degree_array, bool stale = false)
 {
     snapid_t snap_id = 0;
     index_t old_marker = 0;
@@ -215,11 +215,12 @@ degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* 
             degree_array[v] = nebr_count;
             //cout << v << " " << degree_array[v] << endl;
         }
-
+        if (false == stale) {
         #pragma omp for
         for (index_t i = old_marker; i < marker; ++i) {
             __sync_fetch_and_add(degree_array + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_array + get_dst(edges + i), 1);
+        }
         }
     }
 
@@ -229,7 +230,8 @@ degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* 
 template <class T>
 void create_degreesnapd (vert_table_t<T>* begpos_out, vert_table_t<T>* begpos_in,
                          snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges, 
-                         degree_t* &degree_out, degree_t* &degree_in, vid_t v_count)
+                         degree_t* &degree_out, degree_t* &degree_in, 
+                         vid_t v_count, bool stale = false)
 {
     snapid_t snap_id = 0;
     index_t old_marker = 0;
@@ -291,11 +293,12 @@ void create_degreesnapd (vert_table_t<T>* begpos_out, vert_table_t<T>* begpos_in
             }
             degree_in[v] = nebr_count;
         }
-
+        if (false == stale) {
         #pragma omp for
         for (index_t i = old_marker; i < marker; ++i) {
             __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
+        }
         }
     }
 
@@ -359,16 +362,12 @@ void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool s
     if (snapshot) {
         old_marker = snapshot->marker;
     }
-    cout << "old marker = " << old_marker << endl;    
-    cout << "end marker = " << marker << endl;    
+    //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
 
     //need to copy it. TODO
     edges     = blog->blog_beg;
-    if (stale) {
-        edge_count = 0;
-    } else {
-        edge_count = marker - old_marker;
-    }
+    edge_count = marker - old_marker;
+    //if (stale)  edge_count = 0;
     
     v_count    = g->get_type_scount();
     
@@ -380,12 +379,12 @@ void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool s
         graph_in   = graph_out;
         degree_in  = degree_out;
         create_degreesnap(graph_out, v_count, snapshot,
-                          marker, edges, degree_out);
+                          marker, edges, degree_out, stale);
     } else if (pgraph->sgraph_in != 0) {
         graph_in  = pgraph->sgraph_in[0]->get_begpos();
         degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
         create_degreesnapd(graph_out, graph_in, snapshot,
-                           marker, edges, degree_out, degree_in, v_count);
+                           marker, edges, degree_out, degree_in, v_count, stale);
     }
 }
 

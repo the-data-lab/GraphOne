@@ -19,7 +19,7 @@ typedef uint64_t index_t;
 typedef uint32_t tid_t;
 typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
-typedef uint16_t snapid_t ;
+typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
 typedef int32_t degree_t;
 #elif B32
@@ -31,7 +31,7 @@ typedef uint64_t index_t;
 typedef uint8_t tid_t;
 typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
-typedef uint16_t snapid_t ;
+typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
 typedef uint32_t degree_t;
 #endif
@@ -455,7 +455,7 @@ class  snapT_t {
  public:
     snapT_t<T>*     prev;//prev snapshot of this vid 
     degree_t  degree;
-    snapid_t  snap_id;
+    uint16_t  snap_id;
     uint16_t  del_count;
 };
 

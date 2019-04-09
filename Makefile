@@ -70,6 +70,7 @@ HEADER=graph.h\
 	new_func.h\
 	test.h\
 	str2sid.h\
+	graph_view.h\
 	#rset.h\
 	#query_node.h\
 	#query_triple.h\

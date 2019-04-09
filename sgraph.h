@@ -1130,7 +1130,7 @@ status_t pgraph_t<T>::extend_kv_td(onekv_t<T>** skv, srset_t* iset, srset_t* ose
 template <class T> 
 void dgraph<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog(1 << BLOG_SHIFT);
+    this->alloc_edgelog(1L << BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 
@@ -1231,7 +1231,7 @@ void dgraph<T>::read_graph_baseline()
 template <class T> 
 void ugraph<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog( 1 << BLOG_SHIFT);
+    this->alloc_edgelog( 1L << BLOG_SHIFT);
     flag1 = flag1 | flag2;
     flag2 = flag1;
 
@@ -1413,7 +1413,7 @@ void dgraph<T>::incr_count(sid_t src, sid_t dst, int del /*= 0*/)
 template <class T> 
 void unigraph<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog(1 << BLOG_SHIFT);
+    this->alloc_edgelog(1L << BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 
