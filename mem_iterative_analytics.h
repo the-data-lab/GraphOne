@@ -688,7 +688,7 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
 		//     << endl;
 	
         //Point is to simulate bottom up bfs, and measure the trade-off    
-		if ((frontier >= 0.002*v_count) || level == 2) {
+        if ((frontier >= 0.002*v_count) || level == 2) {
 			top_down = false;
 		} else {
             top_down = true;
@@ -887,7 +887,7 @@ void mem_bfs_simple(snap_t<T>* snaph,
 		{
             sid_t sid;
             degree_t nebr_count = 0;
-            degree_t prior_sz = 1024;
+            degree_t prior_sz = 65536;
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 		    
             if (top_down) {
@@ -1447,7 +1447,7 @@ mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
         {
             sid_t sid;
             degree_t nebr_count = 0;
-            degree_t prior_sz = 1024;
+            degree_t prior_sz = 65536;
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
             float rank = 0.0f; 
             
@@ -1459,11 +1459,12 @@ mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
                     continue;
                 } else if (nebr_count > prior_sz) {
                     prior_sz = nebr_count;
+                    free(local_adjlist);
                     local_adjlist = (T*)malloc(prior_sz*sizeof(T));
                 }
 
                 rank = 0.0f;
-                snaph->get_nebrs_out(v, local_adjlist);
+                snaph->get_nebrs_in(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
                     sid = get_nebr(local_adjlist, i);

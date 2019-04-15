@@ -1018,7 +1018,7 @@ void ingestion_fulld(const string& idir, const string& odir,
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
-    cout << "stroing done" << endl;
+    //cout << "stroing done" << endl;
 }
 
 template <class T>
@@ -1146,12 +1146,13 @@ void test_archived(const string& idir, const string& odir)
     
     //Run BFS
     for (int i = 0; i < 1; i++){
-        manager.run_bfsd();
+        manager.run_bfs();
     }
     /*
     //Run PageRank
     for (int i = 0; i < 1; i++){
-        manager.run_pr();
+        manager.run_prd();
+        manager.run_pr_simple();
     }
     
     //Run 1-HOP query
@@ -1237,13 +1238,13 @@ void test_archive(const string& idir, const string& odir)
     }
 
     //g->store_graph_baseline();
+    /*
     //Run PageRank
-    for (int i = 0; i < 1; i++){
+    for (int i = 0; i < 5; i++){
         manager.run_pr();
         manager.run_pr_simple();
     }
     
-    /*
     //Run 1-HOP query
     for (int i = 0; i < 1; i++){
         manager.run_1hop();

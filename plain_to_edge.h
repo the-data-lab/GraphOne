@@ -964,7 +964,7 @@ void plaingraph_manager_t<T>::run_prd()
     blog_t<T>* blog = ugraph->blog;
     
     onegraph_t<T>*   sgraph_out = ugraph->sgraph_out[0];
-    vert_table_t<sid_t>* graph_out = sgraph_out->get_begpos();
+    vert_table_t<T>* graph_out = sgraph_out->get_begpos();
     onegraph_t<T>*   sgraph_in = ugraph->sgraph_in[0];
     vert_table_t<T>* graph_in =  sgraph_in->get_begpos();
     
@@ -1028,14 +1028,14 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     start = mywtime();
     mem_bfs<T>(snaph, level_array, root);
     end = mywtime();
-    cout << "BFS time1 = " << end - start << endl;    
+    cout << "BFS complex = " << end - start << endl;    
     
     free(level_array);
     level_array = (uint8_t*) calloc(snaph->v_count, sizeof(uint8_t));
     start = mywtime();
     mem_bfs_simple<T>(snaph, level_array, root);
     end = mywtime();
-    cout << "BFS time2 = " << end - start << endl;    
+    cout << "BFS simple = " << end - start << endl;    
     
     delete_static_view(snaph);
 }
