@@ -1224,6 +1224,7 @@ void dgraph<T>::read_graph_baseline()
     read_sgraph(sgraph_in);
     this->mem.handle_read();
     this->read_snapshot();
+    blog->readfrom_snapshot(this->snapshot);
 }
 
 /*******************************************/
@@ -1331,6 +1332,7 @@ void ugraph<T>::read_graph_baseline()
     read_sgraph(sgraph);
     this->mem.handle_read();
     this->read_snapshot();
+    blog->readfrom_snapshot(this->snapshot);
 }
 
 
@@ -1476,6 +1478,7 @@ void unigraph<T>::read_graph_baseline()
     read_sgraph(sgraph_out);
     this->mem.handle_read();
     this->read_snapshot();
+    blog->readfrom_snapshot(this->snapshot);
 }
 
 

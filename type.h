@@ -548,6 +548,13 @@ class blog_t {
         blog_beg[index1] = edge;
         return index+1;
     }
+    inline void readfrom_snapshot(snapshot_t* global_snapshot) {
+        blog_head = global_snapshot->marker;
+        blog_tail = global_snapshot->marker;
+        blog_marker = global_snapshot->marker;
+        blog_wtail = global_snapshot->durable_marker;
+        blog_wmarker = global_snapshot->durable_marker; 
+    }
 };
     
 template <class T>
