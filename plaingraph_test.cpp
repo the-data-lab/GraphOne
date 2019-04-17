@@ -720,10 +720,8 @@ void weighted_dtest0(const string& idir, const string& odir)
 
     manager.run_bfs(0);
     //-------Graph Updates-------
-    g->create_snapthread();
-    //g->create_wthread();
-
-    usleep(1000);
+    manager.create_threads(true, false);
+    
     int fd1 = open(action_file.c_str(), O_RDONLY);
     assert(fd1 != -1);
     index_t size1 = fsize(fd1);
@@ -838,6 +836,7 @@ void plain_test1(const string& idir, const string& odir)
     plaingraph_manager.schema_plaingraph();
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.create_threads(true, false);   
     plaingraph_manager.prep_graph(idir, odir);
     
     propid_t cf_id = g->get_cfid("friend");
@@ -924,7 +923,7 @@ void prior_snap_testu(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
-    manager.restore_graph();
+    g->read_graph_baseline();
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     //manager.run_bfs();
     
@@ -941,7 +940,7 @@ void prior_snap_testuni(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
-    manager.restore_graph();
+    g->read_graph_baseline();
     //manager.run_bfs();
     
     //Run using prior static view.
@@ -958,7 +957,7 @@ void recover_testu(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
-    manager.restore_graph();
+    g->read_graph_baseline();
     manager.run_bfs();
 
     return ;
@@ -969,7 +968,7 @@ void recover_testuni(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
-    manager.restore_graph();
+    g->read_graph_baseline();
     manager.run_bfs();
 
     return ;
@@ -982,12 +981,8 @@ void ingestion_fulluni(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph_vert_nocreate(v_count);
+    manager.create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     //manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1009,12 +1004,8 @@ void ingestion_fulld(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph_vert_nocreate(v_count); 
+    manager.create_threads(true, false);   
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1029,11 +1020,7 @@ void test_ingestion_fulld(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1258,7 +1245,6 @@ void recover_test0(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    
     manager.recover_graph_adj(idir, odir);
     
     //Run BFS
@@ -1285,6 +1271,7 @@ void test_ingestiond(const string& idir, const string& odir)
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    manager.create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfsd();    
     g->store_graph_baseline();
@@ -1297,6 +1284,7 @@ void test_ingestionuni(const string& idir, const string& odir)
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    manager.create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfsd();    
     g->store_graph_baseline();
@@ -1305,7 +1293,6 @@ void test_ingestionuni(const string& idir, const string& odir)
 template <class T>
 void test_ingestion_memory(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     if ( 0 != residue) {
         LOCAL_DELTA_SIZE = residue;
         cout << "local delta size  << " << residue << endl; 
@@ -1314,7 +1301,9 @@ void test_ingestion_memory(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    manager.create_threads(true, false);   
     manager.prep_graph(idir, odir); 
+    
     manager.run_bfs();    
     pgraph_t<T>* graph = manager.get_plaingraph();
     double start = mywtime();
@@ -1328,10 +1317,10 @@ template<class T>
 void test_ingestion_memoryd(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    manager.create_threads(true, false);   
     manager.prep_graph(idir, odir); 
     manager.run_bfsd();    
     
@@ -1349,18 +1338,13 @@ void ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
-    //g->store_graph_baseline();    
+    g->store_graph_baseline();    
 }
 
 template <class T>
@@ -1368,15 +1352,10 @@ void ingestion_fromtextd(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1387,15 +1366,10 @@ void test_ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn2_t parsebuf_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraph();
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph(v_count);
+    manager.create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1408,6 +1382,7 @@ void test_ingestion(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    manager.create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfs();    
     g->store_graph_baseline();
@@ -1429,7 +1404,6 @@ void stream_wcc(const string& idir, const string& odir)
 template <class T>
 void test_stream_pr(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
     //do some setup for plain graphs
@@ -1444,7 +1418,6 @@ void test_stream_pr(const string& idir, const string& odir)
 template <class T>
 void test_serial_stream_pr(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
     //do some setup for plain graphs
@@ -1471,6 +1444,12 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 6:
             recover_testuni<netflow_dst_t>(odir);
+            break;
+        case 7:
+            recover_test0<sid_t>(idir, odir);
+            break;
+        case 8:
+            recover_test0d<sid_t>(idir, odir);
             break;
         
         case 9:
@@ -1577,12 +1556,6 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         
         case 94:
             stream_netflow_aggregation(idir, odir);
-            break;
-        case 95:
-            recover_test0<sid_t>(idir, odir);
-            break;
-        case 96:
-            recover_test0d<sid_t>(idir, odir);
             break;
         case 97:
             estimate_chain_new<sid_t>(idir, odir);

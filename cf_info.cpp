@@ -85,10 +85,82 @@ cfinfo_t::cfinfo_t()
     }
     q_head = 0;
     q_tail = 0;
-       
+    
     snapshot = 0;
     snap_f = 0;
     wtf = 0;
+}
+
+void cfinfo_t::create_wthread()
+{
+    if (0 != pthread_create(&w_thread, 0, cfinfo_t::w_func, (void*)this)) {
+        assert(0);
+    }
+}
+
+//void* cfinfo_t::w_func(void* arg)
+//{
+//    cout << "enterting w_func" << endl; 
+//    cfinfo_t* ptr = (cfinfo_t*)(arg);
+//    pthread_mutex_init(&ptr->w_mutex, 0);
+//    pthread_cond_init(&ptr->w_condition, 0);
+//    
+//    do {
+//        pthread_mutex_lock(&ptr->w_mutex);
+//        pthread_cond_wait(&ptr->w_condition, &ptr->w_mutex);
+//        pthread_mutex_unlock(&ptr->w_mutex);
+//        ptr->write_edgelog();
+//        cout << "Writing w_thd" << endl;
+//    } while(1);
+//
+//    return 0;
+//}
+
+void* cfinfo_t::w_func(void* arg)
+{
+    cout << "enterting w_func" << endl; 
+    
+    cfinfo_t* ptr = (cfinfo_t*)(arg);
+    pthread_mutex_init(&ptr->w_mutex, 0);
+    pthread_cond_init(&ptr->w_condition, 0);
+    
+    do {
+        ptr->write_edgelog();
+        //cout << "Writing w_thd" << endl;
+        usleep(10);
+    } while(1);
+
+    return 0;
+}
+
+void cfinfo_t::create_snapthread()
+{
+    pthread_mutex_init(&snap_mutex, 0);
+    pthread_cond_init(&snap_condition, 0);
+    if (0 != pthread_create(&snap_thread, 0, cfinfo_t::snap_func, (void*)this)) {
+        assert(0);
+    }
+}
+
+void* cfinfo_t::snap_func(void* arg)
+{
+    cfinfo_t* ptr = (cfinfo_t*)(arg);
+    
+    do {
+        //struct timeval tp;
+        struct timespec ts;
+        int rc = clock_gettime(CLOCK_REALTIME, &ts);
+
+        //ts.tv_sec = tp.tv_sec;
+        //ts.tv_nsec = tp.tv_usec * 1000;
+        ts.tv_nsec += 100 * 1000000;  //30 is my milliseconds
+        pthread_mutex_lock(&ptr->snap_mutex);
+        pthread_cond_timedwait(&ptr->snap_condition, &ptr->snap_mutex, &ts);
+        pthread_mutex_unlock(&ptr->snap_mutex);
+        ptr->create_snapshot();
+    } while(1);
+
+    return 0;
 }
 
 status_t cfinfo_t::create_snapshot()
@@ -127,15 +199,39 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
     next->marker = snap_marker;
     next->next = snapshot;
     snapshot = next;
+}
+
+void cfinfo_t::read_snapshot()
+{
+    assert(snap_f != 0);
+
+    off_t size = fsize(snapfile.c_str());
+    if (size == -1L) {
+        assert(0);
+    }
     
-    /*
+    snapid_t count = (size/sizeof(disk_snapshot_t));
+    disk_snapshot_t* disk_snapshot = (disk_snapshot_t*)calloc(count, sizeof(disk_snapshot_t));
+    fread(disk_snapshot, sizeof(disk_snapshot_t), count, snap_f);
+    
+    snapshot_t* next = 0;
+    for (snapid_t i = 0; i < count; ++i) {
+        next = new snapshot_t;
+        next->snap_id = disk_snapshot[i].snap_id;
+        next->marker = disk_snapshot[i].marker;
+        next->durable_marker = disk_snapshot[i].durable_marker;
+        next->next = snapshot;
+        snapshot = next;
+    }
+}
+
+void cfinfo_t::write_snapshot()
+{
     disk_snapshot_t* disk_snapshot = (disk_snapshot_t*)malloc(sizeof(disk_snapshot_t));
     disk_snapshot->snap_id= snapshot->snap_id;
     disk_snapshot->marker = snapshot->marker;
     disk_snapshot->durable_marker = snapshot->durable_marker;
     fwrite(disk_snapshot, sizeof(disk_snapshot_t), 1, snap_f);
-    */
-
 }
 
 status_t cfinfo_t::batch_update(const string& src, const string& dst, propid_t pid /* = 0*/)

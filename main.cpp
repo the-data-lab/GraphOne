@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
     int job = 0;
 
     //Thread thing
-	THD_COUNT = omp_get_max_threads();// - 3;
+	THD_COUNT = omp_get_max_threads()-1;// - 3;
 
     g = new graph; 
 	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:h", longopts, &index)) != -1) {

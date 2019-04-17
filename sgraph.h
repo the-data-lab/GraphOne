@@ -83,21 +83,21 @@ class pgraph_t: public cfinfo_t {
         if (marker ==0) {
             marker = blog->blog_head;
         }
-        pthread_mutex_lock(&g->snap_mutex);
+        pthread_mutex_lock(&snap_mutex);
         index_t m_index = __sync_fetch_and_add(&q_head, 1L);
         q_beg[m_index % q_count] = marker;
-        pthread_cond_signal(&g->snap_condition);
-        pthread_mutex_unlock(&g->snap_mutex);
+        pthread_cond_signal(&snap_condition);
+        pthread_mutex_unlock(&snap_mutex);
         //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
     } 
     
     //called from snap thread 
     status_t move_marker(index_t& snap_marker) {
-        pthread_mutex_lock(&g->snap_mutex);
+        pthread_mutex_lock(&snap_mutex);
         index_t head = q_head;
         //Need to read marker and set the blog_marker;
         if (q_tail == head) {
-            pthread_mutex_unlock(&g->snap_mutex);
+            pthread_mutex_unlock(&snap_mutex);
             //cout << "Marker NO dequeue. Position = " << head <<  endl;
             return eNoWork;
         }
@@ -108,7 +108,7 @@ class pgraph_t: public cfinfo_t {
         blog->blog_marker = marker;
         snap_marker = blog->blog_marker;
         
-        pthread_mutex_unlock(&g->snap_mutex);
+        pthread_mutex_unlock(&snap_mutex);
         //cout << "Marker dequeue. Position = " << m_index % q_count << " " << marker << endl;
         return eOK;
     }
@@ -292,7 +292,6 @@ class ugraph: public pgraph_t<T> {
     void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    void create_snapshot();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
@@ -328,7 +327,6 @@ class dgraph: public pgraph_t<T> {
     void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    void create_snapshot();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
@@ -364,7 +362,6 @@ class unigraph: public pgraph_t<T> {
     //void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    //void create_snapshot();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
@@ -1206,6 +1203,7 @@ void dgraph<T>::store_graph_baseline(bool clean)
     {
     store_sgraph(sgraph_out, clean);
     store_sgraph(sgraph_in, clean);
+    this->write_snapshot();
     }
 }
 
@@ -1225,6 +1223,7 @@ void dgraph<T>::read_graph_baseline()
     read_sgraph(sgraph_out);
     read_sgraph(sgraph_in);
     this->mem.handle_read();
+    this->read_snapshot();
 }
 
 /*******************************************/
@@ -1304,6 +1303,7 @@ void ugraph<T>::store_graph_baseline(bool clean)
     double start, end;
     start = mywtime(); 
     store_sgraph(sgraph, clean);
+    this->write_snapshot();
     end = mywtime();
     cout << "store graph time = " << end - start << endl;
 }
@@ -1311,6 +1311,15 @@ void ugraph<T>::store_graph_baseline(bool clean)
 template <class T> 
 void ugraph<T>::file_open(const string& odir, bool trunc)
 {
+    this->snapfile =  odir + this->col_info[0]->p_name + ".snap";
+    if (trunc) {
+        this->snap_f = fopen(this->snapfile.c_str(), "wb");//write + binary
+    } else {
+        this->snap_f = fopen(this->snapfile.c_str(), "r+b");
+    }
+    
+    assert(this->snap_f != 0);
+    
     this->file_open_edge(odir, trunc);
     string postfix = "";
     file_open_sgraph(sgraph, odir, postfix, trunc);
@@ -1321,6 +1330,7 @@ void ugraph<T>::read_graph_baseline()
 {
     read_sgraph(sgraph);
     this->mem.handle_read();
+    this->read_snapshot();
 }
 
 
@@ -1448,6 +1458,7 @@ void unigraph<T>::store_graph_baseline(bool clean)
     //#pragma omp parallel num_threads(THD_COUNT)
     {
     store_sgraph(sgraph_out, clean);
+    this->write_snapshot();
     }
 }
 
@@ -1464,6 +1475,7 @@ void unigraph<T>::read_graph_baseline()
 {
     read_sgraph(sgraph_out);
     this->mem.handle_read();
+    this->read_snapshot();
 }
 
 

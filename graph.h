@@ -63,6 +63,7 @@ class graph {
     typekv_t* typekv;
     string    odirname;
     
+    /*
     //threads
     pthread_t snap_thread;
     pthread_mutex_t snap_mutex;
@@ -71,7 +72,7 @@ class graph {
     pthread_t w_thread;
     pthread_mutex_t w_mutex;
     pthread_cond_t  w_condition;
-
+    */
     index_t snap_id;
 
  public:

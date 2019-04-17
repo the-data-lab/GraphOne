@@ -40,12 +40,13 @@ class plaingraph_manager_t {
     void schema_plaingraph();
     void schema_plaingraphd();
     void schema_plaingraphuni();
+
+    void create_threads(bool snap_thd, bool w_thd);
     
   public:
     void setup_graph(vid_t v_count);
     void setup_graph_memory(vid_t v_count);
     void setup_graph_vert_nocreate(vid_t v_count);
-    void restore_graph();
     void recover_graph_adj(const string& idirname, const string& odirname);
 
     void prep_graph_fromtext(const string& idirname, const string& odirname, 
@@ -67,6 +68,7 @@ class plaingraph_manager_t {
                                 const string& odirname, 
                                 stream_t<T>* streamh);
     void waitfor_archive();
+    void waitfor_archive_durable(double start);
     
     void run_pr_simple();
     void run_pr();
@@ -77,6 +79,20 @@ class plaingraph_manager_t {
     void run_1hopd();
     void run_2hop();
 };
+
+    
+template <class T>
+void plaingraph_manager_t<T>::create_threads(bool snap_thd, bool w_thd)
+{
+    if (snap_thd) {
+        pgraph->create_snapthread();
+    }
+
+    if (w_thd) {
+        pgraph->create_wthread();
+    }
+    usleep(1000);
+}
 
 template <class T>
 void plaingraph_manager_t<T>::schema_plaingraph()
@@ -101,6 +117,8 @@ void plaingraph_manager_t<T>::schema_plaingraph()
     info = new ugraph<T>;
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
+    info->flag1 = 1;
+    info->flag2 = 1;
     ++p_info;
     set_pgraph(info);
 
@@ -129,6 +147,8 @@ void plaingraph_manager_t<T>::schema_plaingraphd()
     info = new dgraph<T>;
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
+    info->flag1 = 1;
+    info->flag2 = 1;
     ++p_info;
     set_pgraph(info);
 }
@@ -156,6 +176,8 @@ void plaingraph_manager_t<T>::schema_plaingraphuni()
     info = new unigraph<T>;
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
+    info->flag1 = 1;
+    info->flag2 = 1;
     ++p_info;
     set_pgraph(info);
 }
@@ -164,9 +186,6 @@ template <class T>
 void plaingraph_manager_t<T>::setup_graph(vid_t v_count)
 {
     //do some setup for plain graphs
-    pgraph_t<T>* graph = (pgraph_t<T>*)get_plaingraph();
-    graph->flag1 = 1;
-    graph->flag2 = 1;
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, true);
     g->type_done();
@@ -178,9 +197,6 @@ template <class T>
 void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count)
 {
     //do some setup for plain graphs
-    pgraph_t<T>* graph = (pgraph_t<T>*)get_plaingraph();
-    graph->flag1 = 1;
-    graph->flag2 = 1;
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, false);
     g->type_done();
@@ -189,22 +205,9 @@ void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count)
 }
 
 template <class T>
-void plaingraph_manager_t<T>::restore_graph()
-{
-    //do some setup for plain graphs
-    pgraph_t<T>* graph = (pgraph_t<T>*)get_plaingraph();
-    graph->flag1 = 1;
-    graph->flag2 = 1;
-    g->read_graph_baseline();
-}
-
-template <class T>
 void plaingraph_manager_t<T>::setup_graph_memory(vid_t v_count)
 {
     //do some setup for plain graphs
-    pgraph_t<T>* graph = (pgraph_t<T>*)get_plaingraph();
-    graph->flag1 = 1;
-    graph->flag2 = 1;
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, true);
     //g->file_open(true);
@@ -295,17 +298,6 @@ void plaingraph_manager_t<T>::recover_graph_adj(const string& idirname, const st
             ugraph->create_marker(marker);
             ugraph->create_snapshot();
             g->incr_snapid();
-            /*
-            if (eOK != ugraph->move_marker(snap_marker)) {
-                assert(0);
-            }
-            ugraph->make_graph_baseline();
-            //ugraph->store_graph_baseline();
-            ugraph->create_snapid(snap_marker, snap_marker);
-            //blog->marker = marker;
-            ugraph->update_marker();
-            //cout << marker << endl;
-            */
         }
     }
     delete arg; 
@@ -331,9 +323,6 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     
     //Make Graph
     index_t marker = 0;
-    //index_t snap_marker = 0;
-    //index_t total_edge_count = blog->blog_head;
-    //index_t batch_size = (total_edge_count >> residue);
     index_t batch_size = (1L << residue);
     cout << "batch_size = " << batch_size << endl;
 
@@ -342,15 +331,6 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
         ugraph->create_marker(marker);
         ugraph->create_snapshot();
         g->incr_snapid();
-        /*
-        if (eOK != ugraph->move_marker(snap_marker)) {
-            assert(0);
-        }
-        ugraph->make_graph_baseline();
-        g->incr_snapid(snap_marker, snap_marker);
-        ugraph->update_marker();
-        //cout << marker << endl;
-        */
     }
     double end = mywtime ();
     cout << "Make graph time = " << end - start << endl;
@@ -488,11 +468,6 @@ void plaingraph_manager_t<T>::prep_graph_fromtext2(const string& idirname,
 template <class T>
 void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& odirname)
 {
-    //-----
-    g->create_snapthread();
-    usleep(1000);
-    //-----
-    
     edgeT_t<T>* edges = 0;
     index_t total_edge_count = read_idir(idirname, &edges, true); 
     
@@ -531,11 +506,36 @@ void plaingraph_manager_t<T>::waitfor_archive()
 }
 
 template <class T>
+void plaingraph_manager_t<T>::waitfor_archive_durable(double start) 
+{
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    blog_t<T>* blog = pgraph->blog;
+    index_t marker = blog->blog_head;
+    if (marker != blog->blog_marker) {
+        pgraph->create_marker(marker);
+    }
+    double end = 0;
+    bool done_making = false;
+    bool done_persisting = false;
+    while (!done_making || !done_persisting) {
+        if (blog->blog_tail == blog->blog_head && !done_making) {
+            end = mywtime();
+            cout << "Make Graph Time = " << end - start << endl;
+            done_making = true;
+        }
+        if (blog->blog_wtail == blog->blog_head && !done_persisting) {
+            end = mywtime();
+            cout << "Durable Graph Time = " << end - start << endl;
+            done_persisting = true;
+        }
+        usleep(1);
+    }
+}
+
+template <class T>
 void plaingraph_manager_t<T>::prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh)
 {
-    //-----
-    g->create_snapthread();
-    usleep(1000);
+    create_threads(true, false);   
     
     edgeT_t<T>* edges = 0;
     index_t total_edge_count = read_idir(idirname, &edges, true); 
@@ -882,12 +882,6 @@ void plaingraph_manager_t<T>::prep_graph_serial_scompute(const string& idirname,
 template <class T>
 void plaingraph_manager_t<T>::prep_graph_durable(const string& idirname, const string& odirname)
 {
-    //-----
-    g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
-    
     edgeT_t<T>* edges = 0;
     index_t total_edge_count = read_idir(idirname, &edges, true); 
     
@@ -902,29 +896,8 @@ void plaingraph_manager_t<T>::prep_graph_durable(const string& idirname, const s
     double end = mywtime ();
     cout << "Batch Update Time = " << end - start << endl;
 
-    //----------
-    blog_t<T>* blog = ugraph->blog;
-    index_t marker = blog->blog_head;
-    if (marker != blog->blog_marker) {
-        ugraph->create_marker(marker);
-    }
-
     //Wait for make and durable graph
-    bool done_making = false;
-    bool done_persisting = false;
-    while (!done_making || !done_persisting) {
-        if (blog->blog_tail == blog->blog_head && !done_making) {
-            end = mywtime();
-            cout << "Make Graph Time = " << end - start << endl;
-            done_making = true;
-        }
-        if (blog->blog_wtail == blog->blog_head && !done_persisting) {
-            end = mywtime();
-            cout << "Durable Graph Time = " << end - start << endl;
-            done_persisting = true;
-        }
-        usleep(1);
-    }
+    waitfor_archive_durable(start);
 }
 
 #include "mem_iterative_analytics.h"

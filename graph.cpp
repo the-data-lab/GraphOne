@@ -24,11 +24,6 @@ graph::graph()
     p_count  = 0;
     vert_count = 0;
     snap_id = 0; 
-    pthread_mutex_init(&snap_mutex, 0);
-    pthread_cond_init(&snap_condition, 0);
-    
-    pthread_mutex_init(&w_mutex, 0);
-    pthread_cond_init(&w_condition, 0);
     
     register_instances();
 }
@@ -287,33 +282,35 @@ void graph::make_graph_baseline()
     } 
 }
 
-void graph::create_snapthread()
-{
-    if (0 != pthread_create(&snap_thread, 0, graph::snap_func , g)) {
-        assert(0);
-    }
-}
-
-void* graph::snap_func(void* arg)
-{
-    graph* g_ptr = (graph*)(arg);
-    
-    do {
-        //struct timeval tp;
-        struct timespec ts;
-        int rc = clock_gettime(CLOCK_REALTIME, &ts);
-
-        //ts.tv_sec = tp.tv_sec;
-        //ts.tv_nsec = tp.tv_usec * 1000;
-        ts.tv_nsec += 100 * 1000000;  //30 is my milliseconds
-        pthread_mutex_lock(&g_ptr->snap_mutex);
-        pthread_cond_timedwait(&g_ptr->snap_condition, &g_ptr->snap_mutex, &ts);
-        pthread_mutex_unlock(&g_ptr->snap_mutex);
-        g_ptr->create_snapshot();
-    } while(1);
-
-    return 0;
-}
+//void graph::create_snapthread()
+//{
+//    pthread_mutex_init(&snap_mutex, 0);
+//    pthread_cond_init(&snap_condition, 0);
+//    if (0 != pthread_create(&snap_thread, 0, graph::snap_func , g)) {
+//        assert(0);
+//    }
+//}
+//
+//void* graph::snap_func(void* arg)
+//{
+//    graph* g_ptr = (graph*)(arg);
+//    
+//    do {
+//        //struct timeval tp;
+//        struct timespec ts;
+//        int rc = clock_gettime(CLOCK_REALTIME, &ts);
+//
+//        //ts.tv_sec = tp.tv_sec;
+//        //ts.tv_nsec = tp.tv_usec * 1000;
+//        ts.tv_nsec += 100 * 1000000;  //30 is my milliseconds
+//        pthread_mutex_lock(&g_ptr->snap_mutex);
+//        pthread_cond_timedwait(&g_ptr->snap_condition, &g_ptr->snap_mutex, &ts);
+//        pthread_mutex_unlock(&g_ptr->snap_mutex);
+//        g_ptr->create_snapshot();
+//    } while(1);
+//
+//    return 0;
+//}
 
 void graph::create_snapshot()
 {
@@ -413,42 +410,29 @@ void graph::add_columnfamily(cfinfo_t* cf, propid_t p_count/*=1*/)
 }
 
 
-void graph::create_wthread()
-{
-    if (0 != pthread_create(&w_thread, 0, graph::w_func , g)) {
-        assert(0);
-    }
-}
-
+//void graph::create_wthread()
+//{
+//    pthread_mutex_init(&w_mutex, 0);
+//    pthread_cond_init(&w_condition, 0);
+    
+//    if (0 != pthread_create(&w_thread, 0, graph::w_func , g)) {
+//        assert(0);
+//    }
+//}
+//
 //void* graph::w_func(void* arg)
 //{
 //    cout << "enterting w_func" << endl; 
 //    graph* g_ptr = (graph*)(arg);
 //    
 //    do {
-//        pthread_mutex_lock(&g_ptr->w_mutex);
-//        pthread_cond_wait(&g_ptr->w_condition, &g_ptr->w_mutex);
-//        pthread_mutex_unlock(&g_ptr->w_mutex);
 //        g_ptr->write_edgelog();
-//        cout << "Writing w_thd" << endl;
+//        //cout << "Writing w_thd" << endl;
+//        usleep(10);
 //    } while(1);
 //
 //    return 0;
 //}
-
-void* graph::w_func(void* arg)
-{
-    cout << "enterting w_func" << endl; 
-    graph* g_ptr = (graph*)(arg);
-    
-    do {
-        g_ptr->write_edgelog();
-        //cout << "Writing w_thd" << endl;
-        usleep(10);
-    } while(1);
-
-    return 0;
-}
 
 void graph::write_edgelog()
 {

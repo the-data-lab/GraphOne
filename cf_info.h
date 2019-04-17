@@ -58,6 +58,15 @@ class cfinfo_t {
     index_t    q_head;
     index_t    q_tail;
     
+    //threads
+    pthread_t       snap_thread;
+    pthread_mutex_t snap_mutex;
+    pthread_cond_t  snap_condition;
+    
+    pthread_t       w_thread;
+    pthread_mutex_t w_mutex;
+    pthread_cond_t  w_condition;
+    
     snapshot_t*  snapshot;
     string       snapfile;
     FILE*        snap_f;
@@ -65,11 +74,18 @@ class cfinfo_t {
 
  public: 
     cfinfo_t();   
+    
+    void create_wthread();
+    static void* w_func(void* arg);
+    void create_snapthread();
+    static void* snap_func(void* arg);
+    
     status_t create_snapshot();
     void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
     void reset();
     inline snapshot_t* get_snapshot() {return snapshot;}
     void read_snapshot();
+    void write_snapshot();
 
  public:
     void create_columns(propid_t prop_count);

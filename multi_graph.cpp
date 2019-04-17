@@ -65,7 +65,6 @@ void wls_schema()
     info->flag1 = 1;
     //info->flag2 = 1;
     ++p_info;
-    
 }
 
 void wls_setup()
@@ -75,6 +74,13 @@ void wls_setup()
     typekv->manual_setup(1<<20, false, "user");//users are tid 1
     g->prep_graph_baseline();
     g->file_open(true);
+
+    //Create threads. Remember the index in schema
+    g->cf_info[1]->create_snapthread();
+    g->cf_info[1]->create_wthread();
+    g->cf_info[2]->create_snapthread();
+    g->cf_info[2]->create_wthread();
+    usleep(1000);
 }
 
 inline index_t parse_wls_line(char* line) 
@@ -246,11 +252,6 @@ static void read_idir_text(const string& idirname, const string& odirname,
 void multi_graph_t::prep_graph_fromtext(const string& idirname, const string& odirname, 
                                         parse_fn_t parsefile_fn)
 {
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
     //Batch and Make Graph
     double start = mywtime();
     read_idir_text(idirname, odirname, parsefile_fn);    
