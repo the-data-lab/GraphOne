@@ -10,6 +10,7 @@
 #include "type.h"
 #include "graph.h"
 #include "wtime.h"
+#include "edge_sharding.h"
 
 template <class T>
 class pgraph_t: public cfinfo_t {
@@ -26,23 +27,18 @@ class pgraph_t: public cfinfo_t {
         
         //circular edge log buffer
         blog_t<T>*  blog;
-       
-        //intermediate classification buffer
-        edgeT_t<T>* edge_buf_out;
-        edgeT_t<T>* edge_buf_in;
-        index_t edge_buf_count;
 
+        //edge sharding unit
+        edge_shard_t<T>* edge_shard;
+        
 
  public:    
     inline pgraph_t() { 
         sgraph = 0;
         sgraph_in = 0;
         
-        edge_buf_out = 0;
-        edge_buf_in = 0;
-        edge_buf_count = 0;
-        
         blog = new blog_t<T>;
+        edge_shard = new edge_shard_t<T>(blog);
     }
 
     inline void alloc_edgelog(index_t count) {
@@ -50,9 +46,6 @@ class pgraph_t: public cfinfo_t {
     }
     status_t write_edgelog(); 
     
-    void alloc_edge_buf(index_t total); 
-    void free_edge_buf();
-
     virtual status_t batch_update(const string& src, const string& dst, propid_t pid = 0) {
         edgeT_t<T> edge; 
         edge.src_id = g->get_sid(src.c_str());
@@ -192,49 +185,6 @@ class pgraph_t: public cfinfo_t {
     //status_t extend_kv_td(onekv_t<T>** skv, srset_t* iset, srset_t* oset);
 };
 
-template <class T>
-void pgraph_t<T>::alloc_edge_buf(index_t total) 
-{
-    index_t total_edge_count = 0;
-    if (0 == sgraph_in) {
-        total_edge_count = (total << 1);
-        if (0 == edge_buf_count) {
-            edge_buf_out = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_count = total_edge_count;
-        } else if (edge_buf_count < total_edge_count) {
-            free(edge_buf_out);
-            edge_buf_out = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_count = total_edge_count;
-        }
-    } else {
-        total_edge_count = total;
-        if (0 == edge_buf_count) {
-            edge_buf_out = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_in = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_count = total_edge_count;
-        } else if (edge_buf_count < total_edge_count) {
-            free(edge_buf_out);
-            free(edge_buf_in);
-            edge_buf_out = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_in = (edgeT_t<T>*)malloc(total_edge_count*sizeof(edgeT_t<T>));
-            edge_buf_count = total_edge_count;
-        }
-    }
-}
-
-template <class T>
-void pgraph_t<T>::free_edge_buf() 
-{
-    if (edge_buf_out) {    
-        free(edge_buf_out);
-        edge_buf_out = 0;
-    }
-    if (edge_buf_in) {
-        free(edge_buf_in);
-        edge_buf_in = 0;
-    }
-    edge_buf_count = 0;
-}
 
 //called from w thread 
 template <class T>
@@ -1210,6 +1160,14 @@ void dgraph<T>::store_graph_baseline(bool clean)
 template <class T> 
 void dgraph<T>::file_open(const string& odir, bool trunc)
 {
+    this->snapfile =  odir + this->col_info[0]->p_name + ".snap";
+    if (trunc) {
+        this->snap_f = fopen(this->snapfile.c_str(), "wb");//write + binary
+    } else {
+        this->snap_f = fopen(this->snapfile.c_str(), "r+b");
+    }
+    
+    assert(this->snap_f != 0);
     this->file_open_edge(odir, trunc);
     string postfix = "out";
     file_open_sgraph(sgraph_out, odir, postfix, trunc);
@@ -1467,6 +1425,14 @@ void unigraph<T>::store_graph_baseline(bool clean)
 template <class T> 
 void unigraph<T>::file_open(const string& odir, bool trunc)
 {
+    this->snapfile =  odir + this->col_info[0]->p_name + ".snap";
+    if (trunc) {
+        this->snap_f = fopen(this->snapfile.c_str(), "wb");//write + binary
+    } else {
+        this->snap_f = fopen(this->snapfile.c_str(), "r+b");
+    }
+    
+    assert(this->snap_f != 0);
     this->file_open_edge(odir, trunc);
     string postfix = "out";
     file_open_sgraph(sgraph_out, odir, postfix, trunc);

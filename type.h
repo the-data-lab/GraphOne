@@ -656,7 +656,6 @@ class global_range_t {
 //for each thread 
 class thd_local_t {
   public:
-      //For each thread
-      vid_t* vid_range;
+      vid_t* vid_range; //For each range
       vid_t  range_end;
 };
