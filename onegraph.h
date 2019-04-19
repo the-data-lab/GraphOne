@@ -6,7 +6,7 @@ using std::min;
 #ifndef BULK
 template <class T>
 void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
-	snapid_t snap_id = g->get_snapid() + 1;
+	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = beg_pos[vid].get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -34,7 +34,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 }
 template <class T>
 void onegraph_t<T>::decrement_count_noatomic(vid_t vid) {
-	snapid_t snap_id = g->get_snapid() + 1;
+	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = beg_pos[vid].get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -288,7 +288,7 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 	vunit_t<T>* v_unit = 0;
     snapT_t<T>* curr;
 	snapT_t<T>* next;
-    snapid_t snap_id = g->get_snapid() + 1;
+    snapid_t snap_id = pgraph->snap_id + 1;
 	int tid = omp_get_thread_num();
 	thd_mem_t<T>* my_thd_mem = thd_mem + tid;
 	memset(my_thd_mem, 0, sizeof(thd_mem_t<T>));
@@ -388,8 +388,9 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 #endif
 
 template <class T>
-void onegraph_t<T>::setup(tid_t t)
+void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
 {
+    pgraph = pgraph1;
     tid = t;
     vid_t max_vcount = g->get_type_scount(tid);;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
@@ -538,7 +539,7 @@ template <class T>
 void onegraph_t<T>::setup_adjlist()
 {
     vid_t    v_count = g->get_type_vcount(tid);
-    snapid_t snap_id = g->get_snapid() + 1;
+    snapid_t snap_id = pgraph->snap_id + 1;
     
     snapT_t<T>* curr;
 	vunit_t<T>* v_unit = 0;

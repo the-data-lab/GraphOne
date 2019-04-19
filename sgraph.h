@@ -350,7 +350,7 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == sgraph[i]) {
                 sgraph[i] = new onegraph_t<T>;
-                sgraph[i]->setup(i);
+                sgraph[i]->setup(this, i);
             }
         } 
     } 
@@ -364,7 +364,7 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
         if (0 == sgraph[pos]) {
             sgraph[pos] = new onegraph_t<T>;
         }
-        sgraph[pos]->setup(pos);
+        sgraph[pos]->setup(this, pos);
     }
 }
 

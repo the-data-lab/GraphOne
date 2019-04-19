@@ -280,7 +280,6 @@ void plaingraph_manager_t<T>::recover_graph_adj(const string& idirname, const st
             marker = min(blog->blog_head, marker+batch_size);
             ugraph->create_marker(marker);
             ugraph->create_snapshot();
-            g->incr_snapid();
         }
     }
     delete arg; 
@@ -313,7 +312,6 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
         marker = min(blog->blog_head, marker+batch_size);
         ugraph->create_marker(marker);
         ugraph->create_snapshot();
-        g->incr_snapid();
     }
     double end = mywtime ();
     cout << "Make graph time = " << end - start << endl;
@@ -719,7 +717,6 @@ void* serial_sstream_func(void* arg)
             //cout << "marker = " << marker << endl;
             ugraph->create_marker(marker);
             ugraph->create_snapshot();
-            g->incr_snapid();
             /*
             if (eOK != ugraph->move_marker(snap_marker)) {
                 assert(0);

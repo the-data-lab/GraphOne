@@ -70,6 +70,7 @@ void cfinfo_t::add_edge_property(const char* longname, prop_encoder_t* a_prop_en
 
 cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
+    snap_id = 0;
     gtype = type;
     flag1 = 0;
     flag2 = 0;
@@ -166,7 +167,7 @@ void* cfinfo_t::snap_func(void* arg)
         pthread_mutex_lock(&ptr->snap_mutex);
         pthread_cond_timedwait(&ptr->snap_condition, &ptr->snap_mutex, &ts);
         pthread_mutex_unlock(&ptr->snap_mutex);
-        ptr->create_snapshot();
+        while (eOK == ptr->create_snapshot());
     } while(1);
 
     return 0;
@@ -193,7 +194,7 @@ status_t cfinfo_t::create_snapshot()
 void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 */)
 {
     snapshot_t* next = new snapshot_t;
-    next->snap_id = g->get_snapid()+ 1;
+    next->snap_id = snap_id + 1;
     
     if (snapshot) {
         if (durable_marker == 0) {
@@ -208,6 +209,7 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
     next->marker = snap_marker;
     next->next = snapshot;
     snapshot = next;
+    ++snap_id;
 }
 
 void cfinfo_t::read_snapshot()

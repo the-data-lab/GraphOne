@@ -51,6 +51,7 @@ class cfinfo_t {
 
     prop_encoder_t* prop_encoder;
 
+    snapid_t    snap_id;
     gtype_t     gtype;
     sflag_t     flag1;
     sflag_t     flag2;

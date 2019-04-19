@@ -114,6 +114,7 @@ void pgraph_t<T>::make_graph_uni()
         //make_on_classify(sgraph_out, global_range, j_start, j_end, bit_shift); 
         
         #pragma omp barrier 
+        edge_shard->cleanup();
     }
 
     blog->blog_tail = blog->blog_marker;  

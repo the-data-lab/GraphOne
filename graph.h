@@ -63,8 +63,6 @@ class graph {
     typekv_t* typekv;
     string    odirname;
     
-    index_t snap_id;
-
  public:
     graph();
     inline void set_odir(const string& odir) {
@@ -74,8 +72,6 @@ class graph {
     void register_instances();
     void create_schema(propid_t count, const string& conf_file);
     
-    snapid_t get_snapid();
-    void incr_snapid();
     inline cfinfo_t* get_sgraph(propid_t cfid) { return cf_info[cfid];}
     inline typekv_t* get_typekv() { return (typekv_t*)cf_info[0]; }
     vid_t get_type_scount(tid_t type = 0);

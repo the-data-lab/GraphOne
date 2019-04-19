@@ -7,15 +7,6 @@ index_t residue = 0;
 map<string, get_graph_instance>  graph_instance;
 map<string, get_encoder_instance>  encoder_instance;
 
-snapid_t graph::get_snapid() {
-    return snap_id;
-}
-
-void graph::incr_snapid() 
-{
-    ++snap_id;
-}
-
 graph::graph()
 {
     cf_info  = 0;
@@ -23,8 +14,6 @@ graph::graph()
     p_info   = 0;
     p_count  = 0;
     vert_count = 0;
-    snap_id = 0; 
-    
     register_instances();
 }
     
@@ -279,10 +268,6 @@ void graph::make_graph_baseline()
             ++work_done;
         }
     }
-
-    if (work_done != 0 ) { 
-        incr_snapid();
-    } 
 }
 
 void graph::create_threads(bool snap_thd, bool w_thd)
@@ -323,9 +308,6 @@ void graph::create_snapshot()
         if (eOK == cf_info[i]->create_snapshot()) {
             ++work_done;
         }
-    }
-    if (work_done != 0) {
-        incr_snapid();
     }
 }
 

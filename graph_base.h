@@ -122,6 +122,7 @@ class onegraph_t {
 private:
     //type id and vertices count together
     tid_t     tid;
+    pgraph_t<T>* pgraph;
 
     //array of adj list of vertices
     vert_table_t<T>* beg_pos;
@@ -183,7 +184,7 @@ public:
     }
     degree_t get_nebrs(vid_t vid, T* ptr);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
-    void setup(tid_t tid);
+    void setup(pgraph_t<T>* pgraph1, tid_t tid);
 
     void     compress();
     status_t compress_nebrs(vid_t vid);

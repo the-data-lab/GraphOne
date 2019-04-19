@@ -672,7 +672,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     if (eOK == graph->move_marker(snap_marker)) {
         //graph->make_graph_baseline();
         //graph->store_graph_baseline();
-        g->incr_snapid();
+        //g->incr_snapid();
         graph->new_snapshot(snap_marker, snap_marker);
         //blog->blog_tail = marker;
         graph->update_marker();
@@ -831,92 +831,92 @@ void weighted_dtest0(const string& idir, const string& odir)
     return ;
 }
 
-void plain_test1(const string& idir, const string& odir)
-{
-    plaingraph_manager.schema_plaingraph();
-    //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
-    g->create_threads(true, false);   
-    plaingraph_manager.prep_graph(idir, odir);
-    
-    propid_t cf_id = g->get_cfid("friend");
-    ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
-    blog_t<sid_t>* blog = ugraph->blog;
-    cout << "snapshot id = " << g->get_snapid() << endl;
-    snapshot_t* snapshot = ugraph->get_snapshot();
-    //bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-    
-    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
-    
-    /*
-     * string idir1 = "/mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16_incr/"; 
-    //string idir1 = "../data/kron_21_16_incr/"; 
-    plaingraph_manager.prep_graph(idir1, odir);
-    */
-    snapid_t snap_id = g->get_snapid(); 
-    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-    /*
-    cout << "BFS on whole graph" << endl; 
-    bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-    
-    
-    //memset(level_array, 0, v_count*sizeof(uint8_t));
-    cout << "BFS on snap id = " << snap_id << endl; 
-    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id - 1, 1);
-    
-
-    cout << "multi-snap BFS" << endl;
-    multisnap_bfs<sid_t>(graph, graph, v_count, edge_count, snap_id - 1, snap_id , 1);
-    */
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    snapshot_t* old_snapshot = snapshot;
-    snapshot = ugraph->get_snapshot();
-    index_t marker = snapshot->marker;
-    
-    snap_id = old_snapshot->snap_id;
-    degree_t* degree_array = 0; 
-    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
-    create_degreesnap(graph, v_count, old_snapshot, old_snapshot->marker, blog->blog_beg, degree_array);
-    
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    /*
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    
-    old_snapshot = snapshot;
-    snapshot = g->get_snapshot();
-    marker = snapshot->marker;
-    snap_id = old_snapshot->snap_id;
-    degree_array = create_degreesnap(graph, v_count, snap_id);
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    old_snapshot = snapshot;
-    marker = snapshot->marker;
-    snap_id = old_snapshot->snap_id;
-    degree_array = create_degreesnap(graph, v_count, snap_id);
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    */
-    /*
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    cout << "BFS on first snapshot" << endl; 
-    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id, 1);
-    */
-    return ;
-}
+//void plain_test1(const string& idir, const string& odir)
+//{
+//    plaingraph_manager.schema_plaingraph();
+//    //do some setup for plain graphs
+//    plaingraph_manager.setup_graph(v_count);    
+//    g->create_threads(true, false);   
+//    plaingraph_manager.prep_graph(idir, odir);
+//    
+//    propid_t cf_id = g->get_cfid("friend");
+//    ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
+//    blog_t<sid_t>* blog = ugraph->blog;
+//    cout << "snapshot id = " << g->get_snapid() << endl;
+//    snapshot_t* snapshot = ugraph->get_snapshot();
+//    //bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
+//    
+//    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
+//    
+//    /*
+//     * string idir1 = "/mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16_incr/"; 
+//    //string idir1 = "../data/kron_21_16_incr/"; 
+//    plaingraph_manager.prep_graph(idir1, odir);
+//    */
+//    snapid_t snap_id = g->get_snapid(); 
+//    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+//    /*
+//    cout << "BFS on whole graph" << endl; 
+//    bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
+//    
+//    
+//    //memset(level_array, 0, v_count*sizeof(uint8_t));
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id - 1, 1);
+//    
+//
+//    cout << "multi-snap BFS" << endl;
+//    multisnap_bfs<sid_t>(graph, graph, v_count, edge_count, snap_id - 1, snap_id , 1);
+//    */
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    snapshot_t* old_snapshot = snapshot;
+//    snapshot = ugraph->get_snapshot();
+//    index_t marker = snapshot->marker;
+//    
+//    snap_id = old_snapshot->snap_id;
+//    degree_t* degree_array = 0; 
+//    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
+//    create_degreesnap(graph, v_count, old_snapshot, old_snapshot->marker, blog->blog_beg, degree_array);
+//    
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    /*
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    
+//    old_snapshot = snapshot;
+//    snapshot = g->get_snapshot();
+//    marker = snapshot->marker;
+//    snap_id = old_snapshot->snap_id;
+//    degree_array = create_degreesnap(graph, v_count, snap_id);
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    old_snapshot = snapshot;
+//    marker = snapshot->marker;
+//    snap_id = old_snapshot->snap_id;
+//    degree_array = create_degreesnap(graph, v_count, snap_id);
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    */
+//    /*
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    cout << "BFS on first snapshot" << endl; 
+//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id, 1);
+//    */
+//    return ;
+//}
 
 template <class T>
 void prior_snap_testu(const string& odir)
@@ -1433,9 +1433,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
 {
     v_count = v_count1; 
     switch (job) {
-        case 1:
-            plain_test1(idir, odir);
-            break;
+        //case 1:
+            //plain_test1(idir, odir);
+            //break;
         case 2:
             recover_testu<sid_t>(odir);
             break;
