@@ -258,10 +258,13 @@ void graph::swap_log_buffer()
     }
 }
 
-void graph::calc_degree()
+void graph::waitfor_archive()
 {
     for (int i = 0; i < cf_count; i++) {
-        cf_info[i]->calc_degree();
+        cf_info[i]->create_marker(0);
+    }
+    for (int i = 0; i < cf_count; i++) {
+        cf_info[i]->waitfor_archive();
     }
 }
 
@@ -282,14 +285,14 @@ void graph::make_graph_baseline()
     } 
 }
 
-//void graph::create_snapthread()
-//{
-//    pthread_mutex_init(&snap_mutex, 0);
-//    pthread_cond_init(&snap_condition, 0);
-//    if (0 != pthread_create(&snap_thread, 0, graph::snap_func , g)) {
-//        assert(0);
-//    }
-//}
+void graph::create_threads(bool snap_thd, bool w_thd)
+{
+    for (int i = 1; i < cf_count; i++) {
+        if (snap_thd) cf_info[i]->create_snapthread();
+        if (w_thd) cf_info[i]->create_wthread();
+    }
+}
+
 //
 //void* graph::snap_func(void* arg)
 //{

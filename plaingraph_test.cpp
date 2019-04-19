@@ -720,7 +720,7 @@ void weighted_dtest0(const string& idir, const string& odir)
 
     manager.run_bfs(0);
     //-------Graph Updates-------
-    manager.create_threads(true, false);
+    g->create_threads(true, false);
     
     int fd1 = open(action_file.c_str(), O_RDONLY);
     assert(fd1 != -1);
@@ -836,7 +836,7 @@ void plain_test1(const string& idir, const string& odir)
     plaingraph_manager.schema_plaingraph();
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
-    plaingraph_manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     plaingraph_manager.prep_graph(idir, odir);
     
     propid_t cf_id = g->get_cfid("friend");
@@ -982,7 +982,7 @@ void ingestion_fulluni(const string& idir, const string& odir,
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);
-    manager.create_threads(true, false);
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     //manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1005,7 +1005,7 @@ void ingestion_fulld(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count); 
-    manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1020,7 +1020,7 @@ void test_ingestion_fulld(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
-    manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1271,7 +1271,7 @@ void test_ingestiond(const string& idir, const string& odir)
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, true);   
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfsd();    
     g->store_graph_baseline();
@@ -1284,7 +1284,7 @@ void test_ingestionuni(const string& idir, const string& odir)
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, true);   
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfsd();    
     g->store_graph_baseline();
@@ -1301,7 +1301,7 @@ void test_ingestion_memory(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     manager.prep_graph(idir, odir); 
     
     manager.run_bfs();    
@@ -1320,7 +1320,7 @@ void test_ingestion_memoryd(const string& idir, const string& odir)
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     manager.prep_graph(idir, odir); 
     manager.run_bfsd();    
     
@@ -1341,7 +1341,7 @@ void ingestion_fromtext(const string& idir, const string& odir,
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, false);
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1355,7 +1355,7 @@ void ingestion_fromtextd(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, false);
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1369,7 +1369,7 @@ void test_ingestion_fromtext(const string& idir, const string& odir,
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);
-    manager.create_threads(true, false);   
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1382,7 +1382,7 @@ void test_ingestion(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.create_threads(true, true);   
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfs();    
     g->store_graph_baseline();

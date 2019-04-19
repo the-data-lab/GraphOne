@@ -63,16 +63,6 @@ class graph {
     typekv_t* typekv;
     string    odirname;
     
-    /*
-    //threads
-    pthread_t snap_thread;
-    pthread_mutex_t snap_mutex;
-    pthread_cond_t  snap_condition;
-    
-    pthread_t w_thread;
-    pthread_mutex_t w_mutex;
-    pthread_cond_t  w_condition;
-    */
     index_t snap_id;
 
  public:
@@ -119,7 +109,7 @@ class graph {
     
     void prep_graph_baseline();
     void swap_log_buffer();
-    void calc_degree();
+    void waitfor_archive();
     void make_graph_baseline();
     void create_snapshot();
     void write_edgelog();
@@ -127,11 +117,7 @@ class graph {
     void read_graph_baseline();
     void file_open(bool trunc);
     
-    void create_snapthread();
-    static void* snap_func(void* arg);
-
-    void create_wthread();
-    static void* w_func(void* arg);
+    void create_threads(bool snap_thd, bool w_thd);
 };
 
 

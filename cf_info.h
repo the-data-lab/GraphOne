@@ -33,6 +33,12 @@ enum filter_fn_t {
     //More coming soon such as regex
 };
 
+enum gtype_t {
+    etype = 0,
+    egraph,
+    evlabel, 
+};
+
 class prop_encoder_t;
 
 //Column Family
@@ -45,6 +51,7 @@ class cfinfo_t {
 
     prop_encoder_t* prop_encoder;
 
+    gtype_t     gtype;
     sflag_t     flag1;
     sflag_t     flag2;
     
@@ -73,7 +80,7 @@ class cfinfo_t {
     int          wtf;   //edge log file
 
  public: 
-    cfinfo_t();   
+    cfinfo_t(gtype_t type = evlabel);   
     
     void create_wthread();
     static void* w_func(void* arg);
@@ -99,11 +106,11 @@ class cfinfo_t {
     virtual status_t batch_update(const string& src, const string& dst, propid_t pid, 
                           propid_t count, prop_pair_t* prop_pair, int del = 0);
     
-    virtual void create_marker(index_t marker) {return ;};    
+    virtual index_t create_marker(index_t marker) {return marker;};    
     virtual index_t update_marker() {return 0;};    
     virtual status_t move_marker(index_t& snap_marker);
     virtual void prep_graph_baseline();
-    virtual void calc_degree();
+    virtual void waitfor_archive();
     virtual void make_graph_baseline();
     virtual status_t write_edgelog();
     virtual void compress_graph_baseline();

@@ -249,7 +249,7 @@ void typekv_t::read_graph_baseline()
     t_count = t;
 }
 
-typekv_t::typekv_t()
+typekv_t::typekv_t():cfinfo_t(etype)
 {
     init_enum(256);
     vtf = 0;

@@ -41,8 +41,6 @@ class plaingraph_manager_t {
     void schema_plaingraphd();
     void schema_plaingraphuni();
 
-    void create_threads(bool snap_thd, bool w_thd);
-    
   public:
     void setup_graph(vid_t v_count);
     void setup_graph_memory(vid_t v_count);
@@ -67,7 +65,6 @@ class plaingraph_manager_t {
     void prep_graph_and_compute(const string& idirname, 
                                 const string& odirname, 
                                 stream_t<T>* streamh);
-    void waitfor_archive();
     void waitfor_archive_durable(double start);
     
     void run_pr_simple();
@@ -79,20 +76,6 @@ class plaingraph_manager_t {
     void run_1hopd();
     void run_2hop();
 };
-
-    
-template <class T>
-void plaingraph_manager_t<T>::create_threads(bool snap_thd, bool w_thd)
-{
-    if (snap_thd) {
-        pgraph->create_snapthread();
-    }
-
-    if (w_thd) {
-        pgraph->create_wthread();
-    }
-    usleep(1000);
-}
 
 template <class T>
 void plaingraph_manager_t<T>::schema_plaingraph()
@@ -440,7 +423,7 @@ void plaingraph_manager_t<T>::prep_graph_fromtext(const string& idirname,
     cout << "Batch Update Time = " << end - start << endl;
     
     //----------
-    waitfor_archive();
+    g->waitfor_archive();
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     //---------
@@ -459,7 +442,7 @@ void plaingraph_manager_t<T>::prep_graph_fromtext2(const string& idirname,
     cout << "Batch Update Time = " << end - start << endl;
     
     //----------
-    waitfor_archive();
+    g->waitfor_archive();
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     //---------
@@ -483,26 +466,10 @@ void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& o
     cout << "Batch Update Time = " << end - start << endl;
 
     //----------
-    waitfor_archive();
+    g->waitfor_archive();
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     //---------
-}
-
-template <class T>
-void plaingraph_manager_t<T>::waitfor_archive() 
-{
-    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
-    blog_t<T>* blog = pgraph->blog;
-    index_t marker = blog->blog_head;
-    if (marker != blog->blog_marker) {
-        pgraph->create_marker(marker);
-    }
-
-    //Wait for make graph
-    while (blog->blog_tail != blog->blog_head) {
-        usleep(1);
-    }
 }
 
 template <class T>
@@ -535,7 +502,7 @@ void plaingraph_manager_t<T>::waitfor_archive_durable(double start)
 template <class T>
 void plaingraph_manager_t<T>::prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh)
 {
-    create_threads(true, false);   
+    g->create_threads(true, false);   
     
     edgeT_t<T>* edges = 0;
     index_t total_edge_count = read_idir(idirname, &edges, true); 
@@ -556,7 +523,7 @@ void plaingraph_manager_t<T>::prep_graph_and_scompute(const string& idirname, co
     
     double end = mywtime ();
     cout << "Batch Update Time = " << end - start << endl;
-    waitfor_archive();
+    g->waitfor_archive();
     end = mywtime();
     cout << " Make graph time = " << end - start << endl;
     //---------

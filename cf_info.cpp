@@ -68,8 +68,9 @@ void cfinfo_t::add_edge_property(const char* longname, prop_encoder_t* a_prop_en
     prop_encoder = a_prop_encoder;
 }
 
-cfinfo_t::cfinfo_t()
+cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
+    gtype = type;
     flag1 = 0;
     flag2 = 0;
     flag1_count = 0;
@@ -93,6 +94,10 @@ cfinfo_t::cfinfo_t()
 
 void cfinfo_t::create_wthread()
 {
+    if (egraph != gtype) {
+        return;
+    }
+
     if (0 != pthread_create(&w_thread, 0, cfinfo_t::w_func, (void*)this)) {
         assert(0);
     }
@@ -135,6 +140,10 @@ void* cfinfo_t::w_func(void* arg)
 
 void cfinfo_t::create_snapthread()
 {
+    if (egraph != gtype) {
+        return;
+    }
+
     pthread_mutex_init(&snap_mutex, 0);
     pthread_cond_init(&snap_condition, 0);
     if (0 != pthread_create(&snap_thread, 0, cfinfo_t::snap_func, (void*)this)) {
@@ -260,7 +269,7 @@ status_t cfinfo_t::batch_update(const string& src, const string& dst, propid_t p
     return eOK;
 }
 
-void cfinfo_t::calc_degree()
+void cfinfo_t::waitfor_archive()
 {   
     return;
 }

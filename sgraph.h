@@ -33,7 +33,7 @@ class pgraph_t: public cfinfo_t {
         
 
  public:    
-    inline pgraph_t() { 
+    inline pgraph_t(): cfinfo_t(egraph){ 
         sgraph = 0;
         sgraph_in = 0;
         
@@ -72,7 +72,7 @@ class pgraph_t: public cfinfo_t {
         return ret; 
     }
     
-    void create_marker(index_t marker) {
+    index_t create_marker(index_t marker) {
         if (marker ==0) {
             marker = blog->blog_head;
         }
@@ -82,7 +82,15 @@ class pgraph_t: public cfinfo_t {
         pthread_cond_signal(&snap_condition);
         pthread_mutex_unlock(&snap_mutex);
         //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
+        return marker;
     } 
+    
+    //Wait for make graph. Be careful on why you calling.
+    void waitfor_archive() {
+        while (blog->blog_tail != blog->blog_head) {
+            usleep(1);
+        }
+    }
     
     //called from snap thread 
     status_t move_marker(index_t& snap_marker) {

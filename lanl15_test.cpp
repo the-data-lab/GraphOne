@@ -44,8 +44,8 @@ void lanl15_schema()
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
     info->setup_str(1<<30);
-    info->flag1 = 2;
-    info->flag2 = 1;
+    info->flag1 = 1;
+    info->flag2 = 2;
     ++p_info;
     
     longname = "flows15";
@@ -55,7 +55,7 @@ void lanl15_schema()
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
     info->flag1 = 2;
-    //info->flag2 = 1;
+    info->flag2 = 2;
     ++p_info;
     
     longname = "dns15";
@@ -64,8 +64,8 @@ void lanl15_schema()
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
     info->setup_str(1<<30);
-    info->flag1 = 1;
-    //info->flag2 = 1;
+    info->flag1 = 2;
+    info->flag2 = 2;
     ++p_info;
     
     longname = "redteam15";
@@ -75,12 +75,13 @@ void lanl15_schema()
     info->add_column(p_info, longname, shortname);
     info->setup_str(1<<30);
     info->flag1 = 1;
-    //info->flag2 = 1;
+    info->flag2 = 2;
     ++p_info;
 }
 
 void lanl15_setup()
 {
+    g->create_threads(true, false);
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(1<<28, false, "user");//users are tid 0
     typekv->manual_setup(1<<28, false, "computer");//computers are tid 1
@@ -285,15 +286,14 @@ void parse_auth15_file(FILE* file, char* buf1)
 }
 
 typedef void (*parse_file_fn)(FILE* fileh, char* buf);
+struct file_list_t {
+    FILE*    fileh;
+    char*    buf;
+    parse_file_fn   fn;
+};
 
 void prep_graph_lanl15(const string& idirname, const string& odirname)
 {
-    struct file_list_t {
-        FILE*    fileh;
-        char*    buf;
-        parse_file_fn   fn;
-    };
-
     string filename;
     FILE* fileh = 0;
     char* buf = 0;
@@ -339,40 +339,25 @@ void prep_graph_lanl15(const string& idirname, const string& odirname)
     assert(file_list[4].fileh);
     file_list[4].fn = parse_redteam15_file;
 
-    //-----
-    //g->create_wthread();
-    //g->create_snapthread();
-    //usleep(1000);
-    //-----
-    
     //Batch and Make Graph
     double start = mywtime();
    
-    //#pragma omp parallel for 
-    for (int i = 0; i < 1; ++i) {
+    #pragma omp parallel for num_threads(5) 
+    for (int i = 0; i < 5; ++i) {
         file_list[i].fn(file_list[i].fileh, file_list[i].buf);
     }
     
     double end = mywtime ();
     cout << "Batch Update Time = " << end - start << endl;
-    
-    /*
-    blog_t<T>* blog = ugraph->blog;
-    index_t marker = blog->blog_head;
-
-    //----------
-    if (marker != blog->blog_marker) {
-        ugraph->create_marker(marker);
-    }
-
-    //Wait for make graph
-    while (blog->blog_tail != blog->blog_head) {
-        usleep(1);
-    }
-    */
+   
+    //g->make_graph_baseline();
+    g->waitfor_archive();
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     //---------
+    //g->store_graph_baseline();
+    //end = mywtime();
+    //cout << "Store graph time = " << end - start << endl;
 }
 
 void lanl15_test0(const string& idir, const string& odir)
