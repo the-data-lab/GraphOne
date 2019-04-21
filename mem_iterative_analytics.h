@@ -15,23 +15,15 @@ extern double qthread_doubleincr(double *operand, double incr);
 
 template<class T>
 void
-mem_hop1(vert_table_t<T>* graph_out, degree_t* degree_out, 
-        snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges,
-        vid_t v_count)
+mem_hop1(snap_t<T>* snaph)
 {
-    index_t         old_marker = 0;
-
-    if (snapshot) { 
-        old_marker = snapshot->marker;
-    }
-    
     srand(0);
     int query_count = 2048;
     vid_t* query = (vid_t*)calloc(sizeof(vid_t), query_count);
     int i1 = 0;
     while (i1 < query_count) {
         query[i1] = rand()% v_count;
-        if (degree_out[query[i1]] != 0) { ++i1; };
+        if (snaph->get_degree_out(query[i1]) != 0) { ++i1; };
     }
 
     index_t          sum = 0;
@@ -48,20 +40,17 @@ mem_hop1(vert_table_t<T>* graph_out, degree_t* degree_out,
 
     sid_t sid = 0;
     vid_t v   = 0;
-    vert_table_t<T>* graph  = graph_out;
     delta_adjlist_t<T>* delta_adjlist;
-    vunit_t<T>* v_unit = 0;
     T* local_adjlist = 0;
 
     //#pragma omp for reduction(+:sum) schedule (static) nowait
     for (int i = 0; i < query_count; i++) {
         
         v = query[i];
-        v_unit = graph[v].get_vunit();
+        delta_adjlist = snaph->get_nebrs_archived_out(v);
         
-        if (0 != v_unit) {
-            delta_adjlist = v_unit->delta_adjlist;
-            nebr_count = degree_out[v];
+        if (0 != delta_adjlist) {
+            nebr_count = snaph->get_degree_out(v);
             
             //traverse the delta adj list
             delta_degree = nebr_count;
@@ -79,12 +68,14 @@ mem_hop1(vert_table_t<T>* graph_out, degree_t* degree_out,
             }
         }
 
-        if (old_marker == marker) continue;
         //on-the-fly snapshots should process this
         vid_t src, dst; 
         v = query[i];
+        edgeT_t<T>* edges = 0;
+        index_t marker = snaph->get_nonarchived_edges(edges);
+        if (0 == marker) continue;
         #pragma omp parallel for reduction(+:sum1) schedule(static)
-        for (index_t j = old_marker; j < marker; ++j) {
+        for (index_t j = 0; j < marker ; ++j) {
             src = edges[j].src_id;
             dst = edges[j].dst_id;
             if (src == v) {
@@ -390,23 +381,15 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
 */
 
 template<class T>
-void
-mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out, 
-        snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges,
-        vid_t v_count)
+void mem_hop2(snap_t<T>* snaph) 
 {
-    index_t         old_marker = 0;
-    if (snapshot) { 
-        old_marker = snapshot->marker;
-    }
-    
     srand(0);
     int query_count = 512;
     hop2_t* query = (hop2_t*)calloc(sizeof(hop2_t), query_count); 
     int i1 = 0;
     while (i1 < query_count) {
         query[i1].vid = rand()% v_count;
-        if (degree_out[query[i1].vid] != 0) { ++i1; };
+        if (snaph->get_degree_out(query[i1].vid) != 0) { ++i1; };
     }
 
 	double start = mywtime();
@@ -421,10 +404,8 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
 
     sid_t sid = 0;
     vid_t v   = 0;
-    vert_table_t<T>* graph  = graph_out;
     T* local_adjlist = 0;
     delta_adjlist_t<T>* delta_adjlist;
-    vunit_t<T>* v_unit = 0;
     degree_t d = 0;
     vid_t* vlist = 0;
     
@@ -432,13 +413,11 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
     for (int q = 0; q < query_count; q++) {
         d = 0; 
         v = query[q].vid;
-        nebr_count = degree_out[v];
+        nebr_count = snaph->get_degree_out(v);
         vlist = (vid_t*)calloc(sizeof(vid_t), nebr_count);
         query[q].vlist = vlist;
-        v_unit = graph[v].get_vunit();
-        if (0 == v_unit) continue;
-
-        delta_adjlist = v_unit->delta_adjlist;
+        delta_adjlist = snaph->get_nebrs_archived_out(v);
+        if (0 == delta_adjlist) continue;
         
         //traverse the delta adj list
         delta_degree = nebr_count;
@@ -458,6 +437,8 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
         query[q].d += d;
 
         //on-the-fly snapshots should process this
+        edgeT_t<T>* edges = 0;
+        index_t marker = snaph->get_nonarchived_edges(edges);
         #pragma omp parallel
         {
             vid_t src, dst;
@@ -465,7 +446,7 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
             vid_t v = query[q].vid;
             vid_t* vlist = query[q].vlist;
             #pragma omp for schedule(static) nowait 
-            for (index_t i = old_marker; i < marker; ++i) {
+            for (index_t i = 0; i < marker; ++i) {
                 src = edges[i].src_id;
                 dst = edges[i].dst_id;
                 if (src == v) {
@@ -491,10 +472,8 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
         degree_t      local_degree = 0;
         sid_t sid = 0;
         vid_t v = 0;
-        vert_table_t<T>* graph  = graph_out;
         T* local_adjlist = 0;
         delta_adjlist_t<T>* delta_adjlist;
-        vunit_t<T>* v_unit = 0;
         vid_t* vlist = 0;
         degree_t d = 0;
         
@@ -503,12 +482,10 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
 
         #pragma omp for schedule (static) reduction(+:sum) nowait
         for (degree_t j = 0; j < d; ++j) {
-            v = vlist[j];
-            v_unit = graph[v].get_vunit();
-            if (0 == v_unit) continue;
+            delta_adjlist = snaph->get_nebrs_archived_out(v); 
+            if (0 == delta_adjlist) continue;
 
-            delta_adjlist = v_unit->delta_adjlist;
-            nebr_count = degree_out[v];
+            nebr_count = snaph->get_degree_out(v);
             
             //traverse the delta adj list
             delta_degree = nebr_count;
@@ -528,8 +505,10 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
 
         //on-the-fly snapshots should process this
         vid_t src, dst;
+        edgeT_t<T>* edges = 0;
+        index_t marker = snaph->get_nonarchived_edges(edges);
         #pragma omp for reduction(+:sum1) schedule(static) nowait
-        for (index_t i = old_marker; i < marker; ++i) {
+        for (index_t i = 0; i < marker; ++i) {
             src = edges[i].src_id;
             dst = edges[i].dst_id;
             for (degree_t j = 0; j < d; ++j) {
@@ -1318,8 +1297,6 @@ template<class T>
 void mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
 {
     //vert_table_t<T>* graph_in; 
-    degree_t* degree_in = snaph->degree_in;
-    degree_t* degree_out = snaph->degree_out;
 
     //edgeT_t<T>* edges = snaph->edges;
     
@@ -1359,7 +1336,7 @@ void mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
     float	inv_v_count = 0.15;//1.0f/vert_count;
     #pragma omp for
     for (vid_t v = 0; v < v_count; ++v) {
-        degree = degree_out[v];
+        degree = snaph->get_degree_out(v);
         if (degree != 0) {
             dset[v] = 1.0f/degree;
             prior_rank_array[v] = inv_v_count;//XXX
@@ -1408,10 +1385,12 @@ void mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
             //on-the-fly snapshots should process this
             //cout << "On the Fly" << endl;
             vid_t src, dst;
+            edgeT_t<T>* edges = 0;
+            index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
-            for (index_t i = 0; i < snaph->edge_count; ++i) {
-                src = snaph->edges[i].src_id;
-                dst = get_dst(snaph->edges+i);
+            for (index_t i = 0; i < marker; ++i) {
+                src = edges[i].src_id;
+                dst = get_dst(edges+i);
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }

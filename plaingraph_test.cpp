@@ -1259,9 +1259,9 @@ void test_archive(const string& idir, const string& odir)
     }
 
     //g->store_graph_baseline();
-    /*
+    
     //Run PageRank
-    for (int i = 0; i < 5; i++){
+    for (int i = 0; i < 1; i++){
         manager.run_pr();
         manager.run_pr_simple();
     }
@@ -1269,7 +1269,7 @@ void test_archive(const string& idir, const string& odir)
     //Run 1-HOP query
     for (int i = 0; i < 1; i++){
         manager.run_1hop();
-    }*/
+    }
 }
 
 template <class T>

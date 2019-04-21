@@ -73,7 +73,6 @@ class plaingraph_manager_t {
     void run_prd();
     void run_bfs(sid_t root = 1);
     void run_1hop();
-    void run_1hopd();
     void run_2hop();
 };
 
@@ -614,129 +613,22 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     delete_static_view(snaph);
 }
 
-//template <class T>
-//void plaingraph_manager_t<T>::run_bfs()
-//{
-//    ugraph<T>* ugraph1 = (ugraph<T>*)get_plaingraph();
-//    blog_t<T>* blog = ugraph1->blog;
-//    vert_table_t<T>* graph = ugraph1->sgraph[0]->get_begpos();
-//    uint8_t* level_array = 0;
-//    
-//    /*
-//    level_array = (uint8_t*)mmap(NULL, sizeof(uint8_t)*v_count, 
-//                            PROT_READ|PROT_WRITE,
-//                            MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0 );
-//    
-//    if (MAP_FAILED == level_array) {
-//        cout << "Huge page alloc failed for level array" << endl;
-//        level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-//    }*/
-//    
-//    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-//    
-//    
-//    snapshot_t* snapshot = g->get_snapshot();
-//    index_t  marker = blog->blog_head;
-//    index_t old_marker = 0;
-//    degree_t* degree_array = 0;
-//        
-//    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
-//
-//    if (snapshot) {
-//        old_marker = snapshot->marker;
-//        create_degreesnap(graph, v_count, snapshot, marker, blog->blog_beg, degree_array);
-//    }
-//
-//    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-//    /*
-//    ext_bfs<sid_t>(sgraph, degree_array, sgraph, degree_array, 
-//                   snapshot, marker, blog->blog_beg,
-//                   v_count, level_array, 1);
-//    */
-//    mem_bfs<T>(graph, degree_array, graph, degree_array, 
-//                   snapshot, marker, blog->blog_beg,
-//                   v_count, level_array, 1);
-//    free(level_array);
-//    free(degree_array);
-//}
-
 template <class T>
 void plaingraph_manager_t<T>::run_1hop()
 {
-    ugraph<T>* ugraph1 = (ugraph<T>*)get_plaingraph();
-    blog_t<T>* blog = ugraph1->blog;
-    vert_table_t<T>* graph = ugraph1->sgraph[0]->get_begpos();
-   
-    snapshot_t* snapshot = ugraph1->get_snapshot();
-    index_t marker = blog->blog_head;
-    index_t old_marker = 0;
-    degree_t* degree_array = 0;
-    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
-    if (snapshot) {
-        old_marker = snapshot->marker;
-    }
-    create_degreesnap(graph, v_count, snapshot, marker, blog->blog_beg, degree_array);
-
-    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-
-    mem_hop1<T>(graph, degree_array, snapshot, marker, blog->blog_beg, v_count);
-
-}
-
-template <class T>
-void plaingraph_manager_t<T>::run_1hopd()
-{
-    pgraph_t<T>* ugraph = (pgraph_t<sid_t>*)get_plaingraph();
-    blog_t<T>*     blog = ugraph->blog;
-    
-    onegraph_t<T>*   sgraph_out = ugraph->sgraph_out[0];
-    vert_table_t<T>* graph_out = sgraph_out->get_begpos();
-    onegraph_t<T>*   sgraph_in = ugraph->sgraph_in[0];
-    vert_table_t<sid_t>* graph_in =  sgraph_in->get_begpos();
-    degree_t* degree_array_out = 0;
-    degree_t* degree_array_in = 0;
-    
-    snapshot_t* snapshot = ugraph->get_snapshot();
-    index_t marker = blog->blog_head;
-    index_t old_marker = 0;
-    degree_array_out = (degree_t*) calloc(v_count, sizeof(degree_t));
-    degree_array_in = (degree_t*) calloc(v_count, sizeof(degree_t));
-        
-    if (snapshot) {
-        old_marker = snapshot->marker;
-        create_degreesnapd(graph_out, graph_in, snapshot, marker, blog->blog_beg,
-                           degree_array_out, degree_array_in, v_count);
-    }
-
-    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-    mem_hop1<T>(graph_out, degree_array_out, 
-               snapshot, marker, blog->blog_beg,
-               v_count);
-    free(degree_array_out);
-    free(degree_array_in);
+    pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
+    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    mem_hop1<T>(snaph);
+    delete_static_view(snaph);
 }
 
 template <class T>
 void plaingraph_manager_t<T>::run_2hop()
 {
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    vert_table_t<T>* graph = ugraph->sgraph[0]->get_begpos();
-    blog_t<T>* blog = ugraph->blog;
-   
-    snapshot_t* snapshot = ugraph->get_snapshot();
-    index_t marker = blog->blog_head;
-    index_t old_marker = 0;
-    degree_t* degree_array = 0;
-    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t)); 
-    if (snapshot) {
-        old_marker = snapshot->marker;
-    }
-    degree_array = create_degreesnap(graph, v_count, snapshot, marker, blog->blog_beg, degree_array);
-
-    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-
-    mem_hop2<T>(graph, degree_array, snapshot, marker, blog->blog_beg, v_count);
-    free(degree_array);
+    pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
+    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    mem_hop2<T>(snaph);
+    delete_static_view(snaph);
 }
 
 #include "stream_analytics.h"
