@@ -51,7 +51,6 @@ Parallel bitmap that is thread-safe
  - Can set bits in parallel (set_bit_atomic) unlike std::vector<bool>
 */
 
-
 const uint64_t bits_per_word = 64;
 
 inline uint64_t word_offset(size_t n) { return n/bits_per_word; }
@@ -59,28 +58,36 @@ inline uint64_t bit_offset(size_t n) { return n & (bits_per_word-1); }
 
 class Bitmap {
  public:
-  inline explicit Bitmap(size_t size) {
+    inline Bitmap() {
+        start_ = 0;
+        end_ = 0;
+    }
+    inline Bitmap(size_t size) {
+        init(size);
+    }
+    inline void init(size_t size) {
     uint64_t num_words = (size + bits_per_word - 1) / bits_per_word;
 
-    /*    
-    start_ = (uint64_t*)mmap(NULL, sizeof(uint64_t)*num_words, 
-                       PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0 , 0);
-    if (MAP_FAILED == start_) {
-        start_ = (uint64_t*)calloc(sizeof(uint64_t), num_words);
-    }
-    */
+    //start_ = (uint64_t*)mmap(NULL, sizeof(uint64_t)*num_words, 
+    //                   PROT_READ|PROT_WRITE,
+    //                   MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0 , 0);
+    //if (MAP_FAILED == start_)
+    start_ = (uint64_t*)calloc(sizeof(uint64_t), num_words);
     end_ = start_ + num_words;
   }
 
   inline ~Bitmap() {
       //if (-1 == munmap(start_, sizeof(uint64_t)* (end_ - start_))) {
-        free(start_);
-     // }
+      //}
+      free(start_);
   }
 
   inline void reset() {
     std::fill(start_, end_, 0);
+  }
+  
+  inline void reset_bit(size_t pos) {
+    start_[word_offset(pos)] &= ((uint64_t) 1l << bit_offset(pos));
   }
   
   inline void set() {

@@ -66,6 +66,7 @@ HEADER=graph.h\
 	plain_to_edge.h\
 	multi_graph.h\
 	util.h\
+	bitmap.h\
 	new_type.h\
 	new_func.h\
 	test.h\
