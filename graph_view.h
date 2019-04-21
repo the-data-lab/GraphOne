@@ -5,53 +5,69 @@
 
 using namespace std;
 
+#define STALE_MASK 0x1
+#define PRIVATE_MASK 0x2
+#define SIMPLE_MASK  0x4
+
+#define SET_STALE(x) (x | STALE_MASK)
+#define SET_PRIVATE(x) (x | PRIVATE_MASK)
+#define SET_SIMPLE(x) (x | SIMPLE_MASK)
+
+#define IS_STALE(x) (x & STALE_MASK)
+#define IS_PRIVATE(x) (x & PRIVATE_MASK)
+#define IS_SIMPLE(x) (x & SIMPLE_MASK)
 
 template <class T>
 class vert_table_t;
 
-
 template <class T>
 struct snap_t {
+    pgraph_t<T>*     pgraph;  
+ protected: 
     vert_table_t<T>* graph_out;
     vert_table_t<T>* graph_in;
     degree_t*        degree_out;
     degree_t*        degree_in;
 
     snapshot_t*      snapshot;
-    pgraph_t<T>*     pgraph;  
     edgeT_t<T>*      edges; //new edges
     index_t          edge_count;//their count
     vid_t            v_count;
+    int              flag;
 public:
-
+    inline snap_t() {
+        flag = 0;
+        v_count = 0;
+    }
+    ~snap_t() {
+        if (degree_in ==  degree_out) {
+            delete degree_out;
+        } else {
+            delete degree_out;
+            delete degree_in;
+        }
+    }
     degree_t get_nebrs_out(vid_t vid, T*& ptr);
     degree_t get_nebrs_in (vid_t vid, T*& ptr);
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
-     
+    vid_t    get_vcount() { return v_count;};     
     //Raw access, low level APIs. TODO
-    //nebrcount_t get_nebrs_archived_out(vid_t, T*& ptr);
-    //nebrcount_t get_nebrs_archived_in(vid_t, T*& ptr);
+    delta_adjlist_t<T>* get_nebrs_archived_out(vid_t);
+    delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
+    index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
+    void init_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
     void create_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
-    void update_view();
+    status_t update_view();
 };
 
 
 template <class T>
 class sstream_t : public snap_t<T> {
  public:
-    using snap_t<T>::graph_out;
-    using snap_t<T>::graph_in;
-    using snap_t<T>::degree_out;
-    using snap_t<T>::degree_in;
-
-    using snap_t<T>::snapshot;
     using snap_t<T>::pgraph;
-    using snap_t<T>::edges; //new edges
-    using snap_t<T>::edge_count;
-    using snap_t<T>::v_count;
-    
+
     void*            algo_meta;//algorithm specific data
     typename callback<T>::sfunc   sstream_func; 
 
@@ -90,7 +106,6 @@ class wsstream_t {
     
     //last few edges of above data-structure, 0 for stale
     index_t          non_archived_count;
-    
     
     edgeT_t<T>*      edges1; //old edges
     index_t          edge_count1; //their count
@@ -175,17 +190,16 @@ public:
     degree_t get_nebrs_in (vid_t vid, T* ptr);
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
+    vid_t    get_vcount() { return v_count; }
 };
 
 template <class T>
 degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges, degree_t* degree_array, bool stale = false)
 {
     snapid_t snap_id = 0;
-    index_t old_marker = 0;
     if (snapshot) {
         snap_id = snapshot->snap_id;
-        old_marker = snapshot->marker;
-    }
+    } 
 
     #pragma omp parallel
     {
@@ -217,7 +231,7 @@ degree_t* create_degreesnap (vert_table_t<T>* graph, vid_t v_count, snapshot_t* 
         }
         if (false == stale) {
         #pragma omp for
-        for (index_t i = old_marker; i < marker; ++i) {
+        for (index_t i = 0; i < marker; ++i) {
             __sync_fetch_and_add(degree_array + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_array + get_dst(edges + i), 1);
         }
@@ -234,10 +248,8 @@ void create_degreesnapd (vert_table_t<T>* begpos_out, vert_table_t<T>* begpos_in
                          vid_t v_count, bool stale = false)
 {
     snapid_t snap_id = 0;
-    index_t old_marker = 0;
     if (snapshot) {
         snap_id = snapshot->snap_id;
-        old_marker = snapshot->marker;
     }
 
     vid_t           vcount_out = v_count;
@@ -295,7 +307,7 @@ void create_degreesnapd (vert_table_t<T>* begpos_out, vert_table_t<T>* begpos_in
         }
         if (false == stale) {
         #pragma omp for
-        for (index_t i = old_marker; i < marker; ++i) {
+        for (index_t i = 0; i < marker; ++i) {
             __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
         }
@@ -305,33 +317,97 @@ void create_degreesnapd (vert_table_t<T>* begpos_out, vert_table_t<T>* begpos_in
     return;
 }
 
+template <class T>
+void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale)
+{
+    snapshot = 0;
+    edges = 0;
+    edge_count = 0;
+    v_count = g->get_type_scount();
+    pgraph  = ugraph;
+    
+    onegraph_t<T>* sgraph_out = ugraph->sgraph_out[0];
+    graph_out  = sgraph_out->get_begpos();
+    degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
+    
+    if (ugraph->sgraph_in == ugraph->sgraph_out) {
+        graph_in   = graph_out;
+        degree_in  = degree_out;
+    } else if (ugraph->sgraph_in != 0) {
+        graph_in  = ugraph->sgraph_in[0]->get_begpos();
+        degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
+    }
+    
+    if (stale) {
+        SET_STALE(flag);
+    }
+    if (priv) {
+        SET_PRIVATE(flag);
+    }
+    if (simple) {
+        SET_SIMPLE(flag);
+    }
+
+}
 
 template <class T>
-void snap_t<T>::update_view()
+void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool stale)
 {
-    snapshot_t* new_snapshot = pgraph->get_snapshot();
-    if (new_snapshot == 0|| (new_snapshot == snapshot)) return;
     
+    init_view(pgraph1, simple, priv, stale);
+
+    blog_t<T>*  blog = pgraph->blog;
+    index_t marker = blog->blog_head;
+    snapshot = pgraph->get_snapshot();
+    
+    index_t old_marker = 0;
+    if (snapshot) {
+        old_marker = snapshot->marker;
+    }
+    //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
+    //need to copy it. TODO
+    edges     = blog->blog_beg + (old_marker & blog->blog_mask);
+    edge_count = marker - old_marker;
+    //if (stale)  edge_count = 0;
+    
+    //Degree and actual edge arrays
+    
+    if (pgraph->sgraph_in == pgraph->sgraph_out) {
+        create_degreesnap(graph_out, v_count, snapshot,
+                          marker, edges, degree_out, stale);
+    } else if (pgraph->sgraph_in != 0) {
+        create_degreesnapd(graph_out, graph_in, snapshot,
+                           marker, edges, degree_out, degree_in, v_count, stale);
+    }
+}
+
+template <class T>
+status_t snap_t<T>::update_view()
+{
     blog_t<T>* blog = pgraph->blog;
+    index_t  marker = blog->blog_head;
+    snapshot_t* new_snapshot = pgraph->get_snapshot();
     
-    //index_t  marker = blog->blog_head;
+    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
+    
+    
     index_t new_marker   = new_snapshot->marker;
     
     //for stale
-    edges = blog->blog_beg;
-    edge_count = 0;//marker - new_marker;
+    edges = blog->blog_beg + (new_marker & blog->blog_mask);
+    edge_count = marker - new_marker;
     
-        
     if (pgraph->sgraph_in == 0) {
         create_degreesnap(graph_out, v_count, new_snapshot, 
-                          new_marker, edges, degree_out);
+                          edge_count, edges, degree_out, IS_STALE(flag));
     } else {
         create_degreesnapd(graph_out, graph_in, new_snapshot,
-                           new_marker, edges, degree_out,
-                           degree_in, v_count);
+                           edge_count, edges, degree_out,
+                           degree_in, v_count, IS_STALE(flag));
     }
 
     snapshot = new_snapshot;
+    return eOK;
 }
 
 template <class T>
@@ -347,45 +423,30 @@ void stream_t<T>::update_stream_view()
     edge_count = marker - edge_offset;
     edge_offset += a_edge_count;
 }
+    
+template <class T>
+delta_adjlist_t<T>* snap_t<T>::get_nebrs_archived_in(vid_t v)
+{
+    vunit_t<T>* v_unit = graph_in[v].get_vunit();
+    if (0 == v_unit) return 0;
 
+    return v_unit->delta_adjlist;
+}
 
 template <class T>
-void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool stale)
+delta_adjlist_t<T>* snap_t<T>::get_nebrs_archived_out(vid_t v)
 {
-    pgraph   = pgraph1;
-    
-    snapshot = pgraph->get_snapshot();
-    blog_t<T>*        blog = pgraph->blog;
-    index_t         marker = blog->blog_head;
-    
-    index_t old_marker = 0;
-    if (snapshot) {
-        old_marker = snapshot->marker;
-    }
-    //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
+    vunit_t<T>* v_unit = graph_out[v].get_vunit();
+    if (0 == v_unit) return 0;
 
-    //need to copy it. TODO
-    edges     = blog->blog_beg;
-    edge_count = marker - old_marker;
-    //if (stale)  edge_count = 0;
-    
-    v_count    = g->get_type_scount();
-    
-    //Degree and actual edge arrays
-    graph_out  = pgraph->sgraph[0]->get_begpos();
-    degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
-    
-    if (pgraph->sgraph_in == pgraph->sgraph_out) {
-        graph_in   = graph_out;
-        degree_in  = degree_out;
-        create_degreesnap(graph_out, v_count, snapshot,
-                          marker, edges, degree_out, stale);
-    } else if (pgraph->sgraph_in != 0) {
-        graph_in  = pgraph->sgraph_in[0]->get_begpos();
-        degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
-        create_degreesnapd(graph_out, graph_in, snapshot,
-                           marker, edges, degree_out, degree_in, v_count, stale);
-    }
+    return v_unit->delta_adjlist;
+}
+
+template <class T>
+index_t snap_t<T>::get_nonarchived_edges(edgeT_t<T>*& ptr)
+{
+    ptr = edges;
+    return edge_count;
 }
 
 template <class T>
@@ -505,12 +566,6 @@ snap_t<T>* create_static_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool 
 template <class T>
 void delete_static_view(snap_t<T>* snaph) 
 {
-    if (snaph->degree_in ==  snaph->degree_out) {
-        delete snaph->degree_out;
-    } else {
-        delete snaph->degree_out;
-        delete snaph->degree_in;
-    }
     //if edge log allocated, delete it
     delete snaph;
 }
@@ -519,25 +574,10 @@ template <class T>
 sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc func, bool simple, bool priv, bool stale)
 {
     sstream_t<T>* sstreamh = new sstream_t<T>;
+    
+    sstreamh->init_view(ugraph, simple, priv, stale);
     sstreamh->sstream_func = func;
     sstreamh->algo_meta = 0;
-    
-    sid_t v_count = g->get_type_scount();
-    sstreamh->v_count = v_count;
-    
-    sstreamh->pgraph     = ugraph;
-    
-    onegraph_t<T>* sgraph_out = ugraph->sgraph_out[0];
-    sstreamh->graph_out  = sgraph_out->get_begpos();
-    sstreamh->degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
-    
-    if (ugraph->sgraph_in == ugraph->sgraph_out) {
-        sstreamh->graph_in   = sstreamh->graph_out;
-        sstreamh->degree_in  = sstreamh->degree_out;
-    } else if (ugraph->sgraph_in != 0) {
-        sstreamh->graph_in  = ugraph->sgraph_in[0]->get_begpos();
-        sstreamh->degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
-    }
     
     return sstreamh;
 }

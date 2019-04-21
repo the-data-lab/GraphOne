@@ -686,12 +686,18 @@ void weighted_dtest0(const string& idir, const string& odir)
     free(nebrs);
 
     //-------Run bfs and PR------
-    uint8_t* level_array = 0;
-    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    pgraph_t<lite_edge_t>* pgraph = (pgraph_t<lite_edge_t>*)manager.get_plaingraph();
+    snap_t<lite_edge_t>* snaph = create_static_view(pgraph, true, true, true);
     
+    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    mem_bfs<lite_edge_t>(snaph, level_array, 0);
+    free(level_array);
+    mem_pagerank_epsilon<lite_edge_t>(snaph, 1e-8);
+
+    
+    /*
     vert_table_t<lite_edge_t>* beg_pos = sgraph->get_begpos();
-    degree_t* degree_snap = 0;
-    degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
+    degree_t* degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
 
     index_t old_marker = 0;
     snapshot_t* snapshot = graph->get_snapshot();
@@ -712,13 +718,12 @@ void weighted_dtest0(const string& idir, const string& odir)
                    v_count, 1e-8);
 
     free(degree_snap);
-    free(level_array);
+    */
     
     //----
     //graph->store_graph_baseline();
     //----
 
-    manager.run_bfs(0);
     //-------Graph Updates-------
     g->create_threads(true, false);
     
@@ -1007,7 +1012,7 @@ void ingestion_fulld(const string& idir, const string& odir,
     manager.setup_graph_vert_nocreate(v_count); 
     g->create_threads(true, false);   
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     //g->store_graph_baseline();
     //cout << "stroing done" << endl;
 }
@@ -1022,7 +1027,7 @@ void test_ingestion_fulld(const string& idir, const string& odir,
     manager.setup_graph_vert_nocreate(v_count);    
     g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     //g->store_graph_baseline();
     cout << "stroing done" << endl;
 }
@@ -1138,7 +1143,7 @@ void test_archived(const string& idir, const string& odir)
     /*
     //Run PageRank
     for (int i = 0; i < 1; i++){
-        manager.run_prd();
+        manager.run_pr();
         manager.run_pr_simple();
     }
     
@@ -1189,7 +1194,7 @@ void test_loggingd(const string& idir, const string& odir)
     
     //Run BFS
     for (int i = 0; i < 1; i++){
-        manager.run_bfsd();
+        manager.run_bfs();
     }
 }
 
@@ -1207,6 +1212,35 @@ void test_logging_fromtext(const string& idir, const string& odir,
     for (int i = 0; i < 1; i++){
         manager.run_bfs();
     }
+}
+
+template <class T>
+void test_mix(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    
+    manager.prep_graph_mix(idir, odir);
+    
+    //Run BFS
+    for (int i = 0; i < 1; i++){
+        manager.run_bfs();
+    }
+
+    //g->store_graph_baseline();
+    /*
+    //Run PageRank
+    for (int i = 0; i < 5; i++){
+        manager.run_pr();
+        manager.run_pr_simple();
+    }
+    
+    //Run 1-HOP query
+    for (int i = 0; i < 1; i++){
+        manager.run_1hop();
+    }*/
 }
 
 template <class T>
@@ -1261,7 +1295,7 @@ void recover_test0d(const string& idir, const string& odir)
     manager.recover_graph_adj(idir, odir);    
     
     //Run BFS
-    manager.run_bfsd();
+    manager.run_bfs();
 }
 
 template <class T>
@@ -1273,7 +1307,7 @@ void test_ingestiond(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     g->store_graph_baseline();
 }
 
@@ -1286,7 +1320,7 @@ void test_ingestionuni(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     g->store_graph_baseline();
 }
 
@@ -1322,14 +1356,14 @@ void test_ingestion_memoryd(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     g->create_threads(true, false);   
     manager.prep_graph(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     
     pgraph_t<T>* graph = manager.get_plaingraph();
     double start = mywtime();
     graph->compress_graph_baseline();
     double end = mywtime();
     cout << "Compress time = " << end - start << endl;
-    manager.run_bfsd();
+    manager.run_bfs();
 }
 
 
@@ -1424,7 +1458,7 @@ void test_serial_stream_pr(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
     
     manager.prep_graph_serial_scompute(idir, odir, sstreamh);
 }
@@ -1433,9 +1467,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
 {
     v_count = v_count1; 
     switch (job) {
-        //case 1:
-            //plain_test1(idir, odir);
-            //break;
+        case 1:
+            test_mix<sid_t>(idir, odir);
+            break;
         case 2:
             recover_testu<sid_t>(odir);
             break;
