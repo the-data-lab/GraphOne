@@ -181,6 +181,10 @@ class pgraph_t: public cfinfo_t {
     degree_t get_wnebrs_out(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
     degree_t get_wnebrs_in(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
 
+    edgeT_t<T>* get_prior_edges(index_t edge_offset, index_t size) {
+        assert(0);
+        return NULL;
+    }
     //making historic views
     void create_degree(degree_t* degree_out, degree_t* degree_in, index_t start_offset, index_t end_offset);
 

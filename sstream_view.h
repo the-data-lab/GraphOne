@@ -179,7 +179,12 @@ void sstream_t<T>::update_degreesnapd()
                     nebr_count = snap_blob->degree; 
                 }
             }
-            degree_in[v] = nebr_count;
+            if (degree_in[v] != nebr_count) {
+                degree_in[v] = nebr_count;
+                bitmap_in->set_bit(v);
+            } else {
+                bitmap_in->reset_bit(v);
+            }
         }
         if (false == IS_STALE(flag)) {
         #pragma omp for
@@ -202,6 +207,7 @@ status_t sstream_t<T>::update_view()
     
     if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
     
+    snapshot = new_snapshot;
     
     index_t new_marker   = new_snapshot->marker;
     
@@ -215,6 +221,5 @@ status_t sstream_t<T>::update_view()
         update_degreesnapd();
     }
 
-    snapshot = new_snapshot;
     return eOK;
 }

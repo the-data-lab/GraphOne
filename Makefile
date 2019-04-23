@@ -73,6 +73,10 @@ HEADER=graph.h\
 	str2sid.h\
 	graph_view.h\
 	edge_sharding.h\
+    static_view.h\
+	stream_view.h\
+	sstream_view.h\
+	wsstream_view.h\
 	#rset.h\
 	#query_node.h\
 	#query_triple.h\
