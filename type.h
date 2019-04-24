@@ -33,7 +33,7 @@ typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
 typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
-typedef uint32_t degree_t;
+typedef int32_t degree_t;
 #endif
 
 typedef uint16_t vflag_t;

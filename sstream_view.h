@@ -67,50 +67,31 @@ class sstream_t : public snap_t<T> {
 template <class T>
 void sstream_t<T>::update_degreesnap()
 {
-    snapid_t snap_id = 0;
-    if (snapshot) {
-        snap_id = snapshot->snap_id;
-    } 
-
     #pragma omp parallel
     {
-        snapT_t<T>*   snap_blob = 0;
-        degree_t        nebr_count = 0;
-        
-        #pragma omp for 
-        for (vid_t v = 0; v < v_count; ++v) {
-            snap_blob = graph_out[v].get_snapblob();
-            if (0 == snap_blob) { 
-                degree_out[v] = 0;
-                continue; 
-            }
-            
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
+        degree_t nebr_count = 0;
+        snapid_t snap_id = 0;
+        if (snapshot) {
+            snap_id = snapshot->snap_id;
+
+            #pragma omp for 
+            for (vid_t v = 0; v < v_count; ++v) {
+                nebr_count = graph_out->get_degree(v, snap_id);
+                if (degree_out[v] != nebr_count) {
+                    degree_out[v] = nebr_count;
+                    bitmap_out->set_bit(v);
+                } else {
+                    bitmap_out->reset_bit(v);
                 }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
+                //cout << v << " " << degree_out[v] << endl;
             }
-            if (degree_out[v] != nebr_count) {
-                degree_out[v] = nebr_count;
-                bitmap_out->set_bit(v);
-            } else {
-                bitmap_out->reset_bit(v);
-            }
-            //cout << v << " " << degree_out[v] << endl;
         }
         if (false == IS_STALE(flag)) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-            __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
-        }
+            #pragma omp for
+            for (index_t i = 0; i < edge_count; ++i) {
+                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+                __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
+            }
         }
     }
 }
@@ -118,80 +99,44 @@ void sstream_t<T>::update_degreesnap()
 template <class T>
 void sstream_t<T>::update_degreesnapd()
 {
-    snapid_t snap_id = 0;
-    if (snapshot) {
-        snap_id = snapshot->snap_id;
-    }
-
-    vid_t   vcount_out = v_count;
-    vid_t   vcount_in  = v_count;
-
     #pragma omp parallel
     {
-        snapT_t<T>*   snap_blob = 0;
         degree_t      nebr_count = 0;
-        
-        #pragma omp for nowait 
-        for (vid_t v = 0; v < vcount_out; ++v) {
-            snap_blob = graph_out[v].get_snapblob();
-            if (0 == snap_blob) {
-                degree_out[v] = 0;
-                continue; 
+        snapid_t snap_id = 0;
+        if (snapshot) {
+            snap_id = snapshot->snap_id;
+
+            vid_t   vcount_out = v_count;
+            vid_t   vcount_in  = v_count;
+
+            #pragma omp for nowait 
+            for (vid_t v = 0; v < vcount_out; ++v) {
+                nebr_count = graph_out->get_degree(v, snap_id);
+                if (degree_out[v] != nebr_count) {
+                    degree_out[v] = nebr_count;
+                    bitmap_out->set_bit(v);
+                } else {
+                    bitmap_out->reset_bit(v);
+                }
             }
             
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
+            #pragma omp for nowait 
+            for (vid_t v = 0; v < vcount_in; ++v) {
+                nebr_count = graph_in->get_degree(v, snap_id);;
+                if (degree_in[v] != nebr_count) {
+                    degree_in[v] = nebr_count;
+                    bitmap_in->set_bit(v);
+                } else {
+                    bitmap_in->reset_bit(v);
                 }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
-            }
-            if (degree_out[v] != nebr_count) {
-                degree_out[v] = nebr_count;
-                bitmap_out->set_bit(v);
-            } else {
-                bitmap_out->reset_bit(v);
-            }
-        }
-        
-        #pragma omp for nowait 
-        for (vid_t v = 0; v < vcount_in; ++v) {
-            snap_blob = graph_in[v].get_snapblob();
-            if (0 == snap_blob) { 
-                degree_in[v] = 0;
-                continue; 
-            }
-            
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
-                }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
-            }
-            if (degree_in[v] != nebr_count) {
-                degree_in[v] = nebr_count;
-                bitmap_in->set_bit(v);
-            } else {
-                bitmap_in->reset_bit(v);
             }
         }
         if (false == IS_STALE(flag)) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-            __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
-        }
+            #pragma omp for
+            for (index_t i = 0; i < edge_count; ++i) {
+                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+                __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
+            }
         }
     }
 

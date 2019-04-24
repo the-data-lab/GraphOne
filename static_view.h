@@ -4,8 +4,8 @@ template <class T>
 struct snap_t {
     pgraph_t<T>*     pgraph;  
  protected: 
-    vert_table_t<T>* graph_out;
-    vert_table_t<T>* graph_in;
+    onegraph_t<T>*   graph_out;
+    onegraph_t<T>*   graph_in;
     degree_t*        degree_out;
     degree_t*        degree_in;
 
@@ -47,45 +47,24 @@ struct snap_t {
 template <class T>
 void snap_t<T>::create_degreesnap()
 {
-    snapid_t snap_id = 0;
-    if (snapshot) {
-        snap_id = snapshot->snap_id;
-    } 
-
     #pragma omp parallel
     {
-        snapT_t<T>*   snap_blob = 0;
-        vid_t        nebr_count = 0;
-        
-        #pragma omp for 
-        for (vid_t v = 0; v < v_count; ++v) {
-            snap_blob = graph_out[v].get_snapblob();
-            if (0 == snap_blob) { 
-                degree_out[v] = 0;
-                continue; 
+        snapid_t snap_id = 0;
+        if (snapshot) {
+            snap_id = snapshot->snap_id;
+
+            #pragma omp for 
+            for (vid_t v = 0; v < v_count; ++v) {
+                degree_out[v] = graph_out->get_degree(v, snap_id);
+                //cout << v << " " << degree_out[v] << endl;
             }
-            
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
-                }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
-            }
-            degree_out[v] = nebr_count;
-            //cout << v << " " << degree_out[v] << endl;
-        }
+        } 
         if (false == IS_STALE(flag)) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-            __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
-        }
+            #pragma omp for
+            for (index_t i = 0; i < edge_count; ++i) {
+                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+                __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
+            }
         }
     }
 }
@@ -93,64 +72,26 @@ void snap_t<T>::create_degreesnap()
 template <class T>
 void snap_t<T>::create_degreesnapd()
 {
-    snapid_t snap_id = 0;
-    if (snapshot) {
-        snap_id = snapshot->snap_id;
-    }
-
-    vid_t           vcount_out = v_count;
-    vid_t           vcount_in  = v_count;
-
     #pragma omp parallel
     {
-        snapT_t<T>*   snap_blob = 0;
-        vid_t        nebr_count = 0;
-        
+        snapid_t snap_id = 0;
+        if (snapshot) {
+            snap_id = snapshot->snap_id;
+        }
+
+        vid_t vcount_out = v_count;
+        vid_t vcount_in  = v_count;
+
         #pragma omp for nowait 
         for (vid_t v = 0; v < vcount_out; ++v) {
-            snap_blob = graph_out[v].get_snapblob();
-            if (0 == snap_blob) {
-                degree_out[v] = 0;
-                continue; 
-            }
-            
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
-                }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
-            }
-            degree_out[v] = nebr_count;
+            degree_out[v] = graph_out->get_degree(v, snap_id);;
         }
         
         #pragma omp for nowait 
         for (vid_t v = 0; v < vcount_in; ++v) {
-            snap_blob = graph_in[v].get_snapblob();
-            if (0 == snap_blob) { 
-                degree_in[v] = 0;
-                continue; 
-            }
-            
-            nebr_count = 0;
-            if (snap_id >= snap_blob->snap_id) {
-                nebr_count = snap_blob->degree; 
-            } else {
-                snap_blob = snap_blob->prev;
-                while (snap_blob && snap_id < snap_blob->snap_id) {
-                    snap_blob = snap_blob->prev;
-                }
-                if (snap_blob) {
-                    nebr_count = snap_blob->degree; 
-                }
-            }
-            degree_in[v] = nebr_count;
+            degree_in[v] = graph_in->get_degree(v, snap_id);
         }
+
         if (false == IS_STALE(flag)) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
@@ -171,15 +112,14 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stal
     v_count = g->get_type_scount();
     pgraph  = ugraph;
     
-    onegraph_t<T>* sgraph_out = ugraph->sgraph_out[0];
-    graph_out  = sgraph_out->get_begpos();
+    graph_out = ugraph->sgraph_out[0];
     degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
     
     if (ugraph->sgraph_in == ugraph->sgraph_out) {
         graph_in   = graph_out;
         degree_in  = degree_out;
     } else if (ugraph->sgraph_in != 0) {
-        graph_in  = ugraph->sgraph_in[0]->get_begpos();
+        graph_in  = ugraph->sgraph_in[0];
         degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
     }
     
@@ -225,19 +165,13 @@ void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool s
 template <class T>
 delta_adjlist_t<T>* snap_t<T>::get_nebrs_archived_in(vid_t v)
 {
-    vunit_t<T>* v_unit = graph_in[v].get_vunit();
-    if (0 == v_unit) return 0;
-
-    return v_unit->delta_adjlist;
+    return graph_in->get_delta_adjlist(v);
 }
 
 template <class T>
 delta_adjlist_t<T>* snap_t<T>::get_nebrs_archived_out(vid_t v)
 {
-    vunit_t<T>* v_unit = graph_out[v].get_vunit();
-    if (0 == v_unit) return 0;
-
-    return v_unit->delta_adjlist;
+    return graph_out->get_delta_adjlist(v);
 }
 
 template <class T>
@@ -262,64 +196,10 @@ degree_t snap_t<T>::get_degree_in(vid_t v)
 template <class T>
 degree_t snap_t<T>::get_nebrs_out(vid_t v, T*& adj_list)
 {
-    vert_table_t<T>* graph  = graph_out;
-    vunit_t<T>*      v_unit = graph[v].get_vunit();
-    if (0 == v_unit) return 0;
-    
-    degree_t local_degree = 0;
-    degree_t total_degree = 0;
-    T* local_adjlist = 0;
-
-    delta_adjlist_t<T>* delta_adjlist;
-    delta_adjlist           = v_unit->delta_adjlist;
-    degree_t nebr_count     = get_degree_out(v);
-    degree_t delta_degree   = nebr_count;
-
-    //cout << "delta adjlist " << delta_degree << endl;	
-    //cout << "Nebr list of " << v <<" degree = " << nebr_count << endl;	
-    
-    //traverse the delta adj list
-    while (delta_adjlist != 0 && delta_degree > 0) {
-        local_adjlist    = delta_adjlist->get_adjlist();
-        local_degree     = delta_adjlist->get_nebrcount();
-        degree_t i_count = min(local_degree, delta_degree);
-        
-        memcpy(adj_list + total_degree, local_adjlist, sizeof(T)*i_count);
-        delta_adjlist = delta_adjlist->get_next();
-        delta_degree -= i_count;
-        total_degree += i_count;
-    }
-    return nebr_count;
+    return graph_out->get_nebrs(v, adj_list, get_degree_out(v));
 }
 template<class T>
 degree_t snap_t<T>::get_nebrs_in(vid_t v, T*& adj_list)
 {
-    vert_table_t<T>* graph  = graph_in;
-    vunit_t<T>*      v_unit = graph[v].get_vunit();
-    if (0 == v_unit) return 0;
-    
-    degree_t local_degree = 0;
-    degree_t total_degree = 0;
-    T* local_adjlist = 0;
-
-    delta_adjlist_t<T>* delta_adjlist;
-    delta_adjlist           = v_unit->delta_adjlist;
-    degree_t nebr_count     = get_degree_in(v);
-    degree_t delta_degree   = nebr_count;
-
-    //cout << "delta adjlist " << delta_degree << endl;	
-    //cout << "Nebr list of " << v <<" degree = " << nebr_count << endl;	
-    
-    //traverse the delta adj list
-    while (delta_adjlist != 0 && delta_degree > 0) {
-        local_adjlist    = delta_adjlist->get_adjlist();
-        local_degree     = delta_adjlist->get_nebrcount();
-        degree_t i_count = min(local_degree, delta_degree);
-        
-        memcpy(adj_list + total_degree, local_adjlist, sizeof(T)*i_count);
-        delta_adjlist = delta_adjlist->get_next();
-        delta_degree -= i_count;
-        total_degree += i_count;
-    }
-    return nebr_count;
+    return graph_in->get_nebrs(v, adj_list, get_degree_in(v));
 }
