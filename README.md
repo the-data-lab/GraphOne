@@ -53,17 +53,20 @@ Discription will be updated later.
 
 # Help
 ## Building
-If you want to install intel tbb, then current MakeFile is sufficient. Just run following command to build GraphOne:
+If need to install intel tbb on your machine. Then, Just run following command to build GraphOne:
 
+  `mkdir build`
+  `cmake ../`
   `make`
   
-  It will produce two executables: graphone32 and graphone64 using -O3 flag. Otherwise, remove -DTBB and -ltbb from the command line flags at line 5.
   
-  If you need to build the graph in debug mode. Then comment the line 5, and uncomment the line 6 of Makefile. and call `make` again.
+  It will produce two executables: graphone32 and graphone64 using -O3 flag. Otherwise, remove -DTBB and -ltbb from the command line flags from CMakeLists.txt at line no. 6.
+  
+  If you need to build the graph in debug mode. Then comment the line 6, and uncomment the line 7 of CMakeLists.txt. and call `above three command`.
   
   
   ## Running
-  If you have used getopt.h in any of your c++ coding, then you will be able to figure out following command-line options. 
+  We assume you are in build folder.  If you have used getopt.h in any of your c++ coding, then you will be able to figure out following command-line options. 
   ```
   {"vcount",      required_argument,  0, 'v'},
   {"help",        no_argument,        0, 'h'},

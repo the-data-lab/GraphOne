@@ -724,6 +724,7 @@ void mem_bfs_simple(snap_t<T>* snaph,
                         continue;
                     } else if (nebr_count > prior_sz) {
                         prior_sz = nebr_count;
+                        free(local_adjlist);
                         local_adjlist = (T*)malloc(prior_sz*sizeof(T));
                     }
 
@@ -749,6 +750,7 @@ void mem_bfs_simple(snap_t<T>* snaph,
                         continue;
                     } else if (nebr_count > prior_sz) {
                         prior_sz = nebr_count;
+                        free(local_adjlist);
                         local_adjlist = (T*)malloc(prior_sz*sizeof(T));
                     }
 
@@ -799,7 +801,7 @@ void mem_bfs_simple(snap_t<T>* snaph,
 	
         //Point is to simulate bottom up bfs, and measure the trade-off    
 		if ((frontier >= 0.002*v_count) || level == 2) {
-			top_down = false;
+			//top_down = false;
 		} else {
             top_down = true;
         }
@@ -1538,6 +1540,14 @@ mem_pagerank_epsilon(snap_t<T>* snaph, double epsilon)
 	cout << endl;
 }
 
+template<class T>
+void 
+wsstream_pagerank_epsilon(wsstream_t<T>* wsstreamh)
+{
+    T* ptr = NULL;
+    wsstreamh->get_nebrs_out(1, ptr);
+    return;
+}
 
 template<class T>
 void 

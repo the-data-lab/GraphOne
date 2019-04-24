@@ -1445,6 +1445,7 @@ void test_stream_pr(const string& idir, const string& odir)
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
     sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
+    wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &wsstream_pagerank_epsilon<T>, 0, 0 ,0);
     
     manager.prep_graph_and_scompute(idir, odir, sstreamh);
 }

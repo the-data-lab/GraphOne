@@ -33,6 +33,18 @@ index_t  DELTA_SIZE = (1L << 37) ;//(32 + sizeof(T));  //sizeo of delta adj-list
 index_t  W_SIZE = (1L << 12); //Edges to write
 index_t  DVT_SIZE = (1L <<24);//durable v-unit 
 
+#ifdef B64
+propid_t INVALID_PID = 0xFFFF;
+tid_t    INVALID_TID  = 0xFFFFFFFF;
+sid_t    INVALID_SID  = 0xFFFFFFFFFFFFFFFF;
+#else 
+propid_t INVALID_PID = 0xFF;
+tid_t    INVALID_TID  = 0xFF;
+sid_t    INVALID_SID  = 0xFFFFFFFF;
+#endif
+
+degree_t INVALID_DEGREE = 0xFFFFFFFF;
+
 using std::swap;
 
 void* alloc_buf()

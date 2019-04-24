@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <string.h>
+#include <cstdio>
 #include "prop_encoder.h"
 #include "cf_info.h"
 

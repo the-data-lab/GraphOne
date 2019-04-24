@@ -1,6 +1,16 @@
 #include <pthread.h>
 
-#include "all.h"
+#include "graph.h"
+
+#include "sgraph.h"
+#include "sgraph2.h"
+/*----------- labels ------------------ */
+//#include "labelkv.h"
+#include "typekv.h"
+#include "stringkv.h"
+#include "numberkv.h"
+#include "str2sid.h"
+
 
 index_t residue = 0;
 
