@@ -1,17 +1,13 @@
 set(src_source_files
-    bitmap.h
     cf_info.cpp
     cf_info.h
-    CMakeLists.txt
     edge_sharding.h
     enumkv.cpp
     enumkv.h
     graph_base.h
     graph.cpp
     graph.h
-    graph_view.h
     labelkv.h
-    mem_iterative_analytics.h
     mixkv.h
     new_func.h
     new_type.h
@@ -25,12 +21,8 @@ set(src_source_files
     sgraph.cpp
     sgraph.h
     skv.h
-    sstream_view.h
-    static_view.h
     str2sid.h
     str.cpp
-    stream_analytics.h
-    stream_view.h
     str.h
     stringkv.cpp
     stringkv.h
@@ -38,7 +30,6 @@ set(src_source_files
     typekv.cpp
     typekv.h
     wgraph.h
-    wsstream_view.h
     wtime.h
 )
 

@@ -36,7 +36,7 @@ void strkv_t::setup(tid_t t)
 {
     tid = t;
     vid_t v_count = g->get_type_scount(tid);
-    
+    assert(v_count); 
     kv = (sid_t*)calloc(sizeof(sid_t), v_count);
     
     mem.setup(1L<<28);

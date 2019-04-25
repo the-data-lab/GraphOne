@@ -11,7 +11,7 @@ set(LINK_FLAGS_COMMON "-ltbb -fopenmp")
 
 include_directories(include)
 include_directories(src)
-include_directories(test)
+include_directories(gview)
 
 add_subdirectory(src)
 add_subdirectory(test)

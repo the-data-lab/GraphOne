@@ -12,7 +12,6 @@ set(test_source_files
     plain_to_edge.h
     util.cpp
     util.h
-    test.h
 )
 
 set(test_source64_files
