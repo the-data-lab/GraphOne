@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 #include "type.h"
 #include "graph.h"
 #include "wtime.h"
@@ -30,7 +29,6 @@ class pgraph_t: public cfinfo_t {
 
         //edge sharding unit
         edge_shard_t<T>* edge_shard;
-        
 
  public:    
     inline pgraph_t(): cfinfo_t(egraph){ 
@@ -56,7 +54,6 @@ class pgraph_t: public cfinfo_t {
         assert(0);
     } ;
         
-    
     inline status_t batch_edge(edgeT_t<T>& edge) {
         status_t ret = eOK;
         
@@ -118,10 +115,10 @@ class pgraph_t: public cfinfo_t {
         return blog->update_marker();
     }
 
- public:
+ protected:
     void prep_sgraph(sflag_t ori_flag, onegraph_t<T>** a_sgraph);
     void prep_skv(sflag_t ori_flag, onekv_t<T>** a_skv);
-    void            prep_sgraph_internal(onegraph_t<T>** sgraph);
+    void prep_sgraph_internal(onegraph_t<T>** sgraph);
     
     void make_graph_d(); 
     void make_graph_u();
@@ -129,23 +126,9 @@ class pgraph_t: public cfinfo_t {
     
     void make_on_classify(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end, vid_t bit_shift);
 
-    void estimate_classify (vid_t* vid_range, vid_t* vid_range_in, vid_t bit_shift, vid_t bit_shift_in);
-    void estimate_classify_uni (vid_t* vid_range, vid_t bit_shift);
-    void estimate_classify_runi (vid_t* vid_range, vid_t bit_shift);
-    void prefix_sum (global_range_t<T>* global_range, thd_local_t* thd_local,
-                    vid_t range_count, vid_t thd_count, edgeT_t<T>* edge_buf);
-    void work_division (global_range_t<T>* global_range, thd_local_t* thd_local,
-                    vid_t range_count, vid_t thd_count, index_t equal_work);
-    
-    void classify (vid_t* vid_range, vid_t* vid_range_in, vid_t bit_shift, vid_t bit_shift_in, 
-            global_range_t<T>* global_range, global_range_t<T>* global_range_in);
-    void classify_uni(vid_t* vid_range, vid_t bit_shift, global_range_t<T>* global_range);
-    void classify_runi(vid_t* vid_range, vid_t bit_shift, global_range_t<T>* global_range);
-    
-    
-    void calc_degree_noatomic (onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
+    void calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
                       vid_t j_start, vid_t j_end);
-    virtual void fill_adjlist_noatomic (onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
+    virtual void fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
                       vid_t j_start, vid_t j_end);
     
     void store_sgraph(onegraph_t<T>** sgraph, bool clean = false);
@@ -157,9 +140,8 @@ class pgraph_t: public cfinfo_t {
     void file_open_edge(const string& dir, bool trunc);
     void file_open_sgraph(onegraph_t<T>** sgraph, const string& odir, const string& postfix, bool trunc);
     void file_open_skv(onekv_t<T>** skv, const string& odir, const string& postfix, bool trunc);
-   
-    //void update_count(onegraph_t<T>** sgraph);
-
+  
+#ifdef BULK 
     void calc_edge_count(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in); 
     void calc_edge_count_out(onegraph_t<T>** p_sgraph_out);
     void calc_edge_count_in(onegraph_t<T>** sgraph_in);
@@ -167,12 +149,14 @@ class pgraph_t: public cfinfo_t {
     void fill_adj_list(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in);
     void fill_adj_list_in(onekv_t<T>** skv_out, onegraph_t<T>** sgraph_in); 
     void fill_adj_list_out(onegraph_t<T>** sgraph_out, onekv_t<T>** skv_in); 
+#endif    
     void fill_skv_in(onekv_t<T>** skv, global_range_t<T>* global_range, vid_t j_start, vid_t j_end);
     void fill_skv(onekv_t<T>** skv_out, onekv_t<T>** skv_in);
   
     //compress the graph
     void compress_sgraph(onegraph_t<T>** sgraph);
 
+ public:
     //Making Queries easy
     degree_t get_degree_out(sid_t sid);
     degree_t get_degree_in(sid_t sid);
@@ -193,7 +177,6 @@ class pgraph_t: public cfinfo_t {
     //status_t extend_adjlist_td(onegraph_t<T>** skv, srset_t* iset, srset_t* oset);
     //status_t extend_kv_td(onekv_t<T>** skv, srset_t* iset, srset_t* oset);
 };
-
 
 //called from w thread 
 template <class T>
@@ -238,9 +221,7 @@ class ugraph: public pgraph_t<T> {
     using pgraph_t<T>::read_sgraph;
     using pgraph_t<T>::prep_sgraph;
     using pgraph_t<T>::file_open_sgraph;
-    using pgraph_t<T>::calc_edge_count;
     using pgraph_t<T>::prep_sgraph_internal;
-    using pgraph_t<T>::fill_adj_list;
     using pgraph_t<T>::store_sgraph;
 
 
@@ -274,9 +255,7 @@ class dgraph: public pgraph_t<T> {
     using pgraph_t<T>::prep_sgraph;
     using pgraph_t<T>::read_sgraph;
     using pgraph_t<T>::file_open_sgraph;
-    using pgraph_t<T>::calc_edge_count;
     using pgraph_t<T>::prep_sgraph_internal;
-    using pgraph_t<T>::fill_adj_list;
     using pgraph_t<T>::store_sgraph;
 
  public:
@@ -309,9 +288,7 @@ class unigraph: public pgraph_t<T> {
     using pgraph_t<T>::prep_sgraph;
     using pgraph_t<T>::read_sgraph;
     using pgraph_t<T>::file_open_sgraph;
-    using pgraph_t<T>::calc_edge_count;
     using pgraph_t<T>::prep_sgraph_internal;
-    using pgraph_t<T>::fill_adj_list;
     using pgraph_t<T>::store_sgraph;
 
  public:
@@ -558,7 +535,6 @@ void pgraph_t<T>::calc_edge_count_in(onegraph_t<T>** sgraph_in)
         }
     }
 }
-#endif
 template <class T>
 void pgraph_t<T>::fill_adj_list(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in)
 {
@@ -647,6 +623,7 @@ void pgraph_t<T>::fill_adj_list_out(onegraph_t<T>** sgraph_out, onekv_t<T>** skv
         skv_in[dst_index]->set_value(vert2_id, src2); 
     }
 }
+#endif
 
 template <class T>
 degree_t pgraph_t<T>::get_degree_out(sid_t sid)
@@ -1129,7 +1106,7 @@ void dgraph<T>::make_graph_baseline()
     start = mywtime(); 
     #pragma omp parallel num_threads(THD_COUNT)
     {
-    calc_edge_count(sgraph_out, sgraph_in);
+    this->calc_edge_count(sgraph_out, sgraph_in);
     }
     end = mywtime();
     cout << "degree time = " << end-start << endl;
@@ -1148,7 +1125,7 @@ void dgraph<T>::make_graph_baseline()
     start = mywtime(); 
     #pragma omp parallel num_threads(THD_COUNT)
     {
-    fill_adj_list(sgraph_out, sgraph_in);
+    this->fill_adj_list(sgraph_out, sgraph_in);
     }
     end = mywtime();
     cout << "fill  time = " << end-start << endl;
@@ -1242,7 +1219,7 @@ void ugraph<T>::make_graph_baseline()
     
     #pragma omp parallel   num_threads(THD_COUNT)  
     {
-        calc_edge_count(sgraph, sgraph);
+        this->calc_edge_count(sgraph, sgraph);
         #pragma omp master 
         {
             end = mywtime();
@@ -1254,7 +1231,7 @@ void ugraph<T>::make_graph_baseline()
             end = mywtime();
             cout << " prep time = " << end - start << endl;
         }
-        fill_adj_list(sgraph, sgraph);
+        this->fill_adj_list(sgraph, sgraph);
         #pragma omp master 
         {
             end = mywtime();

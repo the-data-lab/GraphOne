@@ -29,9 +29,7 @@ class many2one: public pgraph_t<T> {
     using pgraph_t<T>::prep_skv;
     using pgraph_t<T>::file_open_sgraph;
     using pgraph_t<T>::file_open_skv;
-    using pgraph_t<T>::calc_edge_count_in;
     using pgraph_t<T>::prep_sgraph_internal;
-    using pgraph_t<T>::fill_adj_list_in;
     using pgraph_t<T>::store_sgraph;
     using pgraph_t<T>::store_skv;
 
@@ -101,9 +99,7 @@ class one2many: public pgraph_t<T> {
     using pgraph_t<T>::prep_skv;
     using pgraph_t<T>::file_open_sgraph;
     using pgraph_t<T>::file_open_skv;
-    using pgraph_t<T>::calc_edge_count_out;
     using pgraph_t<T>::prep_sgraph_internal;
-    using pgraph_t<T>::fill_adj_list_out;
     using pgraph_t<T>::store_sgraph;
     using pgraph_t<T>::store_skv;
 
@@ -181,14 +177,14 @@ void many2one<T>::make_graph_baseline()
         this->edge_shard->cleanup(); 
     }
 #else
-    calc_edge_count_in(sgraph_in);
+    this->calc_edge_count_in(sgraph_in);
     
     //prefix sum then reset the count
     prep_sgraph_internal(sgraph_in);
 
     //populate and get the original count back
     //handle kv_out as well.
-    fill_adj_list_in(skv_out, sgraph_in);
+    this->fill_adj_list_in(skv_out, sgraph_in);
     blog->blog_tail = blog->blog_marker;
 #endif
 }
@@ -280,13 +276,13 @@ void one2many<T>::make_graph_baseline()
     }
     
 #else 
-    calc_edge_count_out(sgraph_out);
+    this->calc_edge_count_out(sgraph_out);
     
     //prefix sum then reset the count
     prep_sgraph_internal(sgraph_out);
 
     //populate and get the original count back
-    fill_adj_list_out(sgraph_out, skv_in);
+    this->fill_adj_list_out(sgraph_out, skv_in);
     //update_count(sgraph_out);
     blog->blog_tail = blog->blog_marker;  
 #endif
