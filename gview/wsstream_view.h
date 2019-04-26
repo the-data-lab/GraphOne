@@ -1,7 +1,7 @@
 #pragma once
 
 template <class T>
-struct wsnap_t {
+struct wsnap_t : public gview_t<T> {
     pgraph_t<T>*     pgraph;  
  protected: 
     snapshot_t*      snapshot;//new snapshot
@@ -61,8 +61,8 @@ struct wsnap_t {
             delete degree_in1;
         }
     }
-    degree_t get_nebrs_out(vid_t vid, T*& ptr);
-    degree_t get_nebrs_in (vid_t vid, T*& ptr);
+    degree_t get_nebrs_out(vid_t vid, T* ptr);
+    degree_t get_nebrs_in (vid_t vid, T* ptr);
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
     vid_t    get_vcount() { return v_count;};     
@@ -102,7 +102,7 @@ class wsstream_t : public wsnap_t<T> {
  
  public:
     void*            algo_meta;//algorithm specific data
-    typename callback<T>::wsfunc   wsstream_func;
+    typename callback<T>::sfunc   wsstream_func;
 
  public:
     inline wsstream_t() {
@@ -317,9 +317,9 @@ void wsstream_t<T>::update_degreesnap()
 
     //Update the degree nodes for the starting marker of window
     // 1. fetch the durable degree edges
-    index_t how_much = (IS_STALE(flag) ? 0: edge_count)
-            + snapshot->marker - snapshot1->marker - edge_count1;
-    edges1 = pgraph->get_prior_edges(snapshot1->marker + edge_count1, how_much);
+    index_t end_marker = (IS_STALE(flag) ? 0: edge_count) + snapshot->marker;
+    edges1 = pgraph->get_prior_edges(snapshot1->marker + edge_count1, end_marker);
+    index_t how_much = end_marker - snapshot1->marker - edge_count1;
     // 2. compute the degree
     for (index_t i = 0; i < how_much; ++i) {
         __sync_fetch_and_add(degree_out1 + edges1[i].src_id, 1);
@@ -376,9 +376,9 @@ void wsstream_t<T>::update_degreesnapd()
 
     //Update the degree nodes for the starting marker of window
     // 1. fetch the durable degree edges
-    index_t how_much = (IS_STALE(flag) ? 0: edge_count)
-            + snapshot->marker - snapshot1->marker - edge_count1;
-    edges1 = pgraph->get_prior_edges(snapshot1->marker + edge_count1, how_much);
+    index_t end_marker = (IS_STALE(flag) ? 0: edge_count) + snapshot->marker;
+    edges1 = pgraph->get_prior_edges(snapshot1->marker + edge_count1, end_marker);
+    index_t how_much = end_marker - snapshot1->marker - edge_count1;
     // 2. compute the degree
     for (index_t i = 0; i < how_much; ++i) {
         __sync_fetch_and_add(degree_out1 + edges1[i].src_id, 1);
@@ -422,12 +422,12 @@ degree_t wsnap_t<T>::get_degree_in(vid_t v)
 }
 
 template <class T>
-degree_t wsnap_t<T>::get_nebrs_out(vid_t v, T*& adj_list)
+degree_t wsnap_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
     return graph_out->get_wnebrs(v, adj_list, degree_out1[v], get_degree_out(v));
 }
 template<class T>
-degree_t wsnap_t<T>::get_nebrs_in(vid_t v, T*& adj_list)
+degree_t wsnap_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_nebrs(v, adj_list, degree_in1[v], get_degree_in(v));
+    return graph_in->get_wnebrs(v, adj_list, degree_in1[v], get_degree_in(v));
 }

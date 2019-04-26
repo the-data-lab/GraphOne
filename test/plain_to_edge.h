@@ -660,6 +660,3 @@ void plaingraph_manager_t<T>::prep_graph_and_compute(const string& idirname, con
     double end = mywtime ();
     cout << "Make graph time = " << end - start << endl;
 }
-
-
-extern plaingraph_manager_t<sid_t> plaingraph_manager; 

@@ -4,7 +4,7 @@ template <class T>
 class stream_t {
  public:
     index_t          edge_offset;//Compute starting offset
-    edgeT_t<T>*      edges; //mew edges
+    edgeT_t<T>*      edges; //new edges
     index_t          edge_count;//their count
     pgraph_t<T>*     pgraph;
     
@@ -22,9 +22,9 @@ class stream_t {
     inline void*   get_algometa() {return algo_meta;}
 
     inline edgeT_t<T>* get_edges() { return edges;}
-    inline void        set_edges(edgeT_t<T>*a_edges) {edges = a_edges;}
-    
     inline index_t     get_edgecount() { return edge_count;}
+    
+    inline void        set_edges(edgeT_t<T>*a_edges) {edges = a_edges;}
     inline void        set_edgecount(index_t a_edgecount){edge_count = a_edgecount;}
 
  public:   

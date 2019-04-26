@@ -934,8 +934,8 @@ void prior_snap_testu(const string& odir)
     
     //Run using prior static view.
     prior_snap_t<T>* snaph = create_prior_static_view(pgraph, 0, 33554432);
-    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
-    mem_wbfs(snaph, level_array, 1);
+    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->get_vcount());
+    mem_bfs_simple(snaph, level_array, 1);
 
     return ;
 }
@@ -951,8 +951,8 @@ void prior_snap_testuni(const string& odir)
     //Run using prior static view.
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     prior_snap_t<T>* snaph = create_prior_static_view(pgraph, 0, 33554432);
-    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
-    mem_wbfs(snaph, level_array, 1);
+    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->get_vcount());
+    mem_bfs_simple(snaph, level_array, 1);
 
     return ;
 }
@@ -998,7 +998,7 @@ void ingestion_fulluni(const string& idir, const string& odir,
     prior_snap_t<T>* snaph;
     manager.create_prior_static_view(&snaph, 0, 33554432);
     uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
-    mem_wbfs(snaph, level_array, 1);
+    mem_bfs_simple(snaph, level_array, 1);
     */
 }
 
@@ -1445,7 +1445,7 @@ void test_stream_pr(const string& idir, const string& odir)
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
     sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
-    wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &wsstream_pagerank_epsilon<T>, 0, 0 ,0);
+    wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &stream_pagerank_epsilon<T>, 0, 0 ,0);
     
     manager.prep_graph_and_scompute(idir, odir, sstreamh);
 }

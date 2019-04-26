@@ -15,7 +15,7 @@ extern double qthread_doubleincr(double *operand, double incr);
 
 template<class T>
 void
-mem_hop1(snap_t<T>* snaph)
+mem_hop1(gview_t<T>* snaph)
 {
     srand(0);
     int query_count = 2048;
@@ -381,7 +381,7 @@ mem_hop2(vert_table_t<T>* graph_out, degree_t* degree_out,
 */
 
 template<class T>
-void mem_hop2(snap_t<T>* snaph) 
+void mem_hop2(gview_t<T>* snaph) 
 {
     srand(0);
     int query_count = 512;
@@ -690,7 +690,7 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
 }
 */
 template<class T>
-void mem_bfs_simple(snap_t<T>* snaph,
+void mem_bfs_simple(gview_t<T>* snaph,
         uint8_t* status, sid_t root)
 {
 	int				level      = 1;
@@ -822,7 +822,7 @@ void mem_bfs_simple(snap_t<T>* snaph,
 }
 
 template<class T>
-void mem_bfs(snap_t<T>* snaph,
+void mem_bfs(gview_t<T>* snaph,
         uint8_t* status, sid_t root)
 {
     int				level      = 1;
@@ -953,95 +953,8 @@ void mem_bfs(snap_t<T>* snaph,
     }
 }
 
-template <class T>
-void mem_wbfs(prior_snap_t<T>* snaph, uint8_t* status, sid_t root)
-{
-	int				level      = 1;
-	int				top_down   = 1;
-	sid_t			frontier   = 0;
-
-	double start1 = mywtime();
-    if(snaph->get_degree_out(root) == 0) { root = 0;}
-
-	status[root] = level;
-    vid_t v_count = snaph->get_vcount(); 
-	do {
-		frontier = 0;
-		//double start = mywtime();
-		#pragma omp parallel reduction(+:frontier)
-		{
-            sid_t sid;
-            degree_t nebr_count = 0;
-            T* local_adjlist = 0;
-		    
-            if (top_down) {
-				
-                #pragma omp for nowait
-				for (vid_t v = 0; v < v_count; v++) {
-                    nebr_count = snaph->get_degree_out(v);
-					if (status[v] != level || (0 == nebr_count)) continue;
-                    
-                    local_adjlist = (T*)calloc(nebr_count, sizeof(T));
-                    snaph->get_nebrs_out(v, local_adjlist);
-                
-                    for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
-                        if (status[sid] == 0) {
-                            status[sid] = level + 1;
-                            ++frontier;
-                            //cout << " " << sid << endl;
-                        }
-                    }
-                    free(local_adjlist);
-				}
-			} else {//bottom up
-				
-				#pragma omp for nowait
-				for (vid_t v = 0; v < v_count; v++) {
-                    nebr_count = snaph->get_degree_in(v);
-					if (status[v] != 0 || 0 == nebr_count) continue;
-                    
-                    local_adjlist = (T*)calloc(nebr_count, sizeof(T));
-                    snaph->get_nebrs_in(v, local_adjlist);
-					
-                    //traverse the delta adj list
-                    for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
-                        if (status[sid] == level) {
-                            status[v] = level + 1;
-                            ++frontier;
-                            break;
-                        }
-                    }
-                    free(local_adjlist);
-				}
-		    }
-        }
-
-        //Point is to simulate bottom up bfs, and measure the trade-off    
-		if ((frontier >= 0.002*v_count) || level == 2) {
-			//top_down = false;
-		} else {
-            top_down = true;
-        }
-		++level;
-	} while (frontier);
-		
-    double end1 = mywtime();
-    cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
-}
-
 template<class T>
-void mem_pagerank_push(snap_t<T>* snaph, int iteration_count)
+void mem_pagerank_push(gview_t<T>* snaph, int iteration_count)
 {
 	float* rank_array = 0 ;
 	float* prior_rank_array = 0;
@@ -1167,7 +1080,7 @@ void mem_pagerank_push(snap_t<T>* snaph, int iteration_count)
 }
 
 template<class T>
-void mem_pagerank(snap_t<T>* snaph, int iteration_count)
+void mem_pagerank(gview_t<T>* snaph, int iteration_count)
 {
     vid_t v_count = snaph->get_vcount();
 	float* rank_array = 0 ;
@@ -1296,7 +1209,7 @@ void mem_pagerank(snap_t<T>* snaph, int iteration_count)
 }
 
 template<class T>
-void mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
+void mem_pagerank_simple(gview_t<T>* snaph, int iteration_count)
 {
     //vert_table_t<T>* graph_in; 
 
@@ -1423,7 +1336,7 @@ void mem_pagerank_simple(snap_t<T>* snaph, int iteration_count)
 
 template<class T>
 void 
-mem_pagerank_epsilon(snap_t<T>* snaph, double epsilon)
+mem_pagerank_epsilon(gview_t<T>* snaph, double epsilon)
 {
     vid_t v_count = snaph->get_vcount();
 	double* rank_array = 0;
@@ -1542,16 +1455,7 @@ mem_pagerank_epsilon(snap_t<T>* snaph, double epsilon)
 
 template<class T>
 void 
-wsstream_pagerank_epsilon(wsstream_t<T>* wsstreamh)
-{
-    T* ptr = NULL;
-    wsstreamh->get_nebrs_out(1, ptr);
-    return;
-}
-
-template<class T>
-void 
-stream_pagerank_epsilon(sstream_t<T>* sstreamh)
+stream_pagerank_epsilon(gview_t<T>* sstreamh)
 {
     double   epsilon  =  1e-8;
     double    delta   = 1.0;
@@ -1658,8 +1562,9 @@ stream_pagerank_epsilon(sstream_t<T>* sstreamh)
 
 template<class T>
 void
-stream_pagerank_epsilon1(sstream_t<T>* sstreamh)
+stream_pagerank_epsilon1(gview_t<T>* viewh)
 {
+    sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     vid_t v_count = sstreamh->get_vcount();
     pgraph_t<T>* ugraph  = sstreamh->pgraph;
     assert(ugraph);

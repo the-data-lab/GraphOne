@@ -1,7 +1,10 @@
 #pragma once
 
+#include "view_interface.h"
+
 template <class T>
-struct snap_t {
+class snap_t : public gview_t <T> {
+ public:
     pgraph_t<T>*     pgraph;  
  protected: 
     onegraph_t<T>*   graph_out;
@@ -28,8 +31,8 @@ struct snap_t {
             delete degree_in;
         }
     }
-    degree_t get_nebrs_out(vid_t vid, T*& ptr);
-    degree_t get_nebrs_in (vid_t vid, T*& ptr);
+    degree_t get_nebrs_out(vid_t vid, T* ptr);
+    degree_t get_nebrs_in (vid_t vid, T* ptr);
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
     vid_t    get_vcount() { return v_count;};     
@@ -194,12 +197,12 @@ degree_t snap_t<T>::get_degree_in(vid_t v)
 }
 
 template <class T>
-degree_t snap_t<T>::get_nebrs_out(vid_t v, T*& adj_list)
+degree_t snap_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
     return graph_out->get_nebrs(v, adj_list, get_degree_out(v));
 }
 template<class T>
-degree_t snap_t<T>::get_nebrs_in(vid_t v, T*& adj_list)
+degree_t snap_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
     return graph_in->get_nebrs(v, adj_list, get_degree_in(v));
 }

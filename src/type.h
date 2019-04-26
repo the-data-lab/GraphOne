@@ -622,10 +622,8 @@ template <class T>
 class pgraph_t;
 
 template<class T>
-class wsstream_t;
+class gview_t;
 
-template<class T>
-class sstream_t;
 
 template<class T>
 class wstream_t;
@@ -635,8 +633,7 @@ class stream_t;
 
 template<class T>
 struct callback {
-      typedef void(*wsfunc)(wsstream_t<T>*);
-      typedef void(*sfunc)(sstream_t<T>*);
+      typedef void(*sfunc)(gview_t<T>*);
       typedef void(*wfunc)(wstream_t<T>*);
       typedef void(*func)(stream_t<T>*);
 

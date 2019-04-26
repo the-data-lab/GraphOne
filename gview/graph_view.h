@@ -24,58 +24,9 @@ class vert_table_t;
 #include "sstream_view.h"
 #include "stream_view.h"
 #include "wsstream_view.h"
-
-template <class T>
-struct prior_snap_t {
-    degree_t*        degree_out;
-    degree_t*        degree_in;
-    degree_t*        degree_out1;
-    degree_t*        degree_in1;
-
-    pgraph_t<T>*     pgraph;  
-    vid_t            v_count;
-public:
-    prior_snap_t() {
-        degree_out = 0;
-        degree_in  = 0;
-        degree_out1= 0;
-        degree_in1 = 0;
-    }
-    degree_t get_nebrs_out(vid_t vid, T* ptr);
-    degree_t get_nebrs_in (vid_t vid, T* ptr);
-    degree_t get_degree_out(vid_t vid);
-    degree_t get_degree_in (vid_t vid);
-    vid_t    get_vcount() { return v_count; }
-};
+#include "historical_view.h"
     
-template <class T>
-degree_t prior_snap_t<T>::get_degree_out(vid_t vid)
-{
-    return degree_out[vid] - degree_out1[vid];
-}
-
-template <class T>
-degree_t prior_snap_t<T>::get_degree_in(vid_t vid)
-{
-    return degree_in[vid] - degree_in1[vid];
-}
-
-template <class T>
-degree_t prior_snap_t<T>::get_nebrs_out(vid_t vid, T* ptr)
-{
-    return pgraph->get_wnebrs_out(vid, ptr, degree_out1[vid], get_degree_out(vid));
-}
-
-template <class T>
-degree_t prior_snap_t<T>::get_nebrs_in(vid_t vid, T* ptr)
-{
-    if (degree_out == degree_in) {
-        return pgraph->get_wnebrs_out(vid, ptr, degree_in1[vid], get_degree_in(vid));
-    } else {
-        return pgraph->get_wnebrs_in(vid, ptr, degree_in1[vid], get_degree_in(vid));
-    }
-}
-
+// ------ VIEW CREATE/REGISTER API --------------
 template <class T>
 snap_t<T>* create_static_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale)
 {
@@ -112,7 +63,7 @@ void unreg_sstream_view(sstream_t<T>* sstreamh)
 
 template <class T>
 wsstream_t<T>* reg_wsstream_view(pgraph_t<T>* ugraph, index_t window_sz, 
-                typename callback<T>::wsfunc func, bool simple, bool priv, bool stale)
+                typename callback<T>::sfunc func, bool simple, bool priv, bool stale)
 {
     wsstream_t<T>* wsstreamh = new wsstream_t<T>;
     
@@ -158,36 +109,7 @@ template <class T>
 prior_snap_t<T>* create_prior_static_view(pgraph_t<T>* pgraph, index_t start_offset, index_t end_offset)
 {
     prior_snap_t<T>* snaph = new prior_snap_t<T>;
-    /*
-    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
-    
-    
-    pgraph   = pgraph1;
-    
-    v_count  = g->get_type_scount();
-    degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
-    degree_out1= (degree_t*) calloc(v_count, sizeof(degree_t));
-    
-    if (pgraph->sgraph_in == pgraph->sgraph_out) {
-        degree_in  = degree_out;
-        degree_in1 = degree_out1;
-    } else if (pgraph->sgraph_in != 0) {
-        degree_in  = (degree_t*) calloc(v_count, sizeof(degree_t));
-        degree_in1 = (degree_t*) calloc(v_count, sizeof(degree_t));
-    }
-
-    if (0 != start_offset) {
-        pgraph->create_degree(degree_out1, degree_in1, 0, start_offset);
-        memcpy(degree_out, degree_out1, sizeof(degree_t)*v_count);
-        
-        if (pgraph->sgraph_out != pgraph->sgraph_in && pgraph->sgraph_in != 0) {
-            memcpy(degree_in, degree_in1, sizeof(degree_t)*v_count);
-        }
-    }
-        
-    pgraph->create_degree(degree_out, degree_in, start_offset, end_offset);
-
-    */
-
+    snaph->create_view(pgraph, start_offset, end_offset);
     return snaph;
 }
+

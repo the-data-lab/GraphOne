@@ -181,12 +181,9 @@ class pgraph_t: public cfinfo_t {
     degree_t get_wnebrs_out(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
     degree_t get_wnebrs_in(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
 
-    edgeT_t<T>* get_prior_edges(index_t edge_offset, index_t size) {
-        assert(0);
-        return NULL;
-    }
     //making historic views
     void create_degree(degree_t* degree_out, degree_t* degree_in, index_t start_offset, index_t end_offset);
+    edgeT_t<T>* get_prior_edges(index_t start_offset, index_t end_offset);
 
     //status_t query_adjlist_td(onegraph_t<T>** sgraph, srset_t* iset, srset_t* oset);
     //status_t query_kv_td(onekv_t<T>** skv, srset_t* iset, srset_t* oset);
@@ -700,6 +697,18 @@ degree_t pgraph_t<T>::get_wnebrs_in(sid_t sid, T* ptr, index_t start_offset, ind
 }
     
 //making historic views
+template <class T>   
+edgeT_t<T>* pgraph_t<T>::get_prior_edges(index_t start_offset, index_t end_offset)
+{
+    assert(wtf != -1);
+    index_t size = (end_offset - start_offset)*sizeof(edgeT_t<T>);
+    index_t offset = start_offset*sizeof(edgeT_t<T>);
+    edgeT_t<T>* edges = (edgeT_t<T>*)malloc(size);
+    index_t sz_read = pread(wtf, edges, size, offset);
+    assert(size == sz_read);
+    return edges;
+}
+
 template <class T>
 void pgraph_t<T>::create_degree(degree_t* degree_out, degree_t* degree_in, index_t start_offset, index_t end_offset)
 {
