@@ -135,18 +135,18 @@ template <class T>
 status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 {
     vunit_t<T>* v_unit = beg_pos[vid].v_unit; 
-    delta_adjlist_t<T>* adj_list = 0;
     
     //Get the new count
-    degree_t nebr_count = get_degree(vid);
+    degree_t nebr_count = get_degree(vid); //valid counts
     degree_t del_count = get_delcount(vid);
-    degree_t new_count = nebr_count -  del_count;
-    degree_t max_count = new_count;
-    
-    if (0 == new_count) {
+   
+    //Only 1 chain, and no deletion data,then no compaction required
+    if (0 == nebr_count || (del_count == 0 && (v_unit->delta_adjlist == v_unit->adj_list))) {
         return eOK;
     }
 
+    degree_t max_count = nebr_count;
+    delta_adjlist_t<T>* adj_list = 0;
     /*
     //Allocate new memory
     if (new_count >= HUB_COUNT || max_count >= 256) {
@@ -158,13 +158,13 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
         adj_list = new_delta_adjlist_local(max_count);
     }
     
-    adj_list->set_nebrcount(new_count);
+    adj_list->set_nebrcount(nebr_count);
     adj_list->add_next(0);
     
     //copy the data from older edge arrays to new edge array
     T* ptr = adj_list->get_adjlist();
     degree_t ret = get_nebrs(vid, ptr);
-    assert(ret == new_count);
+    assert(ret == nebr_count);
 
     //replace the edge array atomically
     v_unit->max_size = max_count;
@@ -181,16 +181,20 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, degree_t count /*=-1*/)
 
     degree_t nebr_count = count; 
     if (count == -1) nebr_count = get_degree(vid);
-    degree_t del_count  = get_delcount(vid);//XXX
+    
+    //this count may be greater than actual deleted count for the view
+    //as view might have been created some time back.
+    degree_t del_count  = get_delcount(vid);
+    
+    //traverse the delta adj list this far
+    degree_t delta_degree = nebr_count + del_count; 
+    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
+    
+    T* local_adjlist = 0;
     degree_t local_degree = 0;
     degree_t i_count = 0;
     degree_t total_count = 0;
-            
-    //traverse the delta adj list
-    degree_t delta_degree = nebr_count + del_count; 
-    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
-    T* local_adjlist = 0;
-
+    
     if (0 == del_count) {
         while (delta_adjlist != 0 && delta_degree > 0) {
             local_adjlist = delta_adjlist->get_adjlist();
@@ -213,13 +217,12 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, degree_t count /*=-1*/)
             local_degree = delta_adjlist->get_nebrcount();
             i_count = min(local_degree, delta_degree);
             
-            //memcpy(ptr+total_count, local_adjlist, sizeof(T)*i_count);
             for (degree_t i = 0; i < i_count; ++i) {
                 if (IS_DEL(get_sid(local_adjlist[i]))) {
                     pos = UNDEL_SID(get_sid(local_adjlist[i]));
                     del_pos[idel] = pos;
                     ++idel;
-                } else if (total_count >= nebr_count - del_count) {//space is full
+                } else if (total_count >= nebr_count) {//space is full
                     pos = del_pos[new_pos];
                     ++new_pos;
                     ptr[pos] = local_adjlist[i];
@@ -291,14 +294,14 @@ degree_t onegraph_t<T>::get_degree(vid_t v, snapid_t snap_id)
     
     degree_t nebr_count = 0;
     if (snap_id >= snap_blob->snap_id) {
-        nebr_count = snap_blob->degree; 
+        nebr_count = snap_blob->degree - snap_blob->del_count; 
     } else {
         snap_blob = snap_blob->prev;
         while (snap_blob && snap_id < snap_blob->snap_id) {
             snap_blob = snap_blob->prev;
         }
         if (snap_blob) {
-            nebr_count = snap_blob->degree; 
+            nebr_count = snap_blob->degree - snap_blob->del_count; 
         }
     }
     return nebr_count;

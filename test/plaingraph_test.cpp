@@ -551,10 +551,6 @@ void estimate_IO(const string& idirname, const string& odirname)
 //template <class T>
 void weighted_dtest0(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<lite_edge_t> manager;
-    
-    manager.schema_plaingraph();
-    
     string graph_file = idir + "g.bin";
     string action_file = idir + "a.bin"; 
     //string graph_file = idir + "small_basegraph";
@@ -582,6 +578,8 @@ void weighted_dtest0(const string& idir, const string& odir)
 
     //Create number of vertex
     v_count = nv;
+    plaingraph_manager_t<lite_edge_t> manager;
+    manager.schema_plaingraph();
     manager.setup_graph(v_count);
     
     //Do ingestion
@@ -592,26 +590,22 @@ void weighted_dtest0(const string& idir, const string& odir)
      * 3. Stinger does something directly with the memory that is allocated 
      *      for graph read, for initial graph building.
      */
-    propid_t cf_id = g->get_cfid("friend");
-    pgraph_t<lite_edge_t>*    graph = (pgraph_t<lite_edge_t>*)g->cf_info[cf_id];
+    pgraph_t<lite_edge_t>*    graph = (pgraph_t<lite_edge_t>*)manager.get_plaingraph();
     blog_t<lite_edge_t>*       blog = graph->blog;
     onegraph_t<lite_edge_t>* sgraph = graph->sgraph[0];
     
     double start = mywtime();
     
-#ifdef BULK
-    nebrcount_t* degree_array = sgraph->nebr_count;
-    
-    #pragma omp parallel
+    #pragma omp parallel num_threads(THD_COUNT)
     {
         index_t   nebr_count = 0;
-        
+
         #pragma omp for
         for (int64_t v = 0; v < nv; ++v) {
             nebr_count = v_offset[v+1] - v_offset[v];
-            degree_array[v].add_count = nebr_count;
+            sgraph->increment_count_noatomic(v, nebr_count);
         }
-        sgraph->setup_adjlist();
+#ifdef BULK
         /*
         //-------------
         vid_t  total_thds  = omp_get_num_threads();
@@ -623,71 +617,37 @@ void weighted_dtest0(const string& idir, const string& odir)
         if (tid == total_thds - 1) {
             vid_end = v_count;
         }
-        
         sgraph->setup_adjlist_noatomic(vid_start, vid_end);
         */
+        sgraph->setup_adjlist();
         #pragma omp barrier
-        //--------------
-        
-        #pragma omp for
-        for (int64_t v = 0; v < nv; ++v) {
-            nebr_count = v_offset[v+1] - v_offset[v];
-            if (nebr_count) {
-                sgraph->add_nebr_bulk(v, nebrs + v_offset[v], nebr_count);
-            }
-        }
-    }
-#else
-    #pragma omp parallel
-    {
-        index_t   nebr_count = 0;
-        
-        #pragma omp for
-        for (int64_t v = 0; v < nv; ++v) {
-            nebr_count = v_offset[v+1] - v_offset[v];
-            sgraph->increment_count_noatomic(v, nebr_count);
-        }
-        #pragma omp barrier
-        //--------------
-        
-        #pragma omp for
-        for (int64_t v = 0; v < nv; ++v) {
-            nebr_count = v_offset[v+1] - v_offset[v];
-            if (nebr_count) {
-                sgraph->add_nebr_bulk(v, nebrs + v_offset[v], nebr_count);
-            }
-        }
-    }
-
 #endif
-    
-    double end = mywtime();
-    
-    blog->blog_head += ne;
-    index_t marker = blog->blog_head;
-    index_t snap_marker = 0;
-    if (marker == 0) return;
 
-    graph->create_marker(marker);
+        #pragma omp for
+        for (int64_t v = 0; v < nv; ++v) {
+            nebr_count = v_offset[v+1] - v_offset[v];
+            if (nebr_count) {
+                sgraph->add_nebr_bulk(v, nebrs + v_offset[v], nebr_count);
+            }
+        }
+    }
+    
+    //faking a snapshot creation.
+    index_t snap_marker = 0;
+    blog->blog_head += ne;
+    graph->create_marker(0);//latest head will be chosen
     if (eOK == graph->move_marker(snap_marker)) {
-        //graph->make_graph_baseline();
-        //graph->store_graph_baseline();
-        //g->incr_snapid();
         graph->new_snapshot(snap_marker, snap_marker);
-        //blog->blog_tail = marker;
         graph->update_marker();
     }
-    cout << "Batch time = " << end - start << endl;
-    end = mywtime();
-    cout << "make graph marker = " << marker << endl;
+    double end = mywtime();
     cout << "Make graph time = " << end - start << endl;
 
     free(buf);
     free(nebrs);
 
     //-------Run bfs and PR------
-    pgraph_t<lite_edge_t>* pgraph = (pgraph_t<lite_edge_t>*)manager.get_plaingraph();
-    snap_t<lite_edge_t>* snaph = create_static_view(pgraph, true, true, true);
+    snap_t<lite_edge_t>* snaph = create_static_view(graph, true, true, true);
     
     uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
@@ -695,35 +655,6 @@ void weighted_dtest0(const string& idir, const string& odir)
     mem_pagerank_epsilon<lite_edge_t>(snaph, 1e-8);
 
     
-    /*
-    vert_table_t<lite_edge_t>* beg_pos = sgraph->get_begpos();
-    degree_t* degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
-
-    index_t old_marker = 0;
-    snapshot_t* snapshot = graph->get_snapshot();
-    marker = blog->blog_head;
-    if (snapshot) {
-        old_marker = snapshot->marker;
-        create_degreesnap(beg_pos, v_count, snapshot, marker, blog->blog_beg, degree_snap);
-    }
-
-    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-    
-    mem_bfs<lite_edge_t>(beg_pos, degree_snap, beg_pos, degree_snap, 
-                   snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 0);
-  
-    mem_pagerank_epsilon<lite_edge_t>(beg_pos, degree_snap, degree_snap, 
-                   snapshot, marker, blog->blog_beg,
-                   v_count, 1e-8);
-
-    free(degree_snap);
-    */
-    
-    //----
-    //graph->store_graph_baseline();
-    //----
-
     //-------Graph Updates-------
     g->create_threads(true, false);
     
@@ -742,12 +673,9 @@ void weighted_dtest0(const string& idir, const string& odir)
     start = mywtime();
     int64_t del_count = 0;
     
-    //#pragma omp parallel 
-    { 
     int64_t src, dst;
     edgeT_t<lite_edge_t> edge;
 
-    //#pragma omp for reduction(+:del_count)
     for (int64_t i = 0; i < na; i++) {
         src = edges[i].src_id;
         edge.dst_id.second.value = 1;
@@ -763,165 +691,39 @@ void weighted_dtest0(const string& idir, const string& odir)
             ++del_count;
         }
     }
-    }
     
     end = mywtime();
-    
-    marker = blog->blog_head;
-    if (marker != blog->blog_marker) {
-        graph->create_marker(marker);
-    }
-    
-    //if (eOK == graph->move_marker(snap_marker)) {
-        //graph->make_graph_baseline();
-        //graph->store_graph_baseline();
-        //g->incr_snapid(snap_marker, snap_marker);
-        //g->update_marker();
-    //}
     cout << "batch Edge time = " << end - start << endl;
+    
+    graph->create_marker(0);
+    graph->waitfor_archive();
+    end = mywtime();
+    cout << "Make graph time = " << end - start << endl;
     cout << "no of actions " << na << endl;
     cout << "del_count "<<del_count << endl;
-    while (blog->blog_tail != blog->blog_head) {
-        //cout << blog->blog_tail << ",  " << blog->blog_head << endl;
-        usleep(10);
-    }
-    usleep(100000);
     //----
     //graph->store_graph_baseline();
     //----
-    end = mywtime();
-    cout << "Make graph time = " << end - start << endl;
     
 
     //-------Run bfs and PR------
-    /*
-    level_array = (uint8_t*)mmap(NULL, sizeof(uint8_t)*v_count, 
-                            PROT_READ|PROT_WRITE,
-                            MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0 );
+    snaph->update_view();
     
-    if (MAP_FAILED == level_array) {
-        cout << "Huge page alloc failed for level array" << endl;
-        level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-    }
+    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    mem_bfs_simple<lite_edge_t>(snaph, level_array, 0);
+    free(level_array);
     
-    degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
-
-    snapshot = g->get_snapshot();
-    marker = blog->blog_head;
-    if (snapshot) {
-        old_marker = snapshot->marker;
-        create_degreesnap(beg_pos, v_count, snapshot, marker, blog->blog_beg, degree_snap);
-    }
-
-    cout << "old marker = " << old_marker << " New marker = " << marker << endl;
-    
-    mem_bfs<lite_edge_t>(beg_pos, degree_snap, beg_pos, degree_snap, 
-                   snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 0);
-    
-    mem_pagerank_epsilon<lite_edge_t>(beg_pos, degree_snap, degree_snap, 
-                   snapshot, marker, blog->blog_beg,
-                   v_count, 1e-8);
-
-    free(degree_snap);
-*/
-
-    //Compress the edge arrays
-    //manager.run_bfs(0);
     start = mywtime();
     graph->compress_graph_baseline();
     end = mywtime();
     cout << "Compress time = " << end - start << endl;
-    manager.run_bfs(0);
-    return ;
+    
+    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    mem_bfs<lite_edge_t>(snaph, level_array, 0);
+    free(level_array);
+    //manager.run_bfs(0);
+    return;
 }
-
-//void plain_test1(const string& idir, const string& odir)
-//{
-//    plaingraph_manager.schema_plaingraph();
-//    //do some setup for plain graphs
-//    plaingraph_manager.setup_graph(v_count);    
-//    g->create_threads(true, false);   
-//    plaingraph_manager.prep_graph(idir, odir);
-//    
-//    propid_t cf_id = g->get_cfid("friend");
-//    ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
-//    blog_t<sid_t>* blog = ugraph->blog;
-//    cout << "snapshot id = " << g->get_snapid() << endl;
-//    snapshot_t* snapshot = ugraph->get_snapshot();
-//    //bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-//    
-//    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
-//    
-//    /*
-//     * string idir1 = "/mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16_incr/"; 
-//    //string idir1 = "../data/kron_21_16_incr/"; 
-//    plaingraph_manager.prep_graph(idir1, odir);
-//    */
-//    snapid_t snap_id = g->get_snapid(); 
-//    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-//    /*
-//    cout << "BFS on whole graph" << endl; 
-//    bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-//    
-//    
-//    //memset(level_array, 0, v_count*sizeof(uint8_t));
-//    cout << "BFS on snap id = " << snap_id << endl; 
-//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id - 1, 1);
-//    
-//
-//    cout << "multi-snap BFS" << endl;
-//    multisnap_bfs<sid_t>(graph, graph, v_count, edge_count, snap_id - 1, snap_id , 1);
-//    */
-//    memset(level_array, 0, v_count*sizeof(uint8_t));
-//    snapshot_t* old_snapshot = snapshot;
-//    snapshot = ugraph->get_snapshot();
-//    index_t marker = snapshot->marker;
-//    
-//    snap_id = old_snapshot->snap_id;
-//    degree_t* degree_array = 0; 
-//    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
-//    create_degreesnap(graph, v_count, old_snapshot, old_snapshot->marker, blog->blog_beg, degree_array);
-//    
-//    cout << "BFS on snap id = " << snap_id << endl; 
-//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-//                   old_snapshot, marker, blog->blog_beg,
-//                   v_count, level_array, 1);
-//    
-//    /*
-//    memset(level_array, 0, v_count*sizeof(uint8_t));
-//    
-//    old_snapshot = snapshot;
-//    snapshot = g->get_snapshot();
-//    marker = snapshot->marker;
-//    snap_id = old_snapshot->snap_id;
-//    degree_array = create_degreesnap(graph, v_count, snap_id);
-//    cout << "BFS on snap id = " << snap_id << endl; 
-//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-//                   old_snapshot, marker, blog->blog_beg,
-//                   v_count, level_array, 1);
-//    
-//    memset(level_array, 0, v_count*sizeof(uint8_t));
-//    old_snapshot = snapshot;
-//    marker = snapshot->marker;
-//    snap_id = old_snapshot->snap_id;
-//    degree_array = create_degreesnap(graph, v_count, snap_id);
-//    cout << "BFS on snap id = " << snap_id << endl; 
-//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-//                   old_snapshot, marker, blog->blog_beg,
-//                   v_count, level_array, 1);
-//    
-//    */
-//    /*
-//    memset(level_array, 0, v_count*sizeof(uint8_t));
-//    cout << "BFS on first snapshot" << endl; 
-//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id, 1);
-//    */
-//    return ;
-//}
 
 template <class T>
 void prior_snap_testu(const string& odir)

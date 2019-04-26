@@ -38,13 +38,13 @@ class vert_table_t {
 
  public:   
     inline vert_table_t() { snap_blob = 0; v_unit = 0;}
-
-    inline vid_t get_nebrcount() {
-        if (snap_blob) return snap_blob->degree;
+    
+    inline degree_t get_degree() {
+        if (snap_blob) return snap_blob->degree - snap_blob->del_count;
         else  return 0; 
     }
     
-    inline vid_t get_delcount() {
+    inline degree_t get_delcount() {
         if (snap_blob) return snap_blob->del_count;
         else  return 0; 
     }
@@ -183,7 +183,7 @@ public:
     
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
-        return beg_pos[vid].get_nebrcount();
+        return beg_pos[vid].get_degree();
     }
     
     inline degree_t get_delcount(vid_t vid) {

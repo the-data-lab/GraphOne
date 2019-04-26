@@ -45,6 +45,7 @@ class snap_t : public gview_t <T> {
     void create_degreesnap();
     void create_degreesnapd();
     void create_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
+    status_t update_view();
 };
 
 template <class T>
@@ -163,6 +164,31 @@ void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool s
     } else if (pgraph->sgraph_in != 0) {
         create_degreesnapd();
     }
+}
+template <class T>
+status_t snap_t<T>::update_view()
+{
+    blog_t<T>* blog = pgraph->blog;
+    index_t  marker = blog->blog_head;
+    snapshot_t* new_snapshot = pgraph->get_snapshot();
+    
+    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
+    
+    snapshot = new_snapshot;
+    
+    index_t new_marker   = new_snapshot->marker;
+    
+    //for stale
+    edges = blog->blog_beg + (new_marker & blog->blog_mask);
+    edge_count = marker - new_marker;
+    
+    if (pgraph->sgraph_in == 0) {
+        create_degreesnap();
+    } else {
+        create_degreesnapd();
+    }
+
+    return eOK;
 }
 
 template <class T>
