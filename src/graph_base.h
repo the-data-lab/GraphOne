@@ -63,10 +63,17 @@ class vert_table_t {
         }
         return 0;
     }
-	inline void set_delta_adjlist(delta_adjlist_t<T>* delta_adjlist1) {
-		v_unit->delta_adjlist = delta_adjlist1;
+    
+	inline void set_delta_adjlist(delta_adjlist_t<T>* adj_list) {
+        assert(v_unit);
+        if (v_unit->adj_list) {
+			v_unit->adj_list->add_next(adj_list);
+			v_unit->adj_list = adj_list;
+		} else {
+			v_unit->delta_adjlist = adj_list;
+			v_unit->adj_list = adj_list;
+		}
 	}
-	
 	inline vunit_t<T>* get_vunit() {return v_unit;}
 	inline vunit_t<T>* set_vunit(vunit_t<T>* v_unit1) {
         //prev value will be cleaned later
@@ -169,7 +176,9 @@ public:
 	inline delta_adjlist_t<T>* get_delta_adjlist(vid_t v) {
         return beg_pos[v].get_delta_adjlist();
     }
-    
+    inline void set_delta_adjlist(vid_t v, delta_adjlist_t<T>* adj_list) {
+        return beg_pos[v].set_delta_adjlist(adj_list);
+    } 
     void     compress();
     status_t compress_nebrs(vid_t vid);
 
@@ -180,11 +189,10 @@ public:
     void del_nebr_noatomic(vid_t vid, T sid);
     void add_nebr_noatomic(vid_t vid, T sid);
     
-    inline void add_nebr_bulk(vid_t vid, T* adj_list1, degree_t count) {
-		vunit_t<T>* v_unit = beg_pos[vid].v_unit; 
+    inline void add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count) {
+        delta_adjlist_t<T>* adj_list1 = get_delta_adjlist(vid);
 		#ifndef BULK 
-		if (v_unit->adj_list == 0 || 
-			v_unit->adj_list->get_nebrcount() >= v_unit->max_size) {
+		if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
 			
 			delta_adjlist_t<T>* adj_list = 0;
 			snapT_t<T>* curr = beg_pos[vid].get_snapblob();
@@ -194,26 +202,12 @@ public:
 				max_count -= curr->prev->degree + curr->prev->del_count; 
 			}
             
-            if (new_count >= HUB_COUNT || max_count >= 256) {
-                max_count = TO_MAXCOUNT1(max_count);
-			    adj_list = new_delta_adjlist_local(max_count);
-            } else {
-			    max_count = TO_MAXCOUNT(max_count);
-			    adj_list = new_delta_adjlist_local(max_count);
-            }
-			adj_list->set_nebrcount(0);
-			adj_list->add_next(0);
-			v_unit->max_size = max_count;
-			if (v_unit->adj_list) {
-				v_unit->adj_list->add_next(adj_list);
-				v_unit->adj_list = adj_list;
-			} else {
-				v_unit->delta_adjlist = adj_list;
-				v_unit->adj_list = adj_list;
-			}
+            adj_list = new_delta_adjlist_local(max_count);
+	        set_delta_adjlist(vid, adj_list);
+            adj_list1 = adj_list;
 		}
 		#endif
-        v_unit->adj_list->add_nebr_bulk(adj_list1, count);
+        adj_list1->add_nebr_bulk(adj_list2, count);
     }
 
     degree_t find_nebr(vid_t vid, sid_t sid); 
@@ -353,7 +347,13 @@ class thd_mem_t {
 	}
     
 	inline delta_adjlist_t<T>* alloc_delta_adjlist(degree_t count) {
-        index_t size = count*sizeof(T) + sizeof(delta_adjlist_t<T>);
+        degree_t max_count;
+        if (count >= HUB_COUNT || count >= 256) {
+            max_count = TO_MAXCOUNT1(count);
+        } else {
+            max_count = TO_MAXCOUNT(count);
+        }
+        index_t size = max_count*sizeof(T) + sizeof(delta_adjlist_t<T>);
         index_t tmp = 0;
 		if (size > delta_size) {
 			tmp = max(1UL << LOCAL_DELTA_SIZE, size);
@@ -363,6 +363,11 @@ class thd_mem_t {
 		assert(adj_list != 0);
 		adjlog_beg += size;
 		delta_size -= size;
+
+        adj_list->set_nebrcount(0);
+        adj_list->add_next(0);
+        adj_list->set_maxcount(max_count);
+        
 		return adj_list;
 	}
     

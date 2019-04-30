@@ -298,7 +298,8 @@ class disk_snapshot_t {
 template <class T>
 class delta_adjlist_t {
 	delta_adjlist_t<T>* next;
-	sid_t count;
+    degree_t   max_count;
+	degree_t   count;
 	//T  adj_list;
 
  public:
@@ -317,6 +318,8 @@ class delta_adjlist_t {
         count += count1;
         return old_count;
     }
+    inline degree_t get_maxcount() {return max_count;}
+    inline void set_maxcount(degree_t value) {max_count = value;}
 	inline T* get_adjlist() { return (T*)(&count + 1); }
 	inline void add_next(delta_adjlist_t<T>* ptr) {next = ptr; }
 	inline delta_adjlist_t<T>* get_next() { return next; }
@@ -351,7 +354,8 @@ class durable_adjlist_t {
         sid_t sid;
         durable_adjlist_t<T>* next;
     };
-	sid_t count;
+    degree_t max_count;
+	degree_t count;
 	//T  adj_list;
 
  public:
@@ -371,13 +375,13 @@ class durable_adjlist_t {
 template <class T>
 class vunit_t {
  public:
-	uint16_t      vflag;
-	uint16_t      max_size; //max count in delta adj list
+	//uint16_t      vflag;
+	//uint16_t    max_size; //max count in delta adj list
 	delta_adjlist_t<T>* delta_adjlist;
 	delta_adjlist_t<T>* adj_list;//Last chain
 
 	inline void reset() {
-		vflag = 0;
+		//vflag = 0;
 		delta_adjlist = 0;
         adj_list = 0;
 	}

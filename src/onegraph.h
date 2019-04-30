@@ -66,9 +66,9 @@ template <class T>
 void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid) 
 {
     vunit_t<T>* v_unit = beg_pos[vid].v_unit; 
+    delta_adjlist_t<T>* adj_list1 = get_delta_adjlist(vid);
     #ifndef BULK 
-    if (v_unit->adj_list == 0 || 
-        v_unit->adj_list->get_nebrcount() >= v_unit->max_size) {
+    if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
         
         delta_adjlist_t<T>* adj_list = 0;
         snapT_t<T>* curr = beg_pos[vid].get_snapblob();
@@ -78,29 +78,15 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
             max_count -= curr->prev->degree + curr->prev->del_count; 
         }
         
-        if (new_count >= HUB_COUNT || max_count >= 256) {
-            max_count = TO_MAXCOUNT1(max_count);
-            adj_list = new_delta_adjlist_local(max_count);
-        } else {
-            max_count = TO_MAXCOUNT(max_count);
-            adj_list = new_delta_adjlist_local(max_count);
-        }
-        adj_list->set_nebrcount(0);
-        adj_list->add_next(0);
-        v_unit->max_size = max_count;
-        if (v_unit->adj_list) {
-            v_unit->adj_list->add_next(adj_list);
-            v_unit->adj_list = adj_list;
-        } else {
-            v_unit->delta_adjlist = adj_list;
-            v_unit->adj_list = adj_list;
-        }
+        adj_list = new_delta_adjlist_local(max_count);
+        set_delta_adjlist(vid, adj_list);
+        adj_list1 = adj_list;
     }
     #endif
     if (IS_DEL(get_sid(sid))) { 
         return del_nebr_noatomic(vid, sid);
     }
-    v_unit->adj_list->add_nebr_noatomic(sid);
+    adj_list1->add_nebr_noatomic(sid);
 }
 
 template <class T>
@@ -143,21 +129,9 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
         return eOK;
     }
 
-    degree_t max_count = nebr_count;
-    delta_adjlist_t<T>* adj_list = 0;
-    /*
     //Allocate new memory
-    if (new_count >= HUB_COUNT || max_count >= 256) {
-        max_count = TO_MAXCOUNT1(max_count);
-        adj_list = new_delta_adjlist_local(max_count);
-    } else */
-    {
-        max_count = TO_MAXCOUNT(max_count);
-        adj_list = new_delta_adjlist_local(max_count);
-    }
-    
+    delta_adjlist_t<T>* adj_list = new_delta_adjlist_local(nebr_count);
     adj_list->set_nebrcount(nebr_count);
-    adj_list->add_next(0);
     
     //copy the data from older edge arrays to new edge array
     T* ptr = adj_list->get_adjlist();
@@ -165,7 +139,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     assert(ret == nebr_count);
 
     //replace the edge array atomically
-    v_unit->max_size = max_count;
+    //set_delta_adjlist(adj_list);
     v_unit->delta_adjlist = adj_list;
     v_unit->adj_list = adj_list;
     return eOK;
@@ -375,17 +349,12 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
         
         if (0 == total_count) { continue; }
 
-        //delta adj list allocation
-        delta_adjlist = new_delta_adjlist_local(total_count);
-        delta_adjlist->set_nebrcount(0);
-        delta_adjlist->add_next(0);
-
         increment_count_noatomic(vid, count);
         decrement_count_noatomic(vid, count);
-        
-        v_unit = beg_pos[vid].get_vunit();
-        assert(v_unit);
-        v_unit->adj_list = delta_adjlist;
+
+        //delta adj list allocation
+        delta_adjlist = new_delta_adjlist_local(total_count);
+        set_delta_adjlist(vid, delta_adjlist);
         reset_count(vid);
     }
 }
