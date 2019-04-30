@@ -535,160 +535,6 @@ void mem_hop2(gview_t<T>* snaph)
     cout << "Sum = " << sum2 << " 2 Hop Time = " << end - start << endl;
 }
 
-/*
-template<class T>
-void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out, 
-        vert_table_t<T>* graph_in, degree_t* degree_in,
-        snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges,
-        vid_t v_count, uint8_t* status, sid_t root)
-{
-	int				level      = 1;
-	int				top_down   = 1;
-	sid_t			frontier   = 0;
-    index_t         old_marker = 0;
-
-    if (snapshot) { 
-        old_marker = snapshot->marker;
-    }
-    
-	double start1 = mywtime();
-    //if (degree_out[root] == 0) { root = 0;}
-	status[root] = level;
-    
-	do {
-		frontier = 0;
-		//double start = mywtime();
-		#pragma omp parallel reduction(+:frontier)
-		{
-            sid_t sid;
-            degree_t nebr_count = 0;
-            degree_t local_degree = 0;
-            degree_t delta_degree = 0;
-
-            vert_table_t<T>* graph  = 0;
-            delta_adjlist_t<T>* delta_adjlist;;
-            vunit_t<T>* v_unit = 0;
-            T* local_adjlist = 0;
-		    
-            if (top_down) {
-                graph  = graph_out;
-				
-                #pragma omp for nowait
-				for (vid_t v = 0; v < v_count; v++) {
-					if (status[v] != level) continue;
-					v_unit = graph[v].get_vunit();
-                    if (0 == v_unit) continue;
-
-					nebr_count     = degree_out[v];
-                    delta_degree   = nebr_count;
-                    delta_adjlist  = v_unit->delta_adjlist;
-				    //cout << "delta adjlist " << delta_degree << endl;	
-				    //cout << "Nebr list of " << v <<" degree = " << nebr_count << endl;	
-                    
-                    //traverse the delta adj list
-                    while (delta_adjlist != 0 && delta_degree > 0) {
-                        local_adjlist = delta_adjlist->get_adjlist();
-                        local_degree = delta_adjlist->get_nebrcount();
-                        degree_t i_count = min(local_degree, delta_degree);
-                        for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
-                            if (status[sid] == 0) {
-                                status[sid] = level + 1;
-                                ++frontier;
-                                //cout << " " << sid << endl;
-                            }
-                        }
-                        delta_adjlist = delta_adjlist->get_next();
-                        delta_degree -= local_degree;
-                    }
-				}
-			} else {//bottom up
-				graph = graph_in;
-                int done = 0;
-				
-				#pragma omp for nowait
-				for (vid_t v = 0; v < v_count; v++) {
-					if (status[v] != 0 ) continue;
-					v_unit = graph[v].get_vunit();
-                    if (0 == v_unit) continue;
-
-                    delta_adjlist = v_unit->delta_adjlist;
-					
-					nebr_count = degree_in[v];
-                    done = 0;
-
-                    //traverse the delta adj list
-                    delta_degree = nebr_count;
-                    while (delta_adjlist != 0 && delta_degree > 0) {
-                        local_adjlist = delta_adjlist->get_adjlist();
-                        local_degree = delta_adjlist->get_nebrcount();
-                        degree_t i_count = min(local_degree, delta_degree);
-                        for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
-                            if (status[sid] == level) {
-                                status[v] = level + 1;
-                                ++frontier;
-                                done = 1;
-                                break;
-                            }
-                        }
-                        if (done == 1) break;
-                        delta_adjlist = delta_adjlist->get_next();
-                        delta_degree -= local_degree;
-                    }
-				}
-		    }
-
-            //on-the-fly snapshots should process this
-            //cout << "On the Fly" << endl;
-            vid_t src, dst;
-            #pragma omp for schedule (static)
-            for (index_t i = old_marker; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
-                if (status[src] == 0 && status[dst] == level) {
-                    status[src] = level + 1;
-                    ++frontier;
-                    //cout << " " << src << endl;
-                } 
-                if (status[src] == level && status[dst] == 0) {
-                    status[dst] = level + 1;
-                    ++frontier;
-                    //cout << " " << dst << endl;
-                }
-            }
-        }
-
-		//double end = mywtime();
-	
-		//cout << "Top down = " << top_down
-		//     << " Level = " << level
-        //     << " Frontier Count = " << frontier
-		//     << " Time = " << end - start
-		//     << endl;
-	
-        //Point is to simulate bottom up bfs, and measure the trade-off    
-        if ((frontier >= 0.002*v_count) || level == 2) {
-			top_down = false;
-		} else {
-            top_down = true;
-        }
-		++level;
-	} while (frontier);
-		
-    double end1 = mywtime();
-    cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
-}
-*/
 template<class T>
 void mem_bfs_simple(gview_t<T>* snaph,
         uint8_t* status, sid_t root)
@@ -1679,3 +1525,158 @@ stream_pagerank_epsilon1(gview_t<T>* viewh)
     free(rank_array);
     free(prior_rank_array);
 }
+
+/*
+template<class T>
+void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out, 
+        vert_table_t<T>* graph_in, degree_t* degree_in,
+        snapshot_t* snapshot, index_t marker, edgeT_t<T>* edges,
+        vid_t v_count, uint8_t* status, sid_t root)
+{
+	int				level      = 1;
+	int				top_down   = 1;
+	sid_t			frontier   = 0;
+    index_t         old_marker = 0;
+
+    if (snapshot) { 
+        old_marker = snapshot->marker;
+    }
+    
+	double start1 = mywtime();
+    //if (degree_out[root] == 0) { root = 0;}
+	status[root] = level;
+    
+	do {
+		frontier = 0;
+		//double start = mywtime();
+		#pragma omp parallel reduction(+:frontier)
+		{
+            sid_t sid;
+            degree_t nebr_count = 0;
+            degree_t local_degree = 0;
+            degree_t delta_degree = 0;
+
+            vert_table_t<T>* graph  = 0;
+            delta_adjlist_t<T>* delta_adjlist;;
+            vunit_t<T>* v_unit = 0;
+            T* local_adjlist = 0;
+		    
+            if (top_down) {
+                graph  = graph_out;
+				
+                #pragma omp for nowait
+				for (vid_t v = 0; v < v_count; v++) {
+					if (status[v] != level) continue;
+					v_unit = graph[v].get_vunit();
+                    if (0 == v_unit) continue;
+
+					nebr_count     = degree_out[v];
+                    delta_degree   = nebr_count;
+                    delta_adjlist  = v_unit->delta_adjlist;
+				    //cout << "delta adjlist " << delta_degree << endl;	
+				    //cout << "Nebr list of " << v <<" degree = " << nebr_count << endl;	
+                    
+                    //traverse the delta adj list
+                    while (delta_adjlist != 0 && delta_degree > 0) {
+                        local_adjlist = delta_adjlist->get_adjlist();
+                        local_degree = delta_adjlist->get_nebrcount();
+                        degree_t i_count = min(local_degree, delta_degree);
+                        for (degree_t i = 0; i < i_count; ++i) {
+                            sid = get_nebr(local_adjlist, i);
+                            if (status[sid] == 0) {
+                                status[sid] = level + 1;
+                                ++frontier;
+                                //cout << " " << sid << endl;
+                            }
+                        }
+                        delta_adjlist = delta_adjlist->get_next();
+                        delta_degree -= local_degree;
+                    }
+				}
+			} else {//bottom up
+				graph = graph_in;
+                int done = 0;
+				
+				#pragma omp for nowait
+				for (vid_t v = 0; v < v_count; v++) {
+					if (status[v] != 0 ) continue;
+					v_unit = graph[v].get_vunit();
+                    if (0 == v_unit) continue;
+
+                    delta_adjlist = v_unit->delta_adjlist;
+					
+					nebr_count = degree_in[v];
+                    done = 0;
+
+                    //traverse the delta adj list
+                    delta_degree = nebr_count;
+                    while (delta_adjlist != 0 && delta_degree > 0) {
+                        local_adjlist = delta_adjlist->get_adjlist();
+                        local_degree = delta_adjlist->get_nebrcount();
+                        degree_t i_count = min(local_degree, delta_degree);
+                        for (degree_t i = 0; i < i_count; ++i) {
+                            sid = get_nebr(local_adjlist, i);
+                            if (status[sid] == level) {
+                                status[v] = level + 1;
+                                ++frontier;
+                                done = 1;
+                                break;
+                            }
+                        }
+                        if (done == 1) break;
+                        delta_adjlist = delta_adjlist->get_next();
+                        delta_degree -= local_degree;
+                    }
+				}
+		    }
+
+            //on-the-fly snapshots should process this
+            //cout << "On the Fly" << endl;
+            vid_t src, dst;
+            #pragma omp for schedule (static)
+            for (index_t i = old_marker; i < marker; ++i) {
+                src = edges[i].src_id;
+                dst = get_dst(edges+i);
+                if (status[src] == 0 && status[dst] == level) {
+                    status[src] = level + 1;
+                    ++frontier;
+                    //cout << " " << src << endl;
+                } 
+                if (status[src] == level && status[dst] == 0) {
+                    status[dst] = level + 1;
+                    ++frontier;
+                    //cout << " " << dst << endl;
+                }
+            }
+        }
+
+		//double end = mywtime();
+	
+		//cout << "Top down = " << top_down
+		//     << " Level = " << level
+        //     << " Frontier Count = " << frontier
+		//     << " Time = " << end - start
+		//     << endl;
+	
+        //Point is to simulate bottom up bfs, and measure the trade-off    
+        if ((frontier >= 0.002*v_count) || level == 2) {
+			top_down = false;
+		} else {
+            top_down = true;
+        }
+		++level;
+	} while (frontier);
+		
+    double end1 = mywtime();
+    cout << "BFS Time = " << end1 - start1 << endl;
+
+    for (int l = 1; l < level; ++l) {
+        vid_t vid_count = 0;
+        #pragma omp parallel for reduction (+:vid_count) 
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (status[v] == l) ++vid_count;
+        }
+        cout << " Level = " << l << " count = " << vid_count << endl;
+    }
+}
+*/

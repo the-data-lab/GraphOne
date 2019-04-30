@@ -2,7 +2,7 @@
 
 #include "sgraph.h"
 
-
+#ifndef BULK
 template <class T>
 void pgraph_t<T>::calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end) 
 {
@@ -54,27 +54,7 @@ void pgraph_t<T>::fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T
         }
     }
 }
-
-template <class T>
-void pgraph_t<T>::make_on_classify(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end, vid_t bit_shift)
-{
-    //degree count
-    this->calc_degree_noatomic(sgraph, global_range, j_start, j_end);
-
-    //Adj list
-    #ifdef BULK 
-    tid_t src_index = TO_TID(blog->blog_beg[0].src_id);
-    vid_t v_count = g->get_type_vcount(src_index);
-    
-    vid_t vid_start = (j_start << bit_shift);
-    vid_t vid_end = (j_end << bit_shift);
-    if (vid_end > v_count) vid_end = v_count;
-    sgraph[0]->setup_adjlist_noatomic(vid_start, vid_end);
-    #endif
-    
-    //fill adj-list
-    this->fill_adjlist_noatomic(sgraph, global_range, j_start, j_end);
-}
+#endif
 
 inline void print(const char* str, double start_time) 
 {
@@ -92,6 +72,7 @@ void pgraph_t<T>::make_graph_uni()
     
     #pragma omp parallel num_threads (THD_COUNT) 
     {
+#ifndef BULK
         edge_shard->classify_uni();
 
         //Now get the division of work
@@ -111,10 +92,10 @@ void pgraph_t<T>::make_graph_uni()
         this->calc_degree_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
         //fill adj-list
         this->fill_adjlist_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
-        //make_on_classify(sgraph_out, global_range, j_start, j_end, bit_shift); 
         
         #pragma omp barrier 
         edge_shard->cleanup();
+#endif
     }
 
     blog->blog_tail = blog->blog_marker;  
@@ -126,6 +107,7 @@ void pgraph_t<T>::make_graph_d()
 
     #pragma omp parallel num_threads (THD_COUNT) 
     {
+#ifndef BULK
         edge_shard->classify_d();
         
         //Now get the division of work
@@ -155,28 +137,29 @@ void pgraph_t<T>::make_graph_d()
         this->fill_adjlist_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
         this->fill_adjlist_noatomic(sgraph_in, edge_shard->global_range_in, j_start_in, j_end_in);
         
-        //make_on_classify(sgraph_out, edge_shard->global_range, j_start, j_end, 0); 
-        //make_on_classify(sgraph_in, edge_shard->global_range_in, j_start_in, j_end_in, 0); 
-        
         #pragma omp barrier 
         edge_shard->cleanup();
+
+#else
+        this->calc_edge_count(sgraph_out, sgraph_in);
+        prep_sgraph_internal(sgraph_out);
+        prep_sgraph_internal(sgraph_in);
+        this->fill_adj_list(sgraph_out, sgraph_in);
+#endif
         
     }
     blog->blog_tail = blog->blog_marker;  
 }
 
-
 template <class T>
 void pgraph_t<T>::make_graph_u() 
 {
-    index_t blog_tail = blog->blog_tail;
-    index_t blog_marker = blog->blog_marker;
-    //cout << blog_tail << " " << blog_marker << endl; 
-    if (blog_tail >= blog_marker) return;
+    if (blog->blog_tail >= blog->blog_marker) return;
     
     //double start = mywtime();
     #pragma omp parallel num_threads(THD_COUNT)
     {
+#ifndef BULK
         edge_shard->classify_u();
         //Now get the division of work
         vid_t     j_start;
@@ -195,11 +178,16 @@ void pgraph_t<T>::make_graph_u()
         //fill adj-list
         this->fill_adjlist_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
         
-        //make_on_classify(sgraph, edge_shard->global_range, j_start, j_end, bit_shift); 
-        
         #pragma omp barrier 
         edge_shard->cleanup();
+#else
+        
+        this->calc_edge_count(sgraph, sgraph);
+        prep_sgraph_internal(sgraph);
+        this->fill_adj_list(sgraph, sgraph);
+#endif
     }
+
     blog->blog_tail = blog->blog_marker;  
     //cout << "setting the tail to" << blog->blog_tail << endl;
 }

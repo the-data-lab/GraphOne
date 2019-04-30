@@ -124,13 +124,6 @@ class pgraph_t: public cfinfo_t {
     void make_graph_u();
     void make_graph_uni();
     
-    void make_on_classify(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end, vid_t bit_shift);
-
-    void calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    virtual void fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    
     void store_sgraph(onegraph_t<T>** sgraph, bool clean = false);
     void store_skv(onekv_t<T>** skv);
     
@@ -141,7 +134,12 @@ class pgraph_t: public cfinfo_t {
     void file_open_sgraph(onegraph_t<T>** sgraph, const string& odir, const string& postfix, bool trunc);
     void file_open_skv(onekv_t<T>** skv, const string& odir, const string& postfix, bool trunc);
   
-#ifdef BULK 
+#ifndef BULK 
+    void calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
+                      vid_t j_start, vid_t j_end);
+    virtual void fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
+                      vid_t j_start, vid_t j_end);
+#else    
     void calc_edge_count(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in); 
     void calc_edge_count_out(onegraph_t<T>** p_sgraph_out);
     void calc_edge_count_in(onegraph_t<T>** sgraph_in);
@@ -1097,41 +1095,7 @@ void dgraph<T>::prep_graph_baseline()
 template <class T> 
 void dgraph<T>::make_graph_baseline()
 {
-#ifndef BULK
     this->make_graph_d();
-#else
-    
-    if (blog->blog_tail >= blog->blog_marker) return;
-    double start, end;
-    start = mywtime(); 
-    #pragma omp parallel num_threads(THD_COUNT)
-    {
-    this->calc_edge_count(sgraph_out, sgraph_in);
-    }
-    end = mywtime();
-    cout << "degree time = " << end-start << endl;
-    
-    //prefix sum then reset the count
-    start = mywtime(); 
-    #pragma omp parallel num_threads(THD_COUNT)
-    {
-    prep_sgraph_internal(sgraph_out);
-    prep_sgraph_internal(sgraph_in);
-    }
-    end = mywtime();
-    cout << "prep time = " << end-start << endl;
-    
-    //populate and get the original count back
-    start = mywtime(); 
-    #pragma omp parallel num_threads(THD_COUNT)
-    {
-    this->fill_adj_list(sgraph_out, sgraph_in);
-    }
-    end = mywtime();
-    cout << "fill  time = " << end-start << endl;
-    
-    //blog->blog_tail = blog->blog_marker;
-#endif
 }
 
 template <class T> 
@@ -1207,42 +1171,7 @@ void ugraph<T>::prep_graph_baseline()
 template <class T> 
 void ugraph<T>::make_graph_baseline()
 {
-
-#ifndef BULK   
     this->make_graph_u();
-#else 
- 
-    if (blog->blog_tail >= blog->blog_marker) return;
-   
-    double start, end;
-    start = mywtime(); 
-    
-    #pragma omp parallel   num_threads(THD_COUNT)  
-    {
-        this->calc_edge_count(sgraph, sgraph);
-        #pragma omp master 
-        {
-            end = mywtime();
-            cout << " calc degree time = " << end - start << endl;
-        }
-        prep_sgraph_internal(sgraph);
-        #pragma omp master 
-        {
-            end = mywtime();
-            cout << " prep time = " << end - start << endl;
-        }
-        this->fill_adj_list(sgraph, sgraph);
-        #pragma omp master 
-        {
-            end = mywtime();
-            cout << " fill adj time = " << end - start << endl;
-        }
-    }
-    end = mywtime();
-    cout << "Make graph time = " << end - start << endl;
-    //blog->blog_tail = blog->blog_marker;  
-   
-#endif
 }
 
 template <class T> 

@@ -153,11 +153,12 @@ void many2one<T>::prep_graph_baseline()
 template <class T> 
 void many2one<T>::make_graph_baseline()
 {
+    /*
     if (blog->blog_tail >= blog->blog_marker) return;
 
-#ifndef BULK
     #pragma omp parallel num_threads (THD_COUNT) 
     {
+#ifndef BULK
         //Now get the division of work
         vid_t     j_start;
         vid_t     j_end;
@@ -171,22 +172,27 @@ void many2one<T>::make_graph_baseline()
         j_end = this->edge_shard->thd_local[tid].range_end;
         
         //actual work
-        this->make_on_classify(sgraph_in, this->edge_shard->global_range, j_start, j_end, 0); 
+        //this->make_on_classify(sgraph_in, this->edge_shard->global_range, j_start, j_end, 0); 
+        //degree count
+        this->calc_degree_noatomic(sgraph_in, edge_shard->global_range, j_start, j_end);
+        //fill adj-list
+        this->fill_adjlist_noatomic(sgraph_in, edge_shard->global_range, j_start, j_end);
         this->fill_skv_in(skv_out, this->edge_shard->global_range, j_start, j_end); 
         #pragma omp barrier 
         this->edge_shard->cleanup(); 
-    }
 #else
-    this->calc_edge_count_in(sgraph_in);
-    
-    //prefix sum then reset the count
-    prep_sgraph_internal(sgraph_in);
+        this->calc_edge_count_in(sgraph_in);
+        
+        //prefix sum then reset the count
+        prep_sgraph_internal(sgraph_in);
 
-    //populate and get the original count back
-    //handle kv_out as well.
-    this->fill_adj_list_in(skv_out, sgraph_in);
-    blog->blog_tail = blog->blog_marker;
+        //populate and get the original count back
+        //handle kv_out as well.
+        this->fill_adj_list_in(skv_out, sgraph_in);
 #endif
+    }
+    blog->blog_tail = blog->blog_marker;
+    */
 }
 
 template <class T> 
@@ -249,9 +255,9 @@ void one2many<T>::make_graph_baseline()
 {
     if (blog->blog_tail >= blog->blog_marker) return;
 
-#ifndef BULK
     #pragma omp parallel num_threads (THD_COUNT) 
     {
+#ifndef BULK
         this->edge_shard->classify_uni();
         
         //Now get the division of work
@@ -268,24 +274,25 @@ void one2many<T>::make_graph_baseline()
         j_end = this->edge_shard->thd_local[tid].range_end;
         
         //actual work
-        this->make_on_classify(sgraph_out, this->edge_shard->global_range, j_start, j_end, 0); 
+        this->calc_degree_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
+        this->fill_adjlist_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
+        //this->make_on_classify(sgraph_out, this->edge_shard->global_range, j_start, j_end, 0); 
         this->fill_skv_in(skv_in, this->edge_shard->global_range, j_start, j_end); 
         #pragma omp barrier
         this->edge_shard->cleanup(); 
-        
-    }
     
 #else 
-    this->calc_edge_count_out(sgraph_out);
-    
-    //prefix sum then reset the count
-    prep_sgraph_internal(sgraph_out);
+        this->calc_edge_count_out(sgraph_out);
+        
+        //prefix sum then reset the count
+        prep_sgraph_internal(sgraph_out);
 
-    //populate and get the original count back
-    this->fill_adj_list_out(sgraph_out, skv_in);
-    //update_count(sgraph_out);
-    blog->blog_tail = blog->blog_marker;  
+        //populate and get the original count back
+        this->fill_adj_list_out(sgraph_out, skv_in);
+        //update_count(sgraph_out);
 #endif
+    }
+    blog->blog_tail = blog->blog_marker;  
 }
 
 template <class T> 

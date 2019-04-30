@@ -603,7 +603,11 @@ void weighted_dtest0(const string& idir, const string& odir)
         #pragma omp for
         for (int64_t v = 0; v < nv; ++v) {
             nebr_count = v_offset[v+1] - v_offset[v];
+            #ifndef BULK
             sgraph->increment_count_noatomic(v, nebr_count);
+            #else
+            sgraph->increment_count(v, nebr_count);
+            #endif
         }
 #ifdef BULK
         /*

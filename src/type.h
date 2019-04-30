@@ -368,24 +368,6 @@ class durable_adjlist_t {
 //#define TO_VUNIT_FLAG(flag)  (flag & 0x3)
 //#define TO_VUNIT_COUNT(flag) ((flag >> 2 ) & 0x7)
 
-#ifdef BULK 
-template <class T>
-class vunit_t {
- public:
-	//Durable adj list, and num of nebrs in that
-	uint32_t      vflag;
-	delta_adjlist_t<T>* delta_adjlist;
-	delta_adjlist_t<T>* adj_list;//Last chain
-
-	inline void reset() {
-		vflag = 0;
-		//count = 0;
-		//offset = -1L;
-		delta_adjlist = 0;
-        adj_list = 0;
-	}
-};
-#else
 template <class T>
 class vunit_t {
  public:
@@ -400,7 +382,6 @@ class vunit_t {
         adj_list = 0;
 	}
 };
-#endif
 
 class pedge_t {
  public:
@@ -599,24 +580,6 @@ class nebrcount_t {
     degree_t    del_count;
 };
 
-template <class T>
-class thd_mem_t {
-	public:
-    
-    vunit_t<T>* vunit_beg;
-    snapT_t<T>* dlog_beg;
-    char*       adjlog_beg;
-	
-    index_t    	delta_size1;
-	uint32_t    vunit_count;
-	uint32_t    dsnap_count;
-#ifdef BULK
-    index_t     degree_count;
-#endif
-	index_t    	delta_size;
-    
-    char*       adjlog_beg1;
-};
 
 template <class T>
 class pgraph_t;

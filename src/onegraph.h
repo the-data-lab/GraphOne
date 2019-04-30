@@ -3,7 +3,6 @@
 
 using std::min;
 
-#ifndef BULK
 template <class T>
 void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 	snapid_t snap_id = pgraph->snap_id + 1;
@@ -33,7 +32,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 	curr->degree += count;
 }
 template <class T>
-void onegraph_t<T>::decrement_count_noatomic(vid_t vid) {
+void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = beg_pos[vid].get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
@@ -58,10 +57,9 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid) {
 			beg_pos[vid].set_vunit(v_unit);
 		}
 	}
-	curr->del_count++;
+	curr->del_count += count;
     //assert(curr->del_count <= curr->degree);
 }
-#endif
 
     
 template <class T>
@@ -309,6 +307,24 @@ degree_t onegraph_t<T>::get_degree(vid_t v, snapid_t snap_id)
 
 #ifdef BULK
 template <class T>
+void onegraph_t<T>::setup_adjlist()
+{
+    vid_t  total_thds  = omp_get_num_threads();
+    vid_t         tid  = omp_get_thread_num();  
+        
+    snapid_t snap_id = pgraph->snap_id + 1;
+    vid_t    v_count = get_vcount();
+    vid_t    portion = v_count/total_thds;
+    vid_t  vid_start = portion*tid;
+    vid_t  vid_end   = portion*(tid + 1);
+    if (tid == total_thds - 1) {
+        vid_end = v_count;
+    }
+   
+    setup_adjlist_noatomic(vid_start, vid_end); 
+}
+
+template <class T>
 void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 {
     degree_t count, del_count, total_count;
@@ -342,19 +358,14 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
     }
 
 	//Bulk memory allocation
-    my_thd_mem->vunit_beg = new_vunit_bulk(my_thd_mem->vunit_count);
-    my_thd_mem->dlog_beg = new_snapdegree_bulk(my_thd_mem->degree_count);
-    assert(dlog_head <= dlog_count);
+    my_thd_mem->new_vunit_bulk(my_thd_mem->vunit_count);
+    my_thd_mem->new_snapdegree_bulk(my_thd_mem->degree_count);
 
 	index_t new_count = my_thd_mem->delta_size*sizeof(T) 
 						+ my_thd_mem->dsnap_count*sizeof(delta_adjlist_t<T>);
-    my_thd_mem->adjlog_beg = new_delta_adjlist_bulk(new_count);
-    assert(adjlog_head <= adjlog_count);
+    my_thd_mem->new_delta_adjlist_bulk(new_count);
 
-	delta_adjlist_t<T>* prev_delta = 0;
 	delta_adjlist_t<T>* delta_adjlist = 0;
-    index_t delta_size = 0;
-    index_t delta_metasize = sizeof(delta_adjlist_t<T>);
 
 	//individual allocation
     for (vid_t vid = vid_start; vid < vid_end; ++vid) {
@@ -365,49 +376,15 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
         if (0 == total_count) { continue; }
 
         //delta adj list allocation
-        delta_adjlist = (delta_adjlist_t<T>*)(my_thd_mem->adjlog_beg); 
-        delta_size = total_count*sizeof(T) + delta_metasize;
-        my_thd_mem->adjlog_beg += delta_size;
-        
-        if (my_thd_mem->adjlog_beg > adjlog_beg + adjlog_count) { //rewind happened
-            my_thd_mem->adjlog_beg -=  adjlog_count;
-            
-            //Last allocation is wasted due to rewind
-            delta_adjlist = (delta_adjlist_t<T>*)new_delta_adjlist_bulk(delta_size);
-        }
-        
+        delta_adjlist = new_delta_adjlist_local(total_count);
         delta_adjlist->set_nebrcount(0);
         delta_adjlist->add_next(0);
-        
-        curr = beg_pos[vid].get_snapblob();
-        if (0 == curr || curr->snap_id < snap_id) {
-			next                = my_thd_mem->dlog_beg; 
-            my_thd_mem->dlog_beg        += 1;
-            next->del_count     = del_count;
-            next->snap_id       = snap_id;
-            next->degree        = count;
-            if (curr) {
-                next->degree += curr->degree;
-                next->del_count += curr->del_count;
-            }
-            beg_pos[vid].set_snapblob1(next);
-        }
+
+        increment_count_noatomic(vid, count);
+        decrement_count_noatomic(vid, count);
         
         v_unit = beg_pos[vid].get_vunit();
-        if (v_unit) {
-            prev_delta = v_unit->adj_list;
-            if (prev_delta) {
-                prev_delta->add_next(delta_adjlist);
-            } else {
-                v_unit->delta_adjlist = delta_adjlist;
-            }
-        } else {
-            v_unit = my_thd_mem->vunit_beg;
-            my_thd_mem->vunit_beg += 1;
-            v_unit->delta_adjlist = delta_adjlist;
-            beg_pos[vid].set_vunit(v_unit);
-        }
-
+        assert(v_unit);
         v_unit->adj_list = delta_adjlist;
         reset_count(vid);
     }
@@ -456,61 +433,6 @@ void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
 
 #ifdef BULK
     nebr_count = (nebrcount_t*)calloc(sizeof(nebrcount_t), max_vcount);
-
-    index_t total_memory = 0;
-    total_memory += max_vcount*(sizeof(vert_table_t<T>) + sizeof(nebrcount_t));
-    cout << "Total Memory 1 = " << total_memory << endl;
-    
-    //dela adj list
-    adjlog_count = DELTA_SIZE + (v_count*sizeof(delta_adjlist_t<T>)); //8GB
-    adjlog_beg = (char*)mmap(NULL, adjlog_count, PROT_READ|PROT_WRITE,
-                        MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
-    if (MAP_FAILED == adjlog_beg) {
-        cout << "Huge page allocation failed for delta adj list" << endl;
-        if (posix_memalign((void**)&adjlog_beg, 2097152, adjlog_count)) {
-            perror("posix memalign delta adj list");
-        }
-    }
-    
-    total_memory += adjlog_count;
-    cout << "Total Memory 2 = " << total_memory << endl;
-    
-    //degree aray realted log, in-memory
-    dlog_count = (((index_t)v_count)*SNAP_COUNT);//256 MB
-    /*
-     * dlog_beg = (snapT_t<T>*)mmap(NULL, sizeof(snapT_t<T>)*dlog_count, PROT_READ|PROT_WRITE,
-                        MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0 );
-    
-    if (MAP_FAILED == dlog_beg) {
-        cout << "Huge page allocation failed for degree array" << endl;
-    }
-        */
-        if (posix_memalign((void**)&dlog_beg, 2097152, dlog_count*sizeof(snapT_t<T>))) {
-            perror("posix memalign snap log");
-        }
-    /*
-    //degree array relatd log, for writing to disk
-    snap_count = (1L << 16);//256 MB
-    if (posix_memalign((void**)&snap_log, 2097152, snap_count*sizeof(disk_snapT_t<T>))) {
-        perror("posix memalign snap disk log");
-    }
-    */
-    
-    total_memory += dlog_count*sizeof(snapT_t<T>);
-    cout << "Total Memory 2 = " << total_memory << endl;
-    
-
-    total_memory += dvt_max_count*sizeof(disk_vtable_t)*3 + log_count*2;
-    cout << "Total Memory 2 = " << total_memory << endl;
-    
-    //v_unit log
-    vunit_count = (v_count);
-    if (posix_memalign((void**)&vunit_beg, 2097152, v_count*sizeof(vunit_t<T>))) {
-        perror("posix memalign vunit_beg");
-    }
-    
-    total_memory += vunit_count*sizeof(vunit_t<T>);
-    cout << "Total Memory 2 = " << total_memory << endl;
 #endif
 }
 
@@ -561,69 +483,6 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
     return INVALID_DEGREE;
 }
 
-#ifdef BULK
-template <class T>
-void onegraph_t<T>::setup_adjlist()
-{
-    vid_t    v_count = g->get_type_vcount(tid);
-    snapid_t snap_id = pgraph->snap_id + 1;
-    
-    snapT_t<T>* curr;
-	vunit_t<T>* v_unit = 0;
-	delta_adjlist_t<T>* delta_adjlist = 0;
-	delta_adjlist_t<T>* prev_delta = 0;
-    degree_t count, del_count, total_count;
-    
-    #pragma omp for
-    for (vid_t vid = 0; vid < v_count; ++vid) {
-        del_count = nebr_count[vid].del_count;
-        count = nebr_count[vid].add_count;
-        total_count = count + del_count;
-    
-        if (0 == total_count) {
-            continue;
-        }
-
-        
-        //delta adj list allocation
-        delta_adjlist = new_delta_adjlist(total_count);
-        delta_adjlist->set_nebrcount(0);
-        delta_adjlist->add_next(0);
-        
-        v_unit = beg_pos[vid].get_vunit();
-        if(v_unit) {
-            prev_delta = v_unit->adj_list;
-            if (prev_delta) {
-                prev_delta->add_next(delta_adjlist);
-            } else {
-                v_unit->delta_adjlist = delta_adjlist;
-            }
-        } else {
-            v_unit = new_vunit();
-            v_unit->delta_adjlist = delta_adjlist;
-            beg_pos[vid].set_vunit(v_unit);
-        }
-
-        v_unit->adj_list = delta_adjlist;
-    
-        //allocate new snapshot for degree, and initialize
-        snapT_t<T>* next    = new_snapdegree(); 
-        next->del_count     = del_count;
-        next->snap_id       = snap_id;
-        //next->next          = 0;
-        next->degree        = count;
-        
-        curr = beg_pos[vid].get_snapblob();
-        if (curr) {
-            next->degree    += curr->degree;
-            next->del_count += curr->del_count;
-        }
-
-        beg_pos[vid].set_snapblob1(next);
-        reset_count(vid);
-    }
-}
-#endif
 template <class T>
 void onegraph_t<T>::file_open(const string& filename, bool trunc)
 {
@@ -1109,18 +968,6 @@ onegraph_t<T>::onegraph_t()
 
 #ifdef BULK
     nebr_count = 0;
-    vunit_beg	= 0;
-    vunit_count = 0;
-    vunit_head  = 0;
-    vunit_tail  = 0;
-
-    adjlog_count = 0;
-    adjlog_head  = 0;
-    adjlog_tail = 0;
-
-    dlog_count = 0;
-    dlog_head = 0;
-    dlog_tail = 0;
    
     log_count = 0;
     dvt_max_count = 0;
@@ -1128,4 +975,10 @@ onegraph_t<T>::onegraph_t()
     write_seg[1].reset();
     write_seg[2].reset();
 #endif
+}
+   
+template <class T>
+vid_t onegraph_t<T>::get_vcount() 
+{ 
+    return g->get_type_vcount(tid);
 }
