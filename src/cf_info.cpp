@@ -25,10 +25,6 @@ index_t  LOCAL_VUNIT_COUNT = 20;
 index_t  LOCAL_DELTA_SIZE = 28;
 index_t  DURABLE_SIZE = (1L << 28);//Durable adj-list
 
-#ifdef BULK
-index_t  DELTA_SIZE = (1L << 37) ;//(32 + sizeof(T));  //sizeo of delta adj-list
-#endif
-
 //durable data structure buffer size
 index_t  W_SIZE = (1L << 12); //Edges to write
 index_t  DVT_SIZE = (1L <<24);//durable v-unit 

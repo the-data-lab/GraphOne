@@ -126,7 +126,13 @@ class vert_table_t {
 //one type's graph
 template <class T>
 class onegraph_t {
-private:
+
+#ifdef BULK
+ public:
+    nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
+#endif
+ 
+ private:
     //type id and vertices count together
     tid_t     tid;
     pgraph_t<T>* pgraph;
@@ -137,11 +143,6 @@ private:
 	//Thread local memory data structures
 	thd_mem_t<T>* thd_mem;
 
-#ifdef BULK
-	//---------Global memory data structures
-public:
-    nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
-#endif
  private:
     //vertex table file related log
     write_seg_t  write_seg[3];
@@ -188,79 +189,8 @@ public:
     
     void del_nebr_noatomic(vid_t vid, T sid);
     void add_nebr_noatomic(vid_t vid, T sid);
-    
-    inline void add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count) {
-        delta_adjlist_t<T>* adj_list1 = get_delta_adjlist(vid);
-		#ifndef BULK 
-		if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
-			
-			delta_adjlist_t<T>* adj_list = 0;
-			snapT_t<T>* curr = beg_pos[vid].get_snapblob();
-			degree_t new_count = curr->degree + curr->del_count;
-            degree_t max_count = new_count;
-		    if (curr->prev) {
-				max_count -= curr->prev->degree + curr->prev->del_count; 
-			}
-            
-            adj_list = new_delta_adjlist_local(max_count);
-	        set_delta_adjlist(vid, adj_list);
-            adj_list1 = adj_list;
-		}
-		#endif
-        adj_list1->add_nebr_bulk(adj_list2, count);
-    }
-
+    void add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count);
     degree_t find_nebr(vid_t vid, sid_t sid); 
-    
-
-    //------------------------ local allocation-------
-	inline vunit_t<T>* new_vunit_local() {
-		thd_mem_t<T>* my_thd_mem = thd_mem + omp_get_thread_num();
-		return my_thd_mem->alloc_vunit();
-	}
-    
-	inline snapT_t<T>* new_snapdegree_local() {
-		thd_mem_t<T>* my_thd_mem = thd_mem + omp_get_thread_num();
-		return my_thd_mem->alloc_snapdegree();
-	}
-
-	inline delta_adjlist_t<T>* new_delta_adjlist_local(degree_t count) {
-		thd_mem_t<T>* my_thd_mem = thd_mem + omp_get_thread_num();
-		return my_thd_mem->alloc_delta_adjlist(count);
-	}
-    
-	inline delta_adjlist_t<T>* new_delta_adjlist_local1(degree_t count) {
-		thd_mem_t<T>* my_thd_mem = thd_mem + omp_get_thread_num();
-		return thd_mem->alloc_delta_adjlist1(count);
-    }
-    
-    //-----------durability thing------------
-    //durable adj list	
-	inline durable_adjlist_t<T>* new_adjlist(write_seg_t* seg,  degree_t count) {
-        degree_t new_count = count*sizeof(T)+sizeof(durable_adjlist_t<T>);
-        //index_t index_log = __sync_fetch_and_add(&seg->log_head, new_count);
-        //assert(index_log  < log_count); 
-        index_t index_log = seg->log_head;
-        seg->log_head += new_count;
-        assert(seg->log_head  <= log_count); 
-        return  (durable_adjlist_t<T>*)(seg->log_beg + index_log);
-	}
-
-	inline disk_vtable_t* new_dvt(write_seg_t* seg) {
-        //index_t j = __sync_fetch_and_add(&seg->dvt_count, 1L);
-        index_t j = seg->dvt_count;
-        ++seg->dvt_count;
-		//assert();
-		return seg->dvt + j;
-	}
-	//------------------
-    
-    inline vert_table_t<T>* get_begpos() { return beg_pos;}
-    void prepare_dvt(write_seg_t* seg, vid_t& last_vid, bool clean = false);
-	void adj_prep(write_seg_t* seg);
-    void handle_write(bool clean = false);
-    void read_vtable();
-    void file_open(const string& filename, bool trunc);
 
 #ifdef BULK    
     void setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end);
@@ -291,16 +221,68 @@ public:
         beg_pos[vid].v_unit->adj_list->add_nebr(sid);
     }
 #endif
+    
+    //------------------------ local allocation-------
+	inline vunit_t<T>* new_vunit() {
+		return thd_mem[omp_get_thread_num()].alloc_vunit();
+	}
+    
+	inline snapT_t<T>* new_snapdegree() {
+		return thd_mem[omp_get_thread_num()].alloc_snapdegree();
+	}
+
+	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count) {
+        return thd_mem[omp_get_thread_num()].alloc_delta_adjlist(count);
+	}
+
+    inline void free_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {
+        if(chain) {
+            delta_adjlist_t<T>* adj_list1 = adj_list;
+            while (adj_list != 0) {
+                adj_list1 = adj_list->get_next();
+                free(adj_list);
+                adj_list = adj_list1;
+            }
+        } else {
+            free(adj_list);
+        }
+    }
+    
+    //-----------durability thing------------
+    //durable adj list	
+	inline durable_adjlist_t<T>* new_adjlist(write_seg_t* seg,  degree_t count) {
+        degree_t new_count = count*sizeof(T)+sizeof(durable_adjlist_t<T>);
+        //index_t index_log = __sync_fetch_and_add(&seg->log_head, new_count);
+        //assert(index_log  < log_count); 
+        index_t index_log = seg->log_head;
+        seg->log_head += new_count;
+        assert(seg->log_head  <= log_count); 
+        return  (durable_adjlist_t<T>*)(seg->log_beg + index_log);
+	}
+
+	inline disk_vtable_t* new_dvt(write_seg_t* seg) {
+        //index_t j = __sync_fetch_and_add(&seg->dvt_count, 1L);
+        index_t j = seg->dvt_count;
+        ++seg->dvt_count;
+		return seg->dvt + j;
+	}
+	//------------------
+    
+    void prepare_dvt(write_seg_t* seg, vid_t& last_vid, bool clean = false);
+	void adj_prep(write_seg_t* seg);
+    void handle_write(bool clean = false);
+    void read_vtable();
+    void file_open(const string& filename, bool trunc);
 };
 
 template <class T>
 class thd_mem_t {
-	public:
     
     vunit_t<T>* vunit_beg;
     snapT_t<T>* dlog_beg;
     char*       adjlog_beg;
 	
+	public:
     index_t    	delta_size1;
 	uint32_t    vunit_count;
 	uint32_t    dsnap_count;
@@ -313,13 +295,13 @@ class thd_mem_t {
 	
     inline vunit_t<T>* alloc_vunit() {
 		if (vunit_count == 0) {
-            new_vunit_bulk(1L << LOCAL_VUNIT_COUNT);
+            vunit_bulk(1L << LOCAL_VUNIT_COUNT);
 		}
 		vunit_count--;
 		return vunit_beg++;
 	}
     
-    inline status_t new_vunit_bulk(vid_t count) {
+    inline status_t vunit_bulk(vid_t count) {
         vunit_count = count;
         vunit_beg = (vunit_t<T>*)alloc_huge(vunit_count*sizeof(vunit_t<T>));
         if (MAP_FAILED == vunit_beg) {
@@ -331,13 +313,13 @@ class thd_mem_t {
 
 	inline snapT_t<T>* alloc_snapdegree() {
 		if (dsnap_count == 0) {
-            new_snapdegree_bulk(1L << LOCAL_VUNIT_COUNT);
+            snapdegree_bulk(1L << LOCAL_VUNIT_COUNT);
 		}
 		dsnap_count--;
 		return dlog_beg++;
 	}
     
-    inline status_t new_snapdegree_bulk(vid_t count) {
+    inline status_t snapdegree_bulk(vid_t count) {
         dsnap_count = count;
         dlog_beg = (snapT_t<T>*)alloc_huge(sizeof(snapT_t<T>)*dsnap_count);
         if (MAP_FAILED == dlog_beg) {
@@ -348,22 +330,27 @@ class thd_mem_t {
     
 	inline delta_adjlist_t<T>* alloc_delta_adjlist(degree_t count) {
         degree_t max_count;
+        
         if (count >= HUB_COUNT || count >= 256) {
             max_count = TO_MAXCOUNT1(count);
         } else {
             max_count = TO_MAXCOUNT(count);
         }
+        //max_count = TO_MAXCOUNT(count);
         index_t size = max_count*sizeof(T) + sizeof(delta_adjlist_t<T>);
+        
+		//delta_adjlist_t<T>* adj_list =  (delta_adjlist_t<T>*)malloc(size);
+        
         index_t tmp = 0;
 		if (size > delta_size) {
 			tmp = max(1UL << LOCAL_DELTA_SIZE, size);
-            new_delta_adjlist_bulk(tmp);
+            delta_adjlist_bulk(tmp);
 		}
 		delta_adjlist_t<T>* adj_list = (delta_adjlist_t<T>*)adjlog_beg;
 		assert(adj_list != 0);
 		adjlog_beg += size;
 		delta_size -= size;
-
+        
         adj_list->set_nebrcount(0);
         adj_list->add_next(0);
         adj_list->set_maxcount(max_count);
@@ -371,28 +358,16 @@ class thd_mem_t {
 		return adj_list;
 	}
     
-    inline status_t new_delta_adjlist_bulk(index_t size) {
+    inline status_t delta_adjlist_bulk(index_t size) {
         delta_size = size;
         adjlog_beg = (char*)alloc_huge(delta_size);
         if (MAP_FAILED == adjlog_beg) {
             adjlog_beg = (char*)malloc(delta_size);
             assert(adjlog_beg);
         }
+        //cout << "alloc adj " << delta_size << endl; 
         return eOK;
     }
-    
-	inline delta_adjlist_t<T>* alloc_delta_adjlist_local1(degree_t count) {
-		index_t size = count*sizeof(T) + sizeof(delta_adjlist_t<T>);
-		if (size > delta_size1) {
-			delta_size1 = max(1UL << 28, size);
-			adjlog_beg1 = (char*)malloc(delta_size1);
-		}
-		delta_adjlist_t<T>* adj_list = (delta_adjlist_t<T>*)adjlog_beg1;
-		assert(adj_list != 0);
-		adjlog_beg1 += size;
-		delta_size1 -= size;
-		return adj_list;
-	}
 };
 
 

@@ -11,7 +11,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 		//allocate new snap blob 
 		snapT_t<T>* next = beg_pos[vid].recycle_snapblob(snap_id);
 		if (next == 0) {
-			next = new_snapdegree_local();
+			next = new_snapdegree();
             next->snap_id       = snap_id;
             next->degree        = 0;
             next->del_count     = 0;
@@ -25,7 +25,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 	
 		//allocate v-unit
 		if (beg_pos[vid].get_vunit() == 0) {
-			vunit_t<T>* v_unit = new_vunit_local();
+			vunit_t<T>* v_unit = new_vunit();
 			beg_pos[vid].set_vunit(v_unit);
 		}
 	}
@@ -39,7 +39,7 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 		//allocate new snap blob 
 		snapT_t<T>* next = beg_pos[vid].recycle_snapblob(snap_id);
 		if (next == 0) {
-			next = new_snapdegree_local();
+			next = new_snapdegree();
             next->snap_id       = snap_id;
             next->degree        = 0;
             next->del_count     = 0;
@@ -53,7 +53,7 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 	
 		//allocate v-unit
 		if (beg_pos[vid].get_vunit() == 0) {
-			vunit_t<T>* v_unit = new_vunit_local();
+			vunit_t<T>* v_unit = new_vunit();
 			beg_pos[vid].set_vunit(v_unit);
 		}
 	}
@@ -66,7 +66,7 @@ template <class T>
 void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid) 
 {
     vunit_t<T>* v_unit = beg_pos[vid].v_unit; 
-    delta_adjlist_t<T>* adj_list1 = get_delta_adjlist(vid);
+    delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
     #ifndef BULK 
     if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
         
@@ -78,7 +78,7 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
             max_count -= curr->prev->degree + curr->prev->del_count; 
         }
         
-        adj_list = new_delta_adjlist_local(max_count);
+        adj_list = new_delta_adjlist(max_count);
         set_delta_adjlist(vid, adj_list);
         adj_list1 = adj_list;
     }
@@ -87,6 +87,30 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
         return del_nebr_noatomic(vid, sid);
     }
     adj_list1->add_nebr_noatomic(sid);
+}
+
+template <class T>
+void onegraph_t<T>::add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count) 
+{
+    vunit_t<T>* v_unit = beg_pos[vid].v_unit; 
+    delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
+    #ifndef BULK 
+    if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
+        
+        delta_adjlist_t<T>* adj_list = 0;
+        snapT_t<T>* curr = beg_pos[vid].get_snapblob();
+        degree_t new_count = curr->degree + curr->del_count;
+        degree_t max_count = new_count;
+        if (curr->prev) {
+            max_count -= curr->prev->degree + curr->prev->del_count; 
+        }
+        
+        adj_list = new_delta_adjlist(max_count);
+        set_delta_adjlist(vid, adj_list);
+        adj_list1 = adj_list;
+    }
+    #endif
+    adj_list1->add_nebr_bulk(adj_list2, count);
 }
 
 template <class T>
@@ -130,7 +154,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     }
 
     //Allocate new memory
-    delta_adjlist_t<T>* adj_list = new_delta_adjlist_local(nebr_count);
+    delta_adjlist_t<T>* adj_list = new_delta_adjlist(nebr_count);
     adj_list->set_nebrcount(nebr_count);
     
     //copy the data from older edge arrays to new edge array
@@ -140,8 +164,13 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 
     //replace the edge array atomically
     //set_delta_adjlist(adj_list);
-    v_unit->delta_adjlist = adj_list;
+    delta_adjlist_t<T>* old_adjlist = v_unit->delta_adjlist;
+    //v_unit->delta_adjlist = adj_list;
+    if(true != __sync_bool_compare_and_swap(&v_unit->delta_adjlist, old_adjlist, adj_list)) {
+        assert(0);
+    }
     v_unit->adj_list = adj_list;
+    free_delta_adjlist(old_adjlist, true);//chain free
     return eOK;
 }
 
@@ -302,14 +331,13 @@ template <class T>
 void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 {
     degree_t count, del_count, total_count;
+/*
 	vunit_t<T>* v_unit = 0;
-    snapT_t<T>* curr;
 	snapT_t<T>* next;
     snapid_t snap_id = pgraph->snap_id + 1;
 	int tid = omp_get_thread_num();
 	thd_mem_t<T>* my_thd_mem = thd_mem + tid;
 	memset(my_thd_mem, 0, sizeof(thd_mem_t<T>));
-
 	//Memory estimation
     for (vid_t vid = vid_start; vid < vid_end; ++vid) {
         del_count = nebr_count[vid].del_count;
@@ -332,13 +360,13 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
     }
 
 	//Bulk memory allocation
-    my_thd_mem->new_vunit_bulk(my_thd_mem->vunit_count);
-    my_thd_mem->new_snapdegree_bulk(my_thd_mem->degree_count);
+    my_thd_mem->vunit_bulk(my_thd_mem->vunit_count);
+    my_thd_mem->snapdegree_bulk(my_thd_mem->degree_count);
 
 	index_t new_count = my_thd_mem->delta_size*sizeof(T) 
 						+ my_thd_mem->dsnap_count*sizeof(delta_adjlist_t<T>);
-    my_thd_mem->new_delta_adjlist_bulk(new_count);
-
+    my_thd_mem->delta_adjlist_bulk(new_count);
+*/
 	delta_adjlist_t<T>* delta_adjlist = 0;
 
 	//individual allocation
@@ -350,10 +378,10 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
         if (0 == total_count) { continue; }
 
         increment_count_noatomic(vid, count);
-        decrement_count_noatomic(vid, count);
+        decrement_count_noatomic(vid, del_count);
 
         //delta adj list allocation
-        delta_adjlist = new_delta_adjlist_local(total_count);
+        delta_adjlist = new_delta_adjlist(total_count);
         set_delta_adjlist(vid, delta_adjlist);
         reset_count(vid);
     }
@@ -716,7 +744,7 @@ void onegraph_t<T>::read_vtable()
 			vid = dvt[v].vid;
 			
             //allocate new snapshot for degree, and initialize
-			next = new_snapdegree_local();
+			next = new_snapdegree();
             next->del_count     = dvt[v].del_count;
             next->snap_id       = snap_id;
             //next->next          = 0;
@@ -727,7 +755,7 @@ void onegraph_t<T>::read_vtable()
             delta_adjlist = (delta_adjlist_t<T>*)(adj_list + dvt[v].file_offset);
             delta_adjlist->add_next(0);
             
-            v_unit = new_vunit_local();
+            v_unit = new_vunit();
             beg_pos[vid].set_vunit(v_unit);
             v_unit->delta_adjlist = delta_adjlist;
             v_unit->adj_list = delta_adjlist;
