@@ -122,7 +122,6 @@ class vert_table_t {
     } 
 };
 
-
 //one type's graph
 template <class T>
 class onegraph_t {
@@ -224,28 +223,19 @@ public:
     
     //------------------------ local allocation-------
 	inline vunit_t<T>* new_vunit() {
-		return thd_mem[omp_get_thread_num()].alloc_vunit();
+		return thd_mem->alloc_vunit();
 	}
     
 	inline snapT_t<T>* new_snapdegree() {
-		return thd_mem[omp_get_thread_num()].alloc_snapdegree();
+		return thd_mem->alloc_snapdegree();
 	}
 
 	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count) {
-        return thd_mem[omp_get_thread_num()].alloc_delta_adjlist(count);
+        return thd_mem->alloc_adjlist(count);
 	}
 
-    inline void free_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {
-        if(chain) {
-            delta_adjlist_t<T>* adj_list1 = adj_list;
-            while (adj_list != 0) {
-                adj_list1 = adj_list->get_next();
-                free(adj_list);
-                adj_list = adj_list1;
-            }
-        } else {
-            free(adj_list);
-        }
+    inline void delete_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {
+        thd_mem->free_adjlist(adj_list, chain);
     }
     
     //-----------durability thing------------
@@ -274,102 +264,6 @@ public:
     void read_vtable();
     void file_open(const string& filename, bool trunc);
 };
-
-template <class T>
-class thd_mem_t {
-    
-    vunit_t<T>* vunit_beg;
-    snapT_t<T>* dlog_beg;
-    char*       adjlog_beg;
-	
-	public:
-    index_t    	delta_size1;
-	uint32_t    vunit_count;
-	uint32_t    dsnap_count;
-#ifdef BULK
-    index_t     degree_count;
-#endif
-	index_t    	delta_size;
-    
-    char*       adjlog_beg1;
-	
-    inline vunit_t<T>* alloc_vunit() {
-		if (vunit_count == 0) {
-            vunit_bulk(1L << LOCAL_VUNIT_COUNT);
-		}
-		vunit_count--;
-		return vunit_beg++;
-	}
-    
-    inline status_t vunit_bulk(vid_t count) {
-        vunit_count = count;
-        vunit_beg = (vunit_t<T>*)alloc_huge(vunit_count*sizeof(vunit_t<T>));
-        if (MAP_FAILED == vunit_beg) {
-            vunit_beg = (vunit_t<T>*)calloc(sizeof(vunit_t<T>), vunit_count);
-            assert(vunit_beg);
-        }
-        return eOK;
-	}	
-
-	inline snapT_t<T>* alloc_snapdegree() {
-		if (dsnap_count == 0) {
-            snapdegree_bulk(1L << LOCAL_VUNIT_COUNT);
-		}
-		dsnap_count--;
-		return dlog_beg++;
-	}
-    
-    inline status_t snapdegree_bulk(vid_t count) {
-        dsnap_count = count;
-        dlog_beg = (snapT_t<T>*)alloc_huge(sizeof(snapT_t<T>)*dsnap_count);
-        if (MAP_FAILED == dlog_beg) {
-            dlog_beg = (snapT_t<T>*)calloc(sizeof(snapT_t<T>), dsnap_count);
-        }
-        return eOK;
-	}
-    
-	inline delta_adjlist_t<T>* alloc_delta_adjlist(degree_t count) {
-        degree_t max_count;
-        
-        if (count >= HUB_COUNT || count >= 256) {
-            max_count = TO_MAXCOUNT1(count);
-        } else {
-            max_count = TO_MAXCOUNT(count);
-        }
-        //max_count = TO_MAXCOUNT(count);
-        index_t size = max_count*sizeof(T) + sizeof(delta_adjlist_t<T>);
-        
-		//delta_adjlist_t<T>* adj_list =  (delta_adjlist_t<T>*)malloc(size);
-        
-        index_t tmp = 0;
-		if (size > delta_size) {
-			tmp = max(1UL << LOCAL_DELTA_SIZE, size);
-            delta_adjlist_bulk(tmp);
-		}
-		delta_adjlist_t<T>* adj_list = (delta_adjlist_t<T>*)adjlog_beg;
-		assert(adj_list != 0);
-		adjlog_beg += size;
-		delta_size -= size;
-        
-        adj_list->set_nebrcount(0);
-        adj_list->add_next(0);
-        adj_list->set_maxcount(max_count);
-        
-		return adj_list;
-	}
-    
-    inline status_t delta_adjlist_bulk(index_t size) {
-        delta_size = size;
-        adjlog_beg = (char*)alloc_huge(delta_size);
-        if (MAP_FAILED == adjlog_beg) {
-            adjlog_beg = (char*)malloc(delta_size);
-            assert(adjlog_beg);
-        }
-        //cout << "alloc adj " << delta_size << endl; 
-        return eOK;
-    }
-};
-
 
 //one type's key-value store
 template <class T>

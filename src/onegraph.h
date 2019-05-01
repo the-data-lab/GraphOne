@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include "mem_pool.h"
 
 using std::min;
 
@@ -170,7 +171,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
         assert(0);
     }
     v_unit->adj_list = adj_list;
-    free_delta_adjlist(old_adjlist, true);//chain free
+    delete_delta_adjlist(old_adjlist, true);//chain free
     return eOK;
 }
 
@@ -395,18 +396,8 @@ void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
     tid = t;
     vid_t max_vcount = g->get_type_scount(tid);;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
+    thd_mem = new thd_mem_t<T>; 
     
-    if(posix_memalign((void**)&thd_mem, 64 , THD_COUNT*sizeof(thd_mem_t<T>))) {
-        cout << "posix_memalign failed()" << endl;
-        thd_mem = (thd_mem_t<T>*)calloc(sizeof(thd_mem_t<T>), THD_COUNT);
-    } else {
-        memset(thd_mem, 0, THD_COUNT*sizeof(thd_mem_t<T>));
-    } 
-    
-    dvt_max_count = DVT_SIZE;
-    log_count = DURABLE_SIZE;
-    
-    //durable vertex log and adj list log
     if (posix_memalign((void**) &write_seg[0].dvt, 2097152, 
                        dvt_max_count*sizeof(disk_vtable_t))) {
         perror("posix memalign vertex log");    
