@@ -1,5 +1,22 @@
 #pragma once
 
+#include <unistd.h>
+#include <algorithm>
+using std::cout;
+using std::endl;
+using std::max;
+
+inline void* alloc_huge(index_t size)
+{   
+    //void* buf = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
+    //if (buf== MAP_FAILED) {
+    //    cout << "huge page failed" << endl;
+    //}
+    //return buf;
+    
+    return MAP_FAILED;
+}
+
 template <class T>
 struct mem_t {
     vunit_t<T>* vunit_beg;

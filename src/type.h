@@ -365,27 +365,6 @@ class durable_adjlist_t {
 	inline T* get_adjlist() { return (T*)(&count + 1); }
 };
 
-//Special v-unit flags
-//#define VUNIT_NORMAL 0
-//#define VUNIT_SHORT  1
-//#define VUNIT_LONG   2
-//#define TO_VUNIT_FLAG(flag)  (flag & 0x3)
-//#define TO_VUNIT_COUNT(flag) ((flag >> 2 ) & 0x7)
-
-template <class T>
-class vunit_t {
- public:
-	//uint16_t      vflag;
-	//uint16_t    max_size; //max count in delta adj list
-	delta_adjlist_t<T>* delta_adjlist;
-	delta_adjlist_t<T>* adj_list;//Last chain
-
-	inline void reset() {
-		//vflag = 0;
-		delta_adjlist = 0;
-        adj_list = 0;
-	}
-};
 
 class pedge_t {
  public:

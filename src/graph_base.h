@@ -4,122 +4,20 @@
 #include <libaio.h>
 #include <sys/mman.h>
 #include <asm/mman.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <algorithm>
 #include <stdio.h>
 #include <errno.h>
+
 #include "type.h"
-
-using std::cout;
-using std::endl;
-using std::max;
-
-inline void* alloc_huge(index_t size)
-{   
-    //void* buf = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
-    //if (buf== MAP_FAILED) {
-    //    cout << "huge page failed" << endl;
-    //}
-    //return buf;
-    
-    return MAP_FAILED;
-}
-
-template <class T>
-class thd_mem_t;
+#include "vunit.h"
+#include "mem_pool.h"
 
 //One vertex's neighbor information
 template <class T>
 class vert_table_t {
  public:
-    //nebr list of one vertex. First member is a spl member
-    //count, flag for snapshot, XXX: smart pointer count
-    snapT_t<T>*   snap_blob;
-
 	vunit_t<T>*   v_unit;
-
- public:   
-    inline vert_table_t() { snap_blob = 0; v_unit = 0;}
-    
-    inline degree_t get_degree() {
-        if (snap_blob) return snap_blob->degree - snap_blob->del_count;
-        else  return 0; 
-    }
-    
-    inline degree_t get_delcount() {
-        if (snap_blob) return snap_blob->del_count;
-        else  return 0; 
-    }
-    
-    inline index_t get_offset() { return v_unit->offset; }
-	inline void set_offset(index_t adj_list1) { 
-		v_unit->offset = adj_list1; 
-	}
-    
-	inline delta_adjlist_t<T>* get_delta_adjlist() {
-        if (v_unit) {
-            return v_unit->delta_adjlist;
-        }
-        return 0;
-    }
-    
-	inline void set_delta_adjlist(delta_adjlist_t<T>* adj_list) {
-        assert(v_unit);
-        if (v_unit->adj_list) {
-			v_unit->adj_list->add_next(adj_list);
-			v_unit->adj_list = adj_list;
-		} else {
-			v_unit->delta_adjlist = adj_list;
-			v_unit->adj_list = adj_list;
-		}
-	}
-	inline vunit_t<T>* get_vunit() {return v_unit;}
-	inline vunit_t<T>* set_vunit(vunit_t<T>* v_unit1) {
-        //prev value will be cleaned later
-		vunit_t<T>* v_unit2 = v_unit;
-		v_unit = v_unit1;//Atomic XXX
-		return v_unit2;
-	}
-
-	inline snapT_t<T>* get_snapblob() { return snap_blob; } 
-    
-    //The incoming is simple, called from read_stable
-    inline void set_snapblob1(snapT_t<T>* snap_blob1) { 
-        if (0 == snap_blob) {
-            snap_blob1->prev  = 0;
-            //snap_blob1->next = 0;
-        } else {
-            snap_blob1->prev = snap_blob;
-            //snap_blob1->next = 0;
-            //snap_blob->next = snap_blob1;
-        }
-        snap_blob = snap_blob1; 
-    } 
-    
-    inline snapT_t<T>* recycle_snapblob(snapid_t snap_id) { 
-        if (0 == snap_blob || 0 == snap_blob->prev) return 0;
-        
-        index_t snap_count = 2;
-        snapT_t<T>* snap_blob1 = snap_blob;
-        snapT_t<T>* snap_blob2 = snap_blob->prev;
-
-        while (snap_blob2->prev != 0) {
-            snap_blob1 = snap_blob2;
-            snap_blob2 = snap_blob2->prev;
-            ++snap_count;
-        }
-        if (snap_count < SNAP_COUNT) {
-            return 0;
-        }
-
-        snap_blob1->prev = 0;
-        snap_blob2->snap_id = snap_id;
-        snap_blob2->del_count = snap_blob->del_count;
-        snap_blob2->degree = snap_blob->degree;
-        set_snapblob1(snap_blob2);
-        return snap_blob2;
-    } 
+    inline vert_table_t() { v_unit = 0;}
 };
 
 //one type's graph
@@ -160,24 +58,36 @@ public:
 public:
    onegraph_t(); 
     void setup(pgraph_t<T>* pgraph1, tid_t tid);
+	inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
+	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
+		beg_pos[v].v_unit = v_unit;
+	}
     
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
-        return beg_pos[vid].get_degree();
+        vunit_t<T>* v_unit = get_vunit(vid);
+        return v_unit->get_degree();
     }
     
     inline degree_t get_delcount(vid_t vid) {
-        return beg_pos[vid].get_delcount();
+        vunit_t<T>* v_unit = get_vunit(vid);
+        return v_unit->get_delcount();
     }
 
     degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
 
-	inline delta_adjlist_t<T>* get_delta_adjlist(vid_t v) {
-        return beg_pos[v].get_delta_adjlist();
+	inline delta_adjlist_t<T>* get_delta_adjlist(vid_t vid) {
+        vunit_t<T>* v_unit = get_vunit(vid);
+        if (v_unit) {
+            return v_unit->get_delta_adjlist();
+        }
+        return 0;
     }
-    inline void set_delta_adjlist(vid_t v, delta_adjlist_t<T>* adj_list) {
-        return beg_pos[v].set_delta_adjlist(adj_list);
+    inline void set_delta_adjlist(vid_t vid, delta_adjlist_t<T>* adj_list) {
+        vunit_t<T>* v_unit = get_vunit(vid);
+        assert(v_unit);
+        return v_unit->set_delta_adjlist(adj_list);
     } 
     void     compress();
     status_t compress_nebrs(vid_t vid);
@@ -294,9 +204,11 @@ class onekv_t {
     void file_open(const string& filename, bool trunc);
 };
 
+/*
 typedef vert_table_t<sid_t> beg_pos_t;
 typedef beg_pos_t  lgraph_t;
 typedef vert_table_t<lite_edge_t> lite_vtable_t;
+*/
 
 typedef onegraph_t<sid_t> sgraph_t;
 typedef onegraph_t<lite_edge_t>lite_sgraph_t;

@@ -22,9 +22,6 @@ class inference_tinfo_t {
 class typekv_t : public cfinfo_t {
   private:
     
-    //deleted vid list for each class
-    lgraph_t* lgraph_in;
-    
     //map <string, sid_t> str2vid;
 	str2intmap str2vid;// = new str2intmap();	
     

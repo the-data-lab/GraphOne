@@ -697,10 +697,10 @@ void mem_bfs(gview_t<T>* snaph,
 				for (vid_t v = 0; v < v_count; v++) {
                     if (status[v] != level) continue;
                     
-                    delta_adjlist  = snaph->get_nebrs_archived_out(v);
-                    if (0 == delta_adjlist) continue;
-
 					nebr_count     = snaph->get_degree_out(v);
+                    if (0 == nebr_count) continue;
+                    
+                    delta_adjlist  = snaph->get_nebrs_archived_out(v);
                     delta_degree   = nebr_count;
                     
                     //traverse the delta adj list
@@ -726,10 +726,10 @@ void mem_bfs(gview_t<T>* snaph,
 				#pragma omp for nowait
 				for (vid_t v = 0; v < v_count; v++) {
 					if (status[v] != 0 ) continue;
-                    delta_adjlist  = snaph->get_nebrs_archived_in(v);
-                    if (0 == delta_adjlist) continue;
-
 					nebr_count = snaph->get_degree_in(v);
+                    if (0 == nebr_count) continue;
+
+                    delta_adjlist  = snaph->get_nebrs_archived_in(v);
                     done = 0;
 
                     //traverse the delta adj list
