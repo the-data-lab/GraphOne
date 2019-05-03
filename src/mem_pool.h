@@ -6,6 +6,15 @@ using std::cout;
 using std::endl;
 using std::max;
 
+/*
+template <class T>
+index_t TO_CACHELINE<T>(index_t count, index_t meta_size)
+{
+    index_t total_size = count*sizeof(T) + meta_size;
+    index_t cachelined_size = (total_size | CL_UPPER);
+}
+*/
+
 inline void* alloc_huge(index_t size)
 {   
     //void* buf = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
@@ -79,15 +88,15 @@ class thd_mem_t {
         return eOK;
 	}
     
-	inline delta_adjlist_t<T>* alloc_adjlist(degree_t count) {
+	inline delta_adjlist_t<T>* alloc_adjlist(degree_t count, bool hub) {
 		delta_adjlist_t<T>* adj_list = 0;
-        degree_t max_count;
-        if (count >= HUB_COUNT || count >= 256) {
-            max_count = TO_MAXCOUNT1(count);
+        index_t size = count*sizeof(T) + sizeof(delta_adjlist_t<T>);
+        if (hub || count >= 256) {
+            size = TO_PAGESIZE(size);
         } else {
-            max_count = TO_MAXCOUNT(count);
+            size = TO_CACHELINE(size);
         }
-        index_t size = max_count*sizeof(T) + sizeof(delta_adjlist_t<T>);
+        degree_t max_count = (size - sizeof(delta_adjlist_t<T>))/sizeof(T);
 
         #ifdef MALLOC 
 		adj_list =  (delta_adjlist_t<T>*)malloc(size);

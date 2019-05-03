@@ -1,5 +1,14 @@
 #include "type.h"
 
+template <class T>
+class  snapT_t {
+ public:
+    snapT_t<T>*     prev;//prev snapshot of this vid 
+    degree_t  degree;
+    uint16_t  snap_id;
+    uint16_t  del_count;
+};
+
 //Special v-unit flags
 //#define VUNIT_NORMAL 0
 //#define VUNIT_SHORT  1
@@ -76,7 +85,7 @@ class vunit_t {
 	inline snapT_t<T>* get_snapblob() { return snap_blob; } 
     
     //The incoming is simple, called from read_stable
-    inline void set_snapblob1(snapT_t<T>* snap_blob1) { 
+    inline void set_snapblob(snapT_t<T>* snap_blob1) { 
         if (0 == snap_blob) {
             snap_blob1->prev  = 0;
             //snap_blob1->next = 0;
@@ -108,7 +117,7 @@ class vunit_t {
         snap_blob2->snap_id = snap_id;
         snap_blob2->del_count = snap_blob->del_count;
         snap_blob2->degree = snap_blob->degree;
-        set_snapblob1(snap_blob2);
+        set_snapblob(snap_blob2);
         return snap_blob2;
     } 
 };

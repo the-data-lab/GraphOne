@@ -47,18 +47,12 @@ typedef uint16_t vflag_t;
 #define THIGH_MASK 0x7FFFFF0000000000
 #define DEL_MASK   0x8000000000000000
 #define SID_MASK   0x7FFFFFFFFFFFFFFF
-#define CL_COUNT   4
-#define CL_ADJUST  1
-#define CL_MASK    0xFFFFFFFFFFFFFFFC
 #elif B32
 #define VBIT 28
 #define VMASK 0xfffffff
 #define THIGH_MASK 0x70000000
 #define DEL_MASK   0x80000000
 #define SID_MASK   0x7FFFFFFF
-#define CL_COUNT   8
-#define CL_ADJUST  2
-#define CL_MASK    0xFFFFFFFFFFFFFFF8
 #endif
 #else
 #ifdef B64
@@ -67,28 +61,25 @@ typedef uint16_t vflag_t;
 #define THIGH_MASK 0x7FFFFF0000000000
 #define DEL_MASK   0x8000000000000000
 #define SID_MASK   0x7FFFFFFFFFFFFFFF
-#define CL_COUNT   15 
-#define CL_ADJUST  1 
-#define CL_MASK    0xFFFFFFFFFFFFFFF0
 #elif B32
 #define VBIT 30
 #define VMASK 0x3fffffff
 #define THIGH_MASK 0x40000000
 #define DEL_MASK   0x80000000
 #define SID_MASK   0x7FFFFFFF
-#define CL_COUNT   16 
-#define CL_ADJUST  4
-#define CL_MASK    0xFFFFFFFFFFFFFFF0
 #endif
 #endif
+
+#define CL_MASK    0xFFFFFFFFFFFFFFC0
+#define PAGE_MASK  0xFFFFFFFFFFFFFC00
 
 #ifdef OVER_COMMIT
-#define TO_MAXCOUNT(X) ((((X)+CL_ADJUST+CL_COUNT-1) & CL_MASK) - CL_ADJUST)
-#else
-#define TO_MAXCOUNT(X) (X)
+#define TO_CACHELINE(x) ((x+63) & CL_MASK)
+#define TO_PAGESIZE(x) ((x+4095) & PAGE_MASK)
+#else 
+#define TO_CACHELINE(x) (x)
+#define TO_PAGESIZE(x) (x)
 #endif
-
-#define TO_MAXCOUNT1(X) ((((X) + CL_ADJUST+ 1024 - 1) & 0xFFFFFFFFFFFFFC00) - CL_ADJUST)
 
 #define TO_TID(sid)  ((sid & THIGH_MASK) >> VBIT)
 #define TO_VID(sid)  (sid & VMASK)
@@ -412,15 +403,6 @@ class delentry_t {
  public:
     degree_t pos;
     T dst_id;
-};
-
-template <class T>
-class  snapT_t {
- public:
-    snapT_t<T>*     prev;//prev snapshot of this vid 
-    degree_t  degree;
-    uint16_t  snap_id;
-    uint16_t  del_count;
 };
 
 //This will be used as disk write structure

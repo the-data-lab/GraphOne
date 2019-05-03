@@ -91,6 +91,7 @@ public:
     } 
     void     compress();
     status_t compress_nebrs(vid_t vid);
+    status_t evict_old_adjlist(vid_t vid, degree_t degree);
 
     vid_t get_vcount();
 	void increment_count_noatomic(vid_t vid, degree_t count = 1);
@@ -140,8 +141,8 @@ public:
 		return thd_mem->alloc_snapdegree();
 	}
 
-	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count) {
-        return thd_mem->alloc_adjlist(count);
+	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count, bool hub=false) {
+        return thd_mem->alloc_adjlist(count, hub);
 	}
 
     inline void delete_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {

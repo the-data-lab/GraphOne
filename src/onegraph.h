@@ -28,7 +28,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/)
                 next->degree += curr->degree;
                 next->del_count += curr->del_count;
             }
-            v_unit->set_snapblob1(next);
+            v_unit->set_snapblob(next);
         }
 		curr = next;
 	}
@@ -58,7 +58,7 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/)
                 next->degree += curr->degree;
                 next->del_count += curr->del_count;
             }
-            v_unit->set_snapblob1(next);
+            v_unit->set_snapblob(next);
         }
 		curr = next;
 	
@@ -84,7 +84,7 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
             max_count -= curr->prev->degree + curr->prev->del_count; 
         }
         
-        adj_list = new_delta_adjlist(max_count);
+        adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
         v_unit->set_delta_adjlist(adj_list);
         adj_list1 = adj_list;
     }
@@ -111,7 +111,7 @@ void onegraph_t<T>::add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count)
             max_count -= curr->prev->degree + curr->prev->del_count; 
         }
         
-        adj_list = new_delta_adjlist(max_count);
+        adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
         v_unit->set_delta_adjlist(adj_list);
         adj_list1 = adj_list;
     }
@@ -150,6 +150,7 @@ template <class T>
 status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 {
     vunit_t<T>* v_unit = get_vunit(vid); 
+    if (v_unit == 0) return eOK;
     
     //Get the new count
     degree_t nebr_count = v_unit->get_degree(); //valid counts
@@ -170,14 +171,54 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     assert(ret == nebr_count);
 
     //replace the edge array atomically
-    //set_delta_adjlist(adj_list);
     delta_adjlist_t<T>* old_adjlist = v_unit->delta_adjlist;
-    //v_unit->delta_adjlist = adj_list;
+    
     if(true != __sync_bool_compare_and_swap(&v_unit->delta_adjlist, old_adjlist, adj_list)) {
         assert(0);
     }
+    //v_unit->delta_adjlist = adj_list;
     v_unit->adj_list = adj_list;
     delete_delta_adjlist(old_adjlist, true);//chain free
+    return eOK;
+}
+
+//Freeing happens upto
+template <class T>
+status_t onegraph_t<T>::evict_old_adjlist(vid_t vid, degree_t degree)
+{
+    vunit_t<T>* v_unit = get_vunit(vid); 
+    if (v_unit == 0) return eOK;;
+
+    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
+    degree_t delta_degree = degree;//nebr_count + del_count; 
+    
+    delta_adjlist_t<T>* old_adjlist = 0;
+    degree_t local_degree = 0;
+    degree_t total_count = 0;
+
+    while (delta_adjlist != 0 && delta_degree > 0) {
+        local_degree = delta_adjlist->get_nebrcount();
+        total_count += local_degree;
+        if (total_count >= degree) {
+           break; 
+        }
+        old_adjlist = delta_adjlist;
+        delta_adjlist = delta_adjlist->get_next();
+        delta_degree -= local_degree;
+        delete_delta_adjlist(old_adjlist);
+    }
+
+    v_unit->delta_adjlist = delta_adjlist;
+    if (delta_adjlist == 0) {
+        v_unit->adj_list = 0;
+    }
+    
+    //reduce the degree count
+    snapT_t<T>* snap_blob = v_unit->get_snapblob();
+    snap_blob->degree -= degree;
+    //snap_blob->del_count = 0; 
+    
+    //v_unit->offset = degree;//XXX
     return eOK;
 }
 
@@ -390,6 +431,9 @@ void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
     vid_t max_vcount = g->get_type_scount(tid);;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
     thd_mem = new thd_mem_t<T>; 
+
+    dvt_max_count = DVT_SIZE;
+    log_count = DURABLE_SIZE;
     
     if (posix_memalign((void**) &write_seg[0].dvt, 2097152, 
                        dvt_max_count*sizeof(disk_vtable_t))) {
@@ -731,8 +775,6 @@ void onegraph_t<T>::read_vtable()
             
             v_unit = new_vunit();
             set_vunit(vid, v_unit);
-            v_unit->delta_adjlist = delta_adjlist;
-            v_unit->adj_list = delta_adjlist;
 			
             //allocate new snapshot for degree, and initialize
 			next = new_snapdegree();
@@ -740,11 +782,13 @@ void onegraph_t<T>::read_vtable()
             next->snap_id       = snap_id;
             //next->next          = 0;
             next->degree        = dvt[v].count;
-            v_unit->set_snapblob1(next);
+            v_unit->set_snapblob(next);
 
             //assign delta adjlist
             delta_adjlist = (delta_adjlist_t<T>*)(adj_list + dvt[v].file_offset);
             delta_adjlist->add_next(0);
+            v_unit->delta_adjlist = delta_adjlist;
+            v_unit->adj_list = delta_adjlist;
             
         }
         count -= read_count;
@@ -949,15 +993,14 @@ onegraph_t<T>::onegraph_t()
     vtf = -1;
     etf = -1;
     stf = 0;
-
-#ifdef BULK
-    nebr_count = 0;
-   
     log_count = 0;
     dvt_max_count = 0;
     write_seg[0].reset();
     write_seg[1].reset();
     write_seg[2].reset();
+
+#ifdef BULK
+    nebr_count = 0;
 #endif
 }
    
