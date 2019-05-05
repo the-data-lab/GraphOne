@@ -169,14 +169,14 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
     while (NULL != (ptr = readdir(dir))) {
         if (ptr->d_name[0] == '.') continue;
         filename = idirname + "/" + string(ptr->d_name);
-        cout << "ifile= "  << filename << endl ;
+        //cout << "ifile= "  << filename << endl ;
         ifiles[icount++] = filename;
     }
     closedir(dir);
 
     double end ;
     double start = mywtime();
-    //#pragma omp parallel for num_threads(16) schedule(static)
+    #pragma omp parallel for num_threads(16) schedule(static)
     for (int i = 0; i < icount; ++i) {
         parsefile_and_insert(ifiles[i], ofilename, pgraph);
     }

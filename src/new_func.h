@@ -137,11 +137,12 @@ inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const
     index_t icount = 0;
 	char sss[512];
     char* line = sss;
-
+    tmp_blog_t<netflow_dst_t> edges(64);
     while (fgets(sss, sizeof(sss), file)) {
         line = sss;
         if (eOK == parse_netflow_line(line, netflow)) {
-            pgraph->batch_edge(netflow);
+            pgraph->batch_edge(&edges, netflow);
+            //pgraph->batch_edge(netflow);
         }
         icount++;
     }

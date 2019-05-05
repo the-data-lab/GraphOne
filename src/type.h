@@ -443,6 +443,23 @@ class write_seg_t {
 	 }
 };
 
+template <class T>
+class tmp_blog_t {
+ public:
+    edgeT_t<T>* edges;
+    int32_t     count;
+    int32_t     max_count;
+
+    inline tmp_blog_t(int32_t icount) {
+        edges = (edgeT_t<T>*)calloc(icount, sizeof(edgeT_t<T>));
+        max_count = icount;
+        count = 0;
+    }
+    inline ~tmp_blog_t() {
+        delete edges;
+    }
+};
+
 //edge batching buffer
 template <class T>
 class blog_t {
@@ -480,20 +497,6 @@ class blog_t {
         return blog_tail;
     }
 
-    index_t log(edgeT_t<T>& edge) {
-        index_t index = __sync_fetch_and_add(&blog_head, 1L);
-
-        //Check if we are overwritting the unarchived data, if so sleep
-        while (index + 1 - blog_tail > blog_count) {
-            //cout << "Sleeping for edge log" << endl;
-            //assert(0);
-            usleep(10);
-        }
-        
-        index_t index1 = (index & blog_mask);
-        blog_beg[index1] = edge;
-        return index+1;
-    }
     inline void readfrom_snapshot(snapshot_t* global_snapshot) {
         blog_head = global_snapshot->marker;
         blog_tail = global_snapshot->marker;

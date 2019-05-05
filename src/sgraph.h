@@ -54,33 +54,13 @@ class pgraph_t: public cfinfo_t {
         assert(0);
     } ;
         
-    inline status_t batch_edge(edgeT_t<T>& edge) {
-        status_t ret = eOK;
-        
-        index_t index = blog->log(edge);
-        index_t size = ((index - blog->blog_marker) & BATCH_MASK);
-        
-        //inform archive thread about threshold being crossed
-        if ((0 == size) && (index != blog->blog_marker)) {
-            create_marker(index);
-            //cout << "Will create a snapshot now " << endl;
-            ret = eEndBatch;
-        } 
-        return ret; 
-    }
+    status_t batch_edge(edgeT_t<T>& edge);
+    status_t batch_edge(tmp_blog_t<T>* tmp, edgeT_t<T>& edge);
+    status_t batch_edges(tmp_blog_t<T>* tmp);
     
-    index_t create_marker(index_t marker) {
-        if (marker ==0) {
-            marker = blog->blog_head;
-        }
-        pthread_mutex_lock(&snap_mutex);
-        index_t m_index = __sync_fetch_and_add(&q_head, 1L);
-        q_beg[m_index % q_count] = marker;
-        pthread_cond_signal(&snap_condition);
-        pthread_mutex_unlock(&snap_mutex);
-        //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
-        return marker;
-    } 
+    index_t create_marker(index_t marker); 
+    //called from snap thread 
+    status_t move_marker(index_t& snap_marker); 
     
     //Wait for make graph. Be careful on why you calling.
     void waitfor_archive() {
@@ -89,28 +69,6 @@ class pgraph_t: public cfinfo_t {
         }
     }
     
-    //called from snap thread 
-    status_t move_marker(index_t& snap_marker) {
-        pthread_mutex_lock(&snap_mutex);
-        index_t head = q_head;
-        //Need to read marker and set the blog_marker;
-        if (q_tail == head) {
-            pthread_mutex_unlock(&snap_mutex);
-            //cout << "Marker NO dequeue. Position = " << head <<  endl;
-            return eNoWork;
-        }
-        
-        index_t m_index = head - 1;
-        index_t marker = q_beg[m_index % q_count];
-        q_tail = head;
-        blog->blog_marker = marker;
-        snap_marker = blog->blog_marker;
-        
-        pthread_mutex_unlock(&snap_mutex);
-        //cout << "Marker dequeue. Position = " << m_index % q_count << " " << marker << endl;
-        return eOK;
-    }
-
     index_t update_marker() { 
         return blog->update_marker();
     }
@@ -175,6 +133,120 @@ class pgraph_t: public cfinfo_t {
     //status_t extend_adjlist_td(onegraph_t<T>** skv, srset_t* iset, srset_t* oset);
     //status_t extend_kv_td(onekv_t<T>** skv, srset_t* iset, srset_t* oset);
 };
+
+template <class T>
+status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge) 
+{
+    status_t ret = eOK;
+    
+    index_t index = __sync_fetch_and_add(&blog->blog_head, 1L);
+
+    //Check if we are overwritting the unarchived data, if so sleep
+    while (index + 1 - blog->blog_tail > blog->blog_count) {
+        //cout << "Sleeping for edge log" << endl;
+        //assert(0);
+        usleep(10);
+    }
+    
+    index_t index1 = (index & blog->blog_mask);
+    blog->blog_beg[index1] = edge;
+
+    index += 1;
+    index_t size = ((index - blog->blog_marker) & BATCH_MASK);
+    
+    //inform archive thread about threshold being crossed
+    if ((0 == size) && (index != blog->blog_marker)) {
+        create_marker(index);
+        //cout << "Will create a snapshot now " << endl;
+        ret = eEndBatch;
+    } 
+    return ret; 
+}
+
+template <class T>
+status_t pgraph_t<T>::batch_edge(tmp_blog_t<T>* tmp, edgeT_t<T>& edge)
+{
+    status_t ret = eOK;
+    if (tmp->count == tmp->max_count) {
+        batch_edges(tmp);
+    }
+    
+    tmp->edges[tmp->count++] = edge;
+    return ret; 
+}
+    
+template <class T>
+status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
+{
+    status_t ret = eOK;
+    index_t count = tmp->count;
+    edgeT_t<T>* edges = tmp->edges;
+    tmp->count = 0;
+
+    index_t index = __sync_fetch_and_add(&blog->blog_head, count);
+
+    //Check if we are overwritting the unarchived data, if so sleep
+    while (index + count - blog->blog_tail > blog->blog_count) {
+        //cout << "Sleeping for edge log" << endl;
+        //assert(0);
+        usleep(10);
+    }
+    
+    index_t index1;
+    for (index_t i = 0; i < count; ++i) {
+        index1 = ((index+i) & blog->blog_mask);
+        blog->blog_beg[index1] = edges[i];
+    }
+    index += count;
+    index_t size = ((index - blog->blog_marker) & BATCH_MASK);
+    
+    //inform archive thread about threshold being crossed
+    if ((0 == size) && (index != blog->blog_marker)) {
+        create_marker(index);
+        //cout << "Will create a snapshot now " << endl;
+        ret = eEndBatch;
+    }
+    return ret; 
+}
+    
+template <class T>
+index_t pgraph_t<T>::create_marker(index_t marker) 
+{
+    if (marker ==0) {
+        marker = blog->blog_head;
+    }
+    pthread_mutex_lock(&snap_mutex);
+    index_t m_index = __sync_fetch_and_add(&q_head, 1L);
+    q_beg[m_index % q_count] = marker;
+    pthread_cond_signal(&snap_condition);
+    pthread_mutex_unlock(&snap_mutex);
+    //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
+    return marker;
+} 
+    
+//called from snap thread 
+template <class T>
+status_t pgraph_t<T>::move_marker(index_t& snap_marker) 
+{
+    pthread_mutex_lock(&snap_mutex);
+    index_t head = q_head;
+    //Need to read marker and set the blog_marker;
+    if (q_tail == head) {
+        pthread_mutex_unlock(&snap_mutex);
+        //cout << "Marker NO dequeue. Position = " << head <<  endl;
+        return eNoWork;
+    }
+    
+    index_t m_index = head - 1;
+    index_t marker = q_beg[m_index % q_count];
+    q_tail = head;
+    blog->blog_marker = marker;
+    snap_marker = blog->blog_marker;
+    
+    pthread_mutex_unlock(&snap_mutex);
+    //cout << "Marker dequeue. Position = " << m_index % q_count << " " << marker << endl;
+    return eOK;
+}
 
 //called from w thread 
 template <class T>
