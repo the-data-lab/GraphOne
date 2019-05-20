@@ -3,6 +3,9 @@
 #include "type.h"
 #include "new_func.h"
 
+#if !defined(MAP_HUGE_2MB)
+#define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
+#endif
 
 inline index_t upper_power_of_two(index_t v)
 {
