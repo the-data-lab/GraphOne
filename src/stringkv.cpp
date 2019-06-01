@@ -32,7 +32,7 @@ void stringkv_t::prep_graph_baseline()
 {
     sflag_t    flag = flag1;
     tid_t   t_count = g->get_total_types();
-    
+    vid_t   max_vcount;    
     if (0 == strkv_out) {
         strkv_out = (strkv_t**) calloc (sizeof(strkv_t*), t_count);
     }
@@ -41,10 +41,11 @@ void stringkv_t::prep_graph_baseline()
         flag1_count = g->get_total_types();
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == strkv_out[i]) {
+                max_vcount = g->get_type_scount(i);
                 strkv_out[i] = new strkv_t;
-                strkv_out[i]->setup(i);
+                strkv_out[i]->setup(i, max_vcount);
             }
-        } 
+        }
         return;
     } 
     
@@ -54,8 +55,9 @@ void stringkv_t::prep_graph_baseline()
         pos = __builtin_ctzll(flag);
         flag ^= (1L << pos);//reset that position
         if (0 == strkv_out[pos]) {
+            max_vcount = g->get_type_scount(pos);
             strkv_out[pos] = new strkv_t;
-            strkv_out[pos]->setup(pos);
+            strkv_out[pos]->setup(pos, max_vcount);
         }
     }
 }

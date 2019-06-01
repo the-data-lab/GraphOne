@@ -2,12 +2,12 @@
 #pragma once
 /**************** SKV ******************/
 template <class T>
-void onekv_t<T>::setup(tid_t t)
+void onekv_t<T>::setup(tid_t t, vid_t a_max_vcount)
 {
-        tid = t;
-        vid_t max_vcount = g->get_type_scount(tid);
-        kv = (T*)malloc(sizeof(T)*max_vcount);
-        memset(kv, INVALID_SID, sizeof(T)*max_vcount);
+    tid = t;
+    max_vcount = a_max_vcount;
+    kv = (T*)malloc(sizeof(T)*max_vcount);
+    memset(kv, INVALID_SID, sizeof(T)*max_vcount);
 }
 
 template <class T>

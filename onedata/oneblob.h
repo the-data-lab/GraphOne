@@ -6,6 +6,7 @@ template <class T>
 class blobkv_t {
     T*    kv;
     tid_t tid;
+    vid_t max_vcount;
     
     //edgetable file related log
     char*    log_beg;  //memory log pointer
@@ -19,7 +20,7 @@ class blobkv_t {
     
 public: 
     blobkv_t(); 
-    void setup(tid_t tid);
+    void setup(tid_t tid, vid_t v_count);
 
     void set_value(vid_t vid, T& dst) {kv[vid] = dst;};
     T*   get_value(vid_t vid) {return kv + vid;};
@@ -49,11 +50,10 @@ blobkv_t<T>::blobkv_t()
 }
 
 template <class T>
-void blobkv_t<T>::setup(tid_t t) 
+void blobkv_t<T>::setup(tid_t t, vid_t v_count) 
 {
     tid = t;
-    vid_t v_count = g->get_type_scount(tid);
-    
+    max_vcount = v_count;
     kv = (T*)calloc(sizeof(T), v_count);
     
     //everything is in memory

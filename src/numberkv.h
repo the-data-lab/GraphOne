@@ -67,6 +67,7 @@ template<class T>
 void numberkv_t<T>::prep_graph_baseline()
 {
     sflag_t    flag = flag1;
+    vid_t   max_vcount;
     tid_t   t_count = g->get_total_types();
     
     if (0 == kv_out) {
@@ -76,8 +77,9 @@ void numberkv_t<T>::prep_graph_baseline()
         flag1_count = g->get_total_types();
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == kv_out[i]) {
+                max_vcount = g->get_type_scount(i);
                 kv_out[i] = new kvT_t<T>;
-                kv_out[i]->setup(i);
+                kv_out[i]->setup(i, max_vcount);
             }
         } 
         return;
@@ -88,8 +90,9 @@ void numberkv_t<T>::prep_graph_baseline()
         pos = __builtin_ctzll(flag);
         flag ^= (1L << pos);//reset that position
         if (0 == kv_out[pos]) {
+            max_vcount = g->get_type_scount(pos);
             kv_out[pos] = new kvT_t<T>;
-            kv_out[pos]->setup(pos);
+            kv_out[pos]->setup(pos, max_vcount);
         }
     }
 }

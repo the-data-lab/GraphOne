@@ -82,6 +82,7 @@ void enumkv_t::file_open(const string& odir, bool trunc)
 void enumkv_t::prep_graph_baseline()
 {
     sflag_t    flag = flag1;
+    vid_t   max_vcount;
     tid_t   t_count = g->get_total_types();
     
     if (0 == numkv_out) {
@@ -91,8 +92,9 @@ void enumkv_t::prep_graph_baseline()
         flag1_count = g->get_total_types();
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == numkv_out[i]) {
+                max_vcount = g->get_type_scount(i);
                 numkv_out[i] = new kvT_t<uint8_t>;
-                numkv_out[i]->setup(i);
+                numkv_out[i]->setup(i, max_vcount);
             }
         } 
         return;
@@ -104,7 +106,8 @@ void enumkv_t::prep_graph_baseline()
         pos = __builtin_ctzll(flag);
         flag ^= (1L << pos);//reset that position
         if (0 == numkv_out[pos]) {
-            numkv_out[pos]->setup(pos);
+            max_vcount = g->get_type_scount(pos);
+            numkv_out[pos]->setup(pos, max_vcount);
         }
     }
 }

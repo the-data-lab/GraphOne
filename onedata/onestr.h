@@ -9,6 +9,7 @@ class strkv_t {
  public:
     sid_t* kv;
     tid_t  tid;
+    vid_t  max_vcount;
     
     str_t  mem;
     //vertex table file related log
@@ -24,7 +25,7 @@ class strkv_t {
     strkv_t(); 
  
  public: 
-    void setup(tid_t tid); 
+    void setup(tid_t tid, vid_t v_count); 
     void set_value(vid_t vid, const char* value); 
     const char* get_value(vid_t vid);
     void handle_write();

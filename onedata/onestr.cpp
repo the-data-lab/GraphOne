@@ -32,10 +32,10 @@ const char* strkv_t::get_value(vid_t vid)
     return mem.get_ptr(kv[vid]);
 }
 
-void strkv_t::setup(tid_t t) 
+void strkv_t::setup(tid_t t, vid_t v_count)
 {
     tid = t;
-    vid_t v_count = g->get_type_scount(tid);
+    max_vcount = v_count;
     assert(v_count); 
     kv = (sid_t*)calloc(sizeof(sid_t), v_count);
     

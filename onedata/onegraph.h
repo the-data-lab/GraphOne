@@ -450,11 +450,11 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 #endif
 
 template <class T>
-void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t, vid_t max_vcount)
+void onegraph_t<T>::setup(tid_t t, vid_t a_max_vcount)
 {
-    //pgraph = pgraph1;
     snap_id = 0;
     tid = t;
+    max_vcount = a_max_vcount;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
     thd_mem = new thd_mem_t<T>; 
 

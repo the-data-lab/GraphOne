@@ -406,7 +406,7 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
             if (0 == sgraph[i]) {
                 max_vcount = g->get_type_scount(i);
                 sgraph[i] = new onegraph_t<T>;
-                sgraph[i]->setup(this, i, max_vcount);
+                sgraph[i]->setup(i, max_vcount);
             }
         } 
         return;
@@ -422,7 +422,7 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
             sgraph[pos] = new onegraph_t<T>;
         }
         max_vcount = g->get_type_scount(i);
-        sgraph[pos]->setup(this, pos, max_vcount);
+        sgraph[pos]->setup(pos, max_vcount);
     }
 }
 
@@ -905,8 +905,9 @@ void pgraph_t<T>::file_open_skv(onekv_t<T>** skv, const string& dir, const strin
 {
     if (skv == 0) return;
 
-    char name[8];
-    tid_t       t_count = g->get_total_types();
+    char  name[8];
+    vid_t max_vcount;
+    tid_t t_count = g->get_total_types();
     
     //base name using relationship type
     string basefile = dir + col_info[0]->p_name;
@@ -917,8 +918,9 @@ void pgraph_t<T>::file_open_skv(onekv_t<T>** skv, const string& dir, const strin
         if (skv[i] == 0) continue;
         sprintf(name, "%d", i);
         vtfile = basefile + name + postfix;
+        max_vcount = g->get_type_scount(i);
         skv[i] = new onekv_t<T>;
-        skv[i]->setup(i);
+        skv[i]->setup(i, max_vcount);
 
         skv[i]->file_open(vtfile, trunc);
     }
@@ -944,13 +946,15 @@ template <class T>
 void pgraph_t<T>::prep_skv(sflag_t ori_flag, onekv_t<T>** skv)
 {
     sflag_t flag       = ori_flag;
+    vid_t max_vcount;
     
     if (flag == 0) {
         flag1_count = g->get_total_types();
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == skv[i]) {
+                max_vcount = g->get_type_scount(i);
                 skv[i] = new onekv_t<T>;
-                skv[i]->setup(i);
+                skv[i]->setup(i, max_vcount);
             }
         } 
         return;
@@ -965,7 +969,8 @@ void pgraph_t<T>::prep_skv(sflag_t ori_flag, onekv_t<T>** skv)
         if (0 == skv[pos]) {
             skv[pos] = new onekv_t<T>;
         }
-        skv[pos]->setup(pos);
+        max_vcount = g->get_type_scount(i);
+        skv[pos]->setup(pos, max_vcount);
     }
     return;
 }

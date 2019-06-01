@@ -12,13 +12,14 @@ class kvT_t {
  public:
     T* kv;
     tid_t  tid;
+    vid_t  max_vcount;
     int    vtf;   //vertex table file
 
  public:
     kvT_t(); 
  
  public: 
-    void setup(tid_t tid); 
+    void setup(tid_t tid, vid_t v_count); 
     void set_value(vid_t vid, T& value); 
     T get_value(vid_t vid);
     void persist_vlog();
@@ -48,10 +49,10 @@ T kvT_t<T>::get_value(vid_t vid)
 }
 
 template <class T>
-void kvT_t<T>::setup(tid_t t) 
+void kvT_t<T>::setup(tid_t t, vid_t v_count) 
 {
     tid = t;
-    vid_t v_count = g->get_type_scount(tid);
+    max_vcount = v_count;
     kv = (T*)calloc(sizeof(T), v_count);
 }
 

@@ -45,7 +45,7 @@ sid_t typekv_t::type_update(const string& src, const string& dst)
             t_info[type_id].type_name = strdup(dst.c_str());
             t_info[type_id].max_vcount = (1<<21);//guess
             string filename = g->odirname + col_info[0]->p_name;
-            t_info[type_id].strkv.setup(type_id);
+            t_info[type_id].strkv.setup(type_id, t_info[type_id].max_vcount);
             t_info[type_id].strkv.file_open(filename, true);
 
         } else { //existing type, get the last vertex id allocated
@@ -231,7 +231,7 @@ void typekv_t::read_graph_baseline()
         t_info[t].vert_id = strtol(token, NULL, 0) + TO_SUPER(t);
         token = strtok_r(saveptr, " \n", &saveptr);
         t_info[t].type_name = strdup(token);
-        t_info[t].strkv.setup(t);
+        t_info[t].strkv.setup(t, t_info[t].max_vcount);
     
         string filename = g->odirname + col_info[0]->p_name;
         t_info[t].strkv.file_open(filename, false);
@@ -267,7 +267,7 @@ tid_t typekv_t::manual_setup(vid_t vert_count, bool create_vert, const string& t
         t_info[t_count].vert_id = TO_SUPER(t_count);
     }
     t_info[t_count].max_vcount = vert_count;
-    t_info[t_count].strkv.setup(t_count);
+    t_info[t_count].strkv.setup(t_count, vert_count);
     t_info[t_count].strkv.file_open(filename, true);
     return t_count++;//return the tid of this type
 }

@@ -32,6 +32,7 @@ class onegraph_t {
  private:
     //type id and vertices count together
     tid_t     tid;
+    vid_t     max_vcount;
     snapid_t  snap_id;
 
     //array of adj list of vertices
@@ -57,7 +58,7 @@ public:
 
 public:
    onegraph_t(); 
-    void setup(pgraph_t<T>* pgraph1, tid_t tid, vid_t max_vcount);
+    void setup(tid_t tid, vid_t a_max_vcount);
 	inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
 	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
 		beg_pos[v].v_unit = v_unit;
@@ -181,9 +182,10 @@ public:
 template <class T>
 class onekv_t {
  private:
-    T* kv;
+    T*     kv;
     tid_t  tid;
-    int  vtf;
+    vid_t  max_vcount;
+    int    vtf;
 
  public:
     inline onekv_t() {
@@ -192,7 +194,7 @@ class onekv_t {
         vtf = -1;
     }
 
-    void setup(tid_t tid);
+    void setup(tid_t t, vid_t a_max_vcount);
 
     inline T* get_kv() { return kv; }
     inline tid_t get_tid() { return tid;}
