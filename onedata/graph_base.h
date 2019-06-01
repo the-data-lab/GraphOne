@@ -32,7 +32,7 @@ class onegraph_t {
  private:
     //type id and vertices count together
     tid_t     tid;
-    pgraph_t<T>* pgraph;
+    snapid_t  snap_id;
 
     //array of adj list of vertices
     vert_table_t<T>* beg_pos;
@@ -43,7 +43,7 @@ class onegraph_t {
  private:
     //vertex table file related log
     write_seg_t  write_seg[3];
-    vid_t    dvt_max_count;
+    vid_t        dvt_max_count;
     //durable adj list, for writing to disk
     index_t    log_tail; //current log cleaning position
     index_t    log_count;//size of memory log
@@ -57,7 +57,7 @@ public:
 
 public:
    onegraph_t(); 
-    void setup(pgraph_t<T>* pgraph1, tid_t tid);
+    void setup(pgraph_t<T>* pgraph1, tid_t tid, vid_t max_vcount);
 	inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
 	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
 		beg_pos[v].v_unit = v_unit;
@@ -90,6 +90,7 @@ public:
         return v_unit->set_delta_adjlist(adj_list);
     } 
     void     compress();
+    void     archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
     status_t compress_nebrs(vid_t vid);
     status_t evict_old_adjlist(vid_t vid, degree_t degree);
 

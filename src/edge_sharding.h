@@ -49,6 +49,21 @@ void pgraph_t<T>::free_edge_buf()
 }
 */
 
+//for each range
+template <class T>
+class global_range_t {
+  public:
+      index_t count;
+      edgeT_t<T>* edges;
+};
+
+//for each thread 
+class thd_local_t {
+  public:
+      vid_t* vid_range; //For each range
+      vid_t  range_end;
+};
+
 template <class T>
 class edge_shard_t {
  public:

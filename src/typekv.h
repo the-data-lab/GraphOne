@@ -1,5 +1,5 @@
 #pragma once
-#include "str.h"
+#include "onestr.h"
 #include "str2sid.h"
 
 class tinfo_t {

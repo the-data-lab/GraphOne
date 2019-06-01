@@ -5,6 +5,35 @@
 using std::min;
 
 template <class T>
+void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
+{
+    tid_t src_index;
+    sid_t src;
+    T dst;
+    vid_t vert1_id;
+    snap_id = a_snapid + 1;
+    for (index_t i = 0; i < count; ++i) {
+        src = edges[i].src_id;
+        //src_index = TO_TID(src);
+        vert1_id = TO_VID(src);
+
+        if (!IS_DEL(src)) { 
+            increment_count_noatomic(vert1_id);
+        } else { 
+            decrement_count_noatomic(vert1_id);
+        }
+    }
+    
+    for (index_t i = 0; i < count; ++i) {
+        src = edges[i].src_id;
+        dst = edges[i].dst_id;
+        //src_index = TO_TID(src);
+        vert1_id = TO_VID(src);
+        add_nebr_noatomic(vert1_id, dst);
+    }
+}
+
+template <class T>
 void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) 
 {
     //allocate v-unit
@@ -14,7 +43,6 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/)
         set_vunit(vid, v_unit);
     }
 
-	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = v_unit->get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -44,7 +72,6 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/)
         v_unit = new_vunit();
         set_vunit(vid, v_unit);
     }
-	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = v_unit->get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -138,7 +165,7 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
 template <class T>
 void onegraph_t<T>::compress()
 {
-    vid_t   v_count = g->get_type_vcount(tid);
+    vid_t   v_count = get_vcount();
 
     #pragma omp for schedule (dynamic, 256) nowait
     for (vid_t vid = 0; vid < v_count; ++vid) {
@@ -350,7 +377,6 @@ void onegraph_t<T>::setup_adjlist()
     vid_t  total_thds  = omp_get_num_threads();
     vid_t         tid  = omp_get_thread_num();  
         
-    snapid_t snap_id = pgraph->snap_id + 1;
     vid_t    v_count = get_vcount();
     vid_t    portion = v_count/total_thds;
     vid_t  vid_start = portion*tid;
@@ -424,11 +450,11 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 #endif
 
 template <class T>
-void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
+void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t, vid_t max_vcount)
 {
-    pgraph = pgraph1;
+    //pgraph = pgraph1;
+    snap_id = 0;
     tid = t;
-    vid_t max_vcount = g->get_type_scount(tid);;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
     thd_mem = new thd_mem_t<T>; 
 
@@ -532,7 +558,7 @@ void onegraph_t<T>::file_open(const string& filename, bool trunc)
 template <class T>
 void onegraph_t<T>::handle_write(bool clean /* = false */)
 {
-    vid_t   v_count = g->get_type_vcount(tid);
+    vid_t   v_count = get_vcount();
     vid_t last_vid1 = 0;
     vid_t last_vid2 = 0;
     
@@ -639,7 +665,7 @@ void onegraph_t<T>::handle_write(bool clean /* = false */)
 template <class T>
 void onegraph_t<T>::prepare_dvt (write_seg_t* seg, vid_t& last_vid, bool clean /* = false */)
 {
-    vid_t    v_count = g->get_type_vcount(tid);
+    vid_t    v_count = get_vcount();
     durable_adjlist_t<T>* adj_list2 = 0;
     snapT_t<T>* curr = 0;
 	disk_vtable_t* dvt1 = 0;
@@ -923,7 +949,6 @@ void onegraph_t<T>::update_count()
     index_t j = 0;
     snapT_t<T>* curr = 0;
     index_t count;
-    snapid_t snap_id = g->get_snapid() + 1;
     
     #pragma omp for
     for (vid_t vid = 0; vid < v_count ; ++vid) {

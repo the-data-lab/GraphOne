@@ -1,46 +1,10 @@
 #pragma once
 
-#include <map>
-#include <string>
-#include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <stdint.h>
-#include <pthread.h>
-
 #include "type.h"
 #include "cf_info.h"
-#include "graph_base.h"
-#include "prop_encoder.h"
-
-//#include "rset.h"
-//#include "//query_clause.h"
-
-using std::map;
-using std::cout;
-using std::endl;
-using std::string;
-using std::swap;
-using std::pair;
-
     
 void* alloc_buf();
-
-
-//class pkv_t;
-class graph;
-extern graph* g;
-
 class typekv_t;
-
-typedef cfinfo_t* (*get_graph_instance)();
-typedef prop_encoder_t* (*get_encoder_instance)();
-
-extern map<string, get_graph_instance>  graph_instance;
-extern map<string, get_encoder_instance>  encoder_instance;
 
 ////////////main class/////////////////////
 class graph {
@@ -50,16 +14,10 @@ class graph {
     cfinfo_t** cf_info;
     pinfo_t *  p_info;
     
-    batchinfo_t* batch_info;
-    batchinfo_t* batch_info1;
-    
-    uint8_t      batch_count;
-    uint8_t      batch_count1;
     int          cf_count;
     propid_t     p_count;
 
     //Other information
-    vid_t     vert_count;
     typekv_t* typekv;
     string    odirname;
     
@@ -116,4 +74,5 @@ class graph {
     void create_threads(bool snap_thd, bool w_thd);
 };
 
+extern graph* g;
 

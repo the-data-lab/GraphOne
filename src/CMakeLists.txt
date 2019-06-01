@@ -4,17 +4,12 @@ set(src_source_files
     edge_sharding.h
     enumkv.cpp
     enumkv.h
-    graph_base.h
     graph.cpp
     graph.h
-    labelkv.h
     mixkv.h
     new_func.h
     new_type.h
     numberkv.h
-    num.h
-    onegraph.h
-    onekv.h
     prop_encoder.cpp
     prop_encoder.h
     sgraph2.h
@@ -22,7 +17,6 @@ set(src_source_files
     sgraph.h
     skv.h
     str2sid.h
-    str.cpp
     str.h
     stringkv.cpp
     stringkv.h

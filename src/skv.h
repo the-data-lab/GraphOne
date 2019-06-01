@@ -274,8 +274,10 @@ void one2many<T>::make_graph_baseline()
         j_end = this->edge_shard->thd_local[tid].range_end;
         
         //actual work
-        this->calc_degree_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
-        this->fill_adjlist_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
+        this->archive_sgraph(sgraph_out, this->edge_shard->global_range, j_start, j_end);
+        
+        //this->calc_degree_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
+        //this->fill_adjlist_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
         //this->make_on_classify(sgraph_out, this->edge_shard->global_range, j_start, j_end, 0); 
         this->fill_skv_in(skv_in, this->edge_shard->global_range, j_start, j_end); 
         #pragma omp barrier

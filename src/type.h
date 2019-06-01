@@ -6,9 +6,21 @@
 #include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <map>
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
 #include "bitmap.h"
 
+using std::map;
+using std::cout;
+using std::endl;
 using std::string;
+using std::swap;
+using std::pair;
 
 #ifdef B64
 typedef uint16_t propid_t;
@@ -37,6 +49,7 @@ typedef int32_t degree_t;
 #endif
 
 typedef uint16_t vflag_t;
+
 
 #define HUB_COUNT  8192
 
@@ -286,92 +299,12 @@ class disk_snapshot_t {
     index_t  durable_marker;
 };
 
-template <class T>
-class delta_adjlist_t {
-	delta_adjlist_t<T>* next;
-    degree_t   max_count;
-	degree_t   count;
-	//T  adj_list;
-
- public:
-	inline delta_adjlist_t<T>() {next = 0; count = 0;}
-	inline degree_t get_nebrcount() { return count;}
-	inline void set_nebrcount(degree_t degree) {count = degree;}
-
-	inline degree_t incr_nebrcount_noatomic() {
-        return count++;
-    }
-	inline degree_t incr_nebrcount() {
-        return  __sync_fetch_and_add(&count, 1);
-    }
-    inline degree_t incr_nebrcount_bulk(degree_t count1) {
-        degree_t old_count = count;
-        count += count1;
-        return old_count;
-    }
-    inline degree_t get_maxcount() {return max_count;}
-    inline void set_maxcount(degree_t value) {max_count = value;}
-	inline T* get_adjlist() { return (T*)(&count + 1); }
-	inline void add_next(delta_adjlist_t<T>* ptr) {next = ptr; }
-	inline delta_adjlist_t<T>* get_next() { return next; }
-    
-    inline void add_nebr(T sid) { 
-        T* adj_list1 = get_adjlist();
-        degree_t index = incr_nebrcount();
-        adj_list1[index] = sid;
-    }
-    
-    inline void add_nebr_noatomic(T sid) { 
-        T* adj_list1 = get_adjlist();
-        degree_t index = incr_nebrcount_noatomic();
-        adj_list1[index] = sid;
-    }
-    
-    // XXX Should be used for testing purpose, be careful to use it,
-    // as it avoids atomic instructions.
-    inline void add_nebr_bulk(T* adj_list2, degree_t count) {
-        if(count != 0) {
-            T* adj_list1 = get_adjlist();
-            degree_t old_count = incr_nebrcount_bulk(count);
-            memcpy(adj_list1+old_count, adj_list2, count*sizeof(T));
-        }
-    }
-    
-};
-
-template <class T>
-class durable_adjlist_t {
-    union {
-        sid_t sid;
-        durable_adjlist_t<T>* next;
-    };
-    degree_t max_count;
-	degree_t count;
-	//T  adj_list;
-
- public:
-	inline durable_adjlist_t<T>() {sid = 0; count = 0;}
-	inline degree_t get_nebrcount() { return count;}
-	void set_nebrcount(degree_t degree) {count = degree;}
-	inline T* get_adjlist() { return (T*)(&count + 1); }
-};
-
 
 class pedge_t {
  public:
     propid_t pid;
     sid_t src_id;
     univ_t dst_id;
-};
-
-
-class disk_vtable_t {
-    public:
-    vid_t    vid;
-	//Length of durable adj list
-    degree_t count;
-    degree_t del_count;
-    uint64_t file_offset;
 };
 
 /*
@@ -383,13 +316,6 @@ class disk_kvT_t {
 };*/
 
 
-//used for offline processing
-class ext_vunit_t {
-    public:
-    degree_t  count;
-    degree_t  del_count;
-    index_t   offset;
-};
 
 //property name value pair
 struct prop_pair_t {
@@ -405,129 +331,9 @@ class delentry_t {
     T dst_id;
 };
 
-//This will be used as disk write structure
-template <class T>
-class  disk_snapT_t {
- public:
-    vid_t     vid;
-    snapid_t  snap_id;
-    degree_t  degree;
-    degree_t del_count;
-};
 
-snapid_t get_snapid();
-
-//Used for writing adj list to disk
-class write_seg_t {
- public:
-     disk_vtable_t* dvt;
-     index_t        dvt_count;
-     char*          log_beg;
-     index_t        log_head;
-	 //This is file offset at which to start writing
-	 index_t        log_tail;
-
-     inline write_seg_t() {
-        dvt = 0;
-        dvt_count = 0;
-        log_beg = 0;
-        log_head = 0;
-		log_tail = 0;
-     }
-	 inline void reset() {
-        dvt = 0;
-        dvt_count = 0;
-        log_beg = 0;
-        log_head = 0;
-		log_tail = 0;
-	 }
-};
-
-template <class T>
-class tmp_blog_t {
- public:
-    edgeT_t<T>* edges;
-    int32_t     count;
-    int32_t     max_count;
-
-    inline tmp_blog_t(int32_t icount) {
-        edges = (edgeT_t<T>*)calloc(icount, sizeof(edgeT_t<T>));
-        max_count = icount;
-        count = 0;
-    }
-    inline ~tmp_blog_t() {
-        delete edges;
-    }
-};
-
-//edge batching buffer
-template <class T>
-class blog_t {
- public:
-    edgeT_t<T>* blog_beg;
-    //In memory size
-    index_t     blog_count;
-    //MASK
-    index_t     blog_mask;
-
-    //current batching position
-    index_t     blog_head;
-    //Make adj list from this point
-    index_t     blog_tail;
-    //Make adj list upto this point
-    index_t     blog_marker;
-    //Make edge durable from this point
-    index_t     blog_wtail;
-    //Make edge durable upto this point
-    index_t     blog_wmarker;
-
-    blog_t() {
-        blog_beg = 0;
-        blog_count = 0;
-        blog_head = 0;
-        blog_tail = 0;
-        blog_marker = 0;
-        blog_wtail = 0;
-        blog_wmarker = 0;
-    }
-
-    void alloc_edgelog(index_t count);
-    inline index_t update_marker() {
-        blog_tail = blog_marker;
-        return blog_tail;
-    }
-
-    inline void readfrom_snapshot(snapshot_t* global_snapshot) {
-        blog_head = global_snapshot->marker;
-        blog_tail = global_snapshot->marker;
-        blog_marker = global_snapshot->marker;
-        blog_wtail = global_snapshot->durable_marker;
-        blog_wmarker = global_snapshot->durable_marker; 
-    }
-};
-    
-template <class T>
-void blog_t<T>::alloc_edgelog(index_t count) {
-    if (blog_beg) {
-        free(blog_beg);
-        blog_beg = 0;
-    }
-
-    blog_count = count;
-    blog_mask = count - 1;
-    //blog->blog_beg = (edgeT_t<T>*)mmap(0, sizeof(edgeT_t<T>)*blog->blog_count, 
-    //PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
-    //if (MAP_FAILED == blog->blog_beg) {
-    //    cout << "Huge page alloc failed for edge log" << endl;
-    //}
-    
-    /*
-    if (posix_memalign((void**)&blog_beg, 2097152, blog_count*sizeof(edgeT_t<T>))) {
-        perror("posix memalign batch edge log");
-    }*/
-    blog_beg = (edgeT_t<T>*)calloc(blog_count, sizeof(edgeT_t<T>));
-    assert(blog_beg);
-}
+extern snapid_t get_snapid();
+extern vid_t get_vcount(tid_t tid);
 
 typedef struct __econf_t {
     string filename;
@@ -542,19 +348,11 @@ typedef struct __vconf_t {
     string predicate;
 } vconf_t; 
 
-class nebrcount_t {
- public:
-    degree_t    add_count;
-    degree_t    del_count;
-};
-
-
 template <class T>
 class pgraph_t;
 
 template<class T>
 class gview_t;
-
 
 template<class T>
 class wstream_t;
@@ -572,18 +370,3 @@ struct callback {
       typedef index_t (*parse_fn2_t)(const char*, pgraph_t<T>*);
 };
 
-
-//for each range
-template <class T>
-class global_range_t {
-  public:
-      index_t count;
-      edgeT_t<T>* edges;
-};
-
-//for each thread 
-class thd_local_t {
-  public:
-      vid_t* vid_range; //For each range
-      vid_t  range_end;
-};

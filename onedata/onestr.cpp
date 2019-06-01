@@ -1,6 +1,6 @@
 #include <string.h>
 #include "graph.h"
-#include "str.h"
+#include "onestr.h"
 
 strkv_t::strkv_t()
 {

@@ -21,12 +21,6 @@ class pinfo_t {
     propid_t     local_id;
 };
 
-class batchinfo_t {
- public:
-    void*    buf;
-    uint32_t count;
-};
-
 enum filter_fn_t {
     fn_out = 0,//simple lookup 
     fn_ein, //simple inward lookup

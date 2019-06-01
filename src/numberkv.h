@@ -1,5 +1,5 @@
 #pragma once
-#include "num.h"
+#include "onenum.h"
 #include "graph.h"
 
 //generic number class

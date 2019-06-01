@@ -1,7 +1,6 @@
 #pragma once
 
-#include "type.h"
-#include "str.h"
+#include "onestr.h"
 
 class stringkv_t : public cfinfo_t {
  protected:

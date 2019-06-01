@@ -14,7 +14,10 @@
 
 index_t residue = 0;
 
+typedef cfinfo_t* (*get_graph_instance)();
 map<string, get_graph_instance>  graph_instance;
+    
+typedef prop_encoder_t* (*get_encoder_instance)();
 map<string, get_encoder_instance>  encoder_instance;
 
 graph::graph()
@@ -23,9 +26,9 @@ graph::graph()
     cf_count = 0;
     p_info   = 0;
     p_count  = 0;
-    vert_count = 0;
     register_instances();
 }
+
     
 void graph::register_instances()
 {
@@ -45,6 +48,7 @@ void graph::register_instances()
    
 #ifdef B64 
     /*
+    map<string, get_encoder_instance>  encoder_instance;
     encoder_instance.insert(pair<string,get_encoder_instance>("time_encoder_t", time_encoder_t::create_instance));
     encoder_instance.insert(pair<string,get_encoder_instance>("int64_encoder_t", int64_encoder_t::create_instance));
     encoder_instance.insert(pair<string,get_encoder_instance>("double_encoder_t", double_encoder_t::create_instance));

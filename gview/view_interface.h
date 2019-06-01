@@ -1,5 +1,8 @@
 #pragma once
 
+#include "graph_base.h"
+#include "log.h"
+
 template <class T>
 class gview_t {
  public:

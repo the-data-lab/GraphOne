@@ -6,25 +6,29 @@ project(graphone)
 #set(CMAKE_CXX_EXTENSIONS ON)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DB32 -DTBB -Wall -O3 -fopenmp -DOVER_COMMIT -ltbb")
 set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -fopenmp")
-#set(COMPILE_FLAGS_COMMON "-std=gnu++1z -DOVER_COMMIT -DPLAIN_GRAPH -g -fopenmp")
+#set(COMPILE_FLAGS_COMMON "-std=gnu++1z -g -DOVER_COMMIT -DPLAIN_GRAPH -fopenmp")
 set(COMPILE_FLAGS32 "${COMPILE_FLAGS_COMMON} -DB32")
 set(COMPILE_FLAGS64 "${COMPILE_FLAGS_COMMON} -DB64")
 set(LINK_FLAGS_COMMON "-ltbb -fopenmp")
+#set(LINK_FLAGS_COMMON "-ltbb -fopenmp -ltcmalloc_minimal")
 
 include_directories(include)
 include_directories(src)
 include_directories(gview)
+include_directories(onedata)
 
 add_subdirectory(src)
+add_subdirectory(onedata)
 add_subdirectory(test)
+
 
 set(graphone_source_files main.cpp)
 add_executable(graphone32 ${graphone_source_files})
 set_target_properties(graphone32 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS32}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(graphone32 src32 test32)
+target_link_libraries(graphone32 src32 onedata32 test32)
 
 add_executable(graphone64 ${graphone_source_files})
 set_target_properties(graphone64 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS64}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(graphone64 src64 test64)
+target_link_libraries(graphone64 src64 onedata64 test64)
