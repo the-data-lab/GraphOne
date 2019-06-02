@@ -610,19 +610,6 @@ void weighted_dtest0(const string& idir, const string& odir)
             #endif
         }
 #ifdef BULK
-        /*
-        //-------------
-        vid_t  total_thds  = omp_get_num_threads();
-        vid_t         tid  = omp_get_thread_num();  
-        
-        vid_t portion = nv/total_thds;
-        vid_t vid_start = portion*tid;
-        vid_t vid_end   = portion*(tid + 1);
-        if (tid == total_thds - 1) {
-            vid_end = v_count;
-        }
-        sgraph->setup_adjlist_noatomic(vid_start, vid_end);
-        */
         sgraph->setup_adjlist();
         #pragma omp barrier
 #endif

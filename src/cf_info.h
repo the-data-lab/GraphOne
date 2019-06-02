@@ -84,7 +84,6 @@ class cfinfo_t {
     
     status_t create_snapshot();
     void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
-    void reset();
     inline snapshot_t* get_snapshot() {return snapshot;}
     void read_snapshot();
     void write_snapshot();
@@ -116,12 +115,6 @@ class cfinfo_t {
     inline char* alloc_str(index_t size, index_t& offset) {
         return mem.alloc_str(size, offset);
     }
-    
-    /*
-    inline index_t copy_str(const char* str) {
-        char* value = mem.alloc_str(size, offset);
-        memcpy(value, str, strlen(str) + 1);
-    }*/
     
     inline index_t copy_str(const char* value) {
         return mem.copy_str(value);

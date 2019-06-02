@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include "mem_pool.h"
+#include "out_going.h"
 
 using std::min;
 
@@ -165,7 +166,7 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
 template <class T>
 void onegraph_t<T>::compress()
 {
-    vid_t   v_count = get_vcount();
+    vid_t   v_count = get_vcount(tid);
 
     #pragma omp for schedule (dynamic, 256) nowait
     for (vid_t vid = 0; vid < v_count; ++vid) {
@@ -377,7 +378,7 @@ void onegraph_t<T>::setup_adjlist()
     vid_t  total_thds  = omp_get_num_threads();
     vid_t         tid  = omp_get_thread_num();  
         
-    vid_t    v_count = get_vcount();
+    vid_t    v_count = get_vcount(tid);
     vid_t    portion = v_count/total_thds;
     vid_t  vid_start = portion*tid;
     vid_t  vid_end   = portion*(tid + 1);
@@ -558,7 +559,7 @@ void onegraph_t<T>::file_open(const string& filename, bool trunc)
 template <class T>
 void onegraph_t<T>::handle_write(bool clean /* = false */)
 {
-    vid_t   v_count = get_vcount();
+    vid_t   v_count = get_vcount(tid);
     vid_t last_vid1 = 0;
     vid_t last_vid2 = 0;
     
@@ -665,7 +666,7 @@ void onegraph_t<T>::handle_write(bool clean /* = false */)
 template <class T>
 void onegraph_t<T>::prepare_dvt (write_seg_t* seg, vid_t& last_vid, bool clean /* = false */)
 {
-    vid_t    v_count = get_vcount();
+    vid_t    v_count = get_vcount(tid);
     durable_adjlist_t<T>* adj_list2 = 0;
     snapT_t<T>* curr = 0;
 	disk_vtable_t* dvt1 = 0;
@@ -1027,10 +1028,4 @@ onegraph_t<T>::onegraph_t()
 #ifdef BULK
     nebr_count = 0;
 #endif
-}
-   
-template <class T>
-vid_t onegraph_t<T>::get_vcount() 
-{ 
-    return g->get_type_vcount(tid);
 }

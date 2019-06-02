@@ -57,12 +57,14 @@ public:
     int    etf;   //edge table file
 
 public:
-   onegraph_t(); 
-    void setup(tid_t tid, vid_t a_max_vcount);
-	inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
-	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
-		beg_pos[v].v_unit = v_unit;
-	}
+    onegraph_t(); 
+    void  setup(tid_t tid, vid_t a_max_vcount);
+    void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
+    void  compress();
+    void  handle_write(bool clean = false);
+    void  read_vtable();
+    void  file_open(const string& filename, bool trunc);
+    
     
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
@@ -78,24 +80,6 @@ public:
     degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
 
-	inline delta_adjlist_t<T>* get_delta_adjlist(vid_t vid) {
-        vunit_t<T>* v_unit = get_vunit(vid);
-        if (v_unit) {
-            return v_unit->get_delta_adjlist();
-        }
-        return 0;
-    }
-    inline void set_delta_adjlist(vid_t vid, delta_adjlist_t<T>* adj_list) {
-        vunit_t<T>* v_unit = get_vunit(vid);
-        assert(v_unit);
-        return v_unit->set_delta_adjlist(adj_list);
-    } 
-    void     compress();
-    void     archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
-    status_t compress_nebrs(vid_t vid);
-    status_t evict_old_adjlist(vid_t vid, degree_t degree);
-
-    vid_t get_vcount();
 	void increment_count_noatomic(vid_t vid, degree_t count = 1);
     void decrement_count_noatomic(vid_t vid, degree_t count = 1);
     
@@ -103,7 +87,69 @@ public:
     void add_nebr_noatomic(vid_t vid, T sid);
     void add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count);
     degree_t find_nebr(vid_t vid, sid_t sid); 
+	
+    inline delta_adjlist_t<T>* get_delta_adjlist(vid_t vid) {
+        vunit_t<T>* v_unit = get_vunit(vid);
+        if (v_unit) {
+            return v_unit->get_delta_adjlist();
+        }
+        return 0;
+    }
 
+private:
+    inline void set_delta_adjlist(vid_t vid, delta_adjlist_t<T>* adj_list) {
+        vunit_t<T>* v_unit = get_vunit(vid);
+        assert(v_unit);
+        return v_unit->set_delta_adjlist(adj_list);
+    } 
+    status_t evict_old_adjlist(vid_t vid, degree_t degree);
+    
+    status_t compress_nebrs(vid_t vid);
+	
+    inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
+	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
+		beg_pos[v].v_unit = v_unit;
+	}
+    //-----------durability thing------------
+    void prepare_dvt(write_seg_t* seg, vid_t& last_vid, bool clean = false);
+	void adj_prep(write_seg_t* seg);
+    //durable adj list	
+	inline durable_adjlist_t<T>* new_adjlist(write_seg_t* seg,  degree_t count) {
+        degree_t new_count = count*sizeof(T)+sizeof(durable_adjlist_t<T>);
+        //index_t index_log = __sync_fetch_and_add(&seg->log_head, new_count);
+        //assert(index_log  < log_count); 
+        index_t index_log = seg->log_head;
+        seg->log_head += new_count;
+        assert(seg->log_head  <= log_count); 
+        return  (durable_adjlist_t<T>*)(seg->log_beg + index_log);
+	}
+
+	inline disk_vtable_t* new_dvt(write_seg_t* seg) {
+        //index_t j = __sync_fetch_and_add(&seg->dvt_count, 1L);
+        index_t j = seg->dvt_count;
+        ++seg->dvt_count;
+		return seg->dvt + j;
+	}
+    
+    //------------------------ local allocation-------
+	inline vunit_t<T>* new_vunit() {
+		return thd_mem->alloc_vunit();
+	}
+    
+	inline snapT_t<T>* new_snapdegree() {
+		return thd_mem->alloc_snapdegree();
+	}
+
+	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count, bool hub=false) {
+        return thd_mem->alloc_adjlist(count, hub);
+	}
+
+    inline void delete_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {
+        thd_mem->free_adjlist(adj_list, chain);
+    }
+	//------------------
+
+public:
 #ifdef BULK    
     void setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end);
     void setup_adjlist();
@@ -133,49 +179,6 @@ public:
         beg_pos[vid].v_unit->adj_list->add_nebr(sid);
     }
 #endif
-    
-    //------------------------ local allocation-------
-	inline vunit_t<T>* new_vunit() {
-		return thd_mem->alloc_vunit();
-	}
-    
-	inline snapT_t<T>* new_snapdegree() {
-		return thd_mem->alloc_snapdegree();
-	}
-
-	inline delta_adjlist_t<T>* new_delta_adjlist(degree_t count, bool hub=false) {
-        return thd_mem->alloc_adjlist(count, hub);
-	}
-
-    inline void delete_delta_adjlist(delta_adjlist_t<T>* adj_list, bool chain = false) {
-        thd_mem->free_adjlist(adj_list, chain);
-    }
-    
-    //-----------durability thing------------
-    //durable adj list	
-	inline durable_adjlist_t<T>* new_adjlist(write_seg_t* seg,  degree_t count) {
-        degree_t new_count = count*sizeof(T)+sizeof(durable_adjlist_t<T>);
-        //index_t index_log = __sync_fetch_and_add(&seg->log_head, new_count);
-        //assert(index_log  < log_count); 
-        index_t index_log = seg->log_head;
-        seg->log_head += new_count;
-        assert(seg->log_head  <= log_count); 
-        return  (durable_adjlist_t<T>*)(seg->log_beg + index_log);
-	}
-
-	inline disk_vtable_t* new_dvt(write_seg_t* seg) {
-        //index_t j = __sync_fetch_and_add(&seg->dvt_count, 1L);
-        index_t j = seg->dvt_count;
-        ++seg->dvt_count;
-		return seg->dvt + j;
-	}
-	//------------------
-    
-    void prepare_dvt(write_seg_t* seg, vid_t& last_vid, bool clean = false);
-	void adj_prep(write_seg_t* seg);
-    void handle_write(bool clean = false);
-    void read_vtable();
-    void file_open(const string& filename, bool trunc);
 };
 
 //one type's key-value store

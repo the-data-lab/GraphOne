@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sgraph.h"
+#include "onegraph.h"
 
 template <class T>
 void pgraph_t<T>::archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end) 
@@ -54,12 +55,6 @@ void pgraph_t<T>::make_graph_uni()
         
         //actual work
         this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        /*
-        //degree count
-        this->calc_degree_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
-        //fill adj-list
-        this->fill_adjlist_noatomic(sgraph, edge_shard->global_range, j_start, j_end);
-        */
         #pragma omp barrier 
         edge_shard->cleanup();
 #endif
@@ -148,6 +143,103 @@ void pgraph_t<T>::make_graph_u()
     blog->blog_tail = blog->blog_marker;  
     //cout << "setting the tail to" << blog->blog_tail << endl;
 }
+
+template <class T>
+void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
+{
+    sflag_t flag = ori_flag;
+    vid_t   max_vcount;
+    
+    if (flag == 0) {
+        flag1_count = g->get_total_types();
+        for(tid_t i = 0; i < flag1_count; i++) {
+            if (0 == sgraph[i]) {
+                max_vcount = g->get_type_scount(i);
+                sgraph[i] = new onegraph_t<T>;
+                sgraph[i]->setup(i, max_vcount);
+            }
+        } 
+        return;
+    } 
+    
+    tid_t   pos = 0;//it is tid
+    tid_t  flag_count = __builtin_popcountll(flag);
+    
+    for(tid_t i = 0; i < flag_count; i++) {
+        pos = __builtin_ctzll(flag);
+        flag ^= (1L << pos);//reset that position
+        if (0 == sgraph[pos]) {
+            sgraph[pos] = new onegraph_t<T>;
+        }
+        max_vcount = g->get_type_scount(i);
+        sgraph[pos]->setup(pos, max_vcount);
+    }
+}
+
+template <class T>
+void pgraph_t<T>::compress_sgraph(onegraph_t<T>** sgraph)
+{
+    if (sgraph == 0) return;
+    
+    tid_t    t_count = g->get_total_types();
+    
+    // For each file.
+    for (tid_t i = 0; i < t_count; ++i) {
+        if (sgraph[i] == 0) continue;
+		sgraph[i]->compress();
+    }
+}
+
+template <class T>
+void pgraph_t<T>::store_sgraph(onegraph_t<T>** sgraph, bool clean /*= false*/)
+{
+    if (sgraph == 0) return;
+    
+    tid_t    t_count = g->get_total_types();
+    
+    // For each file.
+    for (tid_t i = 0; i < t_count; ++i) {
+        if (sgraph[i] == 0) continue;
+		sgraph[i]->handle_write(clean);
+    }
+}
+
+template <class T>
+void pgraph_t<T>::file_open_sgraph(onegraph_t<T>** sgraph, const string& dir, const string& postfix, bool trunc)
+{
+    if (sgraph == 0) return;
+    
+    char name[8];
+    string  basefile = dir + col_info[0]->p_name;
+    string  filename;
+    string  wtfile; 
+
+    // For each file.
+    tid_t    t_count = g->get_total_types();
+    for (tid_t i = 0; i < t_count; ++i) {
+        if (0 == sgraph[i]) continue;
+        sprintf(name, "%d", i);
+        filename = basefile + name + postfix ; 
+        sgraph[i]->file_open(filename, trunc);
+    }
+}
+
+template <class T>
+void pgraph_t<T>::read_sgraph(onegraph_t<T>** sgraph)
+{
+    if (sgraph == 0) return;
+    
+    tid_t    t_count = g->get_total_types();
+    
+    // For each file.
+    for (tid_t i = 0; i < t_count; ++i) {
+        if (sgraph[i] == 0) continue;
+        sgraph[i]->read_vtable();
+        //sgraph[i]->read_stable(stfile);
+        //sgraph[i]->read_etable();
+    }
+}
+
 /*
 #ifndef BULK
 template <class T>
