@@ -48,6 +48,8 @@ class sstream_t : public snap_t<T> {
     status_t    update_view();
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
+    inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
+    inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
     
     inline void init_sstream_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale)
     {
@@ -160,7 +162,7 @@ status_t sstream_t<T>::update_view()
     edges = blog->blog_beg + (new_marker & blog->blog_mask);
     edge_count = marker - new_marker;
     
-    if (pgraph->sgraph_in == 0) {
+    if (graph_in == graph_out) {
         update_degreesnap();
     } else {
         update_degreesnapd();

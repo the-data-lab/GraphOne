@@ -205,6 +205,7 @@ class  edgeT_t {
 typedef edgeT_t<sid_t> edge_t;
 
 typedef dst_weight_t<univ_t> lite_edge_t;
+typedef dst_weight_t<univ_t> weight_sid_t;
 typedef edgeT_t<lite_edge_t> ledge_t;
 
 // Functions on edgeT_t

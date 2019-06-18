@@ -122,7 +122,8 @@ class vunit_t {
 	}
     
     inline degree_t get_degree() {
-        if (snap_blob) return snap_blob->degree - snap_blob->del_count;
+        snapT_t<T>*   blob = snap_blob;
+        if (blob) return blob->degree - blob->del_count;
         else  return 0; 
     }
     
@@ -132,20 +133,21 @@ class vunit_t {
     }
     inline degree_t get_degree(snapid_t snap_id)
     {
-        if (0 == snap_blob) { 
+        snapT_t<T>*   blob = snap_blob;
+        if (0 == blob) { 
             return 0;
         }
         
         degree_t nebr_count = 0;
-        if (snap_id >= snap_blob->snap_id) {
-            nebr_count = snap_blob->degree - snap_blob->del_count; 
+        if (snap_id >= blob->snap_id) {
+            nebr_count = blob->degree - blob->del_count; 
         } else {
-            snap_blob = snap_blob->prev;
-            while (snap_blob && snap_id < snap_blob->snap_id) {
-                snap_blob = snap_blob->prev;
+            blob = blob->prev;
+            while (blob && snap_id < blob->snap_id) {
+                blob = blob->prev;
             }
-            if (snap_blob) {
-                nebr_count = snap_blob->degree - snap_blob->del_count; 
+            if (blob) {
+                nebr_count = blob->degree - blob->del_count; 
             }
         }
         return nebr_count;

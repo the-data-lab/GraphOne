@@ -40,6 +40,7 @@ class plaingraph_manager_t {
     void schema_plaingraph();
     void schema_plaingraphd();
     void schema_plaingraphuni();
+    void split_files(const string& idirname, const string& odirname);
 
   public:
     void setup_graph(vid_t v_count);
@@ -61,11 +62,8 @@ class plaingraph_manager_t {
     void prep_graph_durable(const string& idirname, const string& odirname);
     
     void prep_graph_serial_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
-    void prep_graph_and_scompute(const string& idirname, const string& odirname,
-                                 sstream_t<T>* sstreamh);
-    void prep_graph_and_compute(const string& idirname, 
-                                const string& odirname, 
-                                stream_t<T>* streamh);
+    void prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
+    void prep_graph_and_compute(const string& idirname, const string& odirname, stream_t<T>* streamh);
     void waitfor_archive_durable(double start);
     
     void run_pr_simple();
@@ -287,6 +285,46 @@ void plaingraph_manager_t<T>::recover_graph_adj(const string& idirname, const st
 }
 
 template <class T>
+void plaingraph_manager_t<T>::split_files(const string& idirname, const string& odirname)
+{
+    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
+    blog_t<T>*     blog = ugraph->blog;
+    
+    free(blog->blog_beg);
+    blog->blog_beg = 0;
+    blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
+    
+    //Upper align this, and create a mask for it
+    index_t new_count = upper_power_of_two(blog->blog_head);
+    blog->blog_mask = new_count -1;
+    
+    double start = mywtime();
+    
+    //Make Graph
+    index_t marker = 0;
+    index_t batch_size = blog->blog_head/residue;
+    cout << "file_counts = " << residue << endl;
+    char tmp[32];
+    string ifile;
+    FILE*  fd = 0;
+
+    for (int i = 1; i < residue; ++i) {
+        sprintf(tmp, "%d.dat",i);
+        ifile = odirname + "part" + tmp; 
+        fd = fopen(ifile.c_str(), "wb");
+        fwrite(blog->blog_beg+marker, sizeof(edgeT_t<T>), batch_size, fd); 
+        marker += batch_size;
+    } 
+        sprintf(tmp, "%d.dat", residue);
+        ifile = odirname + "part" + tmp; 
+        fd = fopen(ifile.c_str(), "wb");
+        fwrite(blog->blog_beg+marker, sizeof(edgeT_t<T>), blog->blog_head - marker, fd); 
+
+    double end = mywtime ();
+    cout << "Split time = " << end - start << endl;
+}
+
+template <class T>
 void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const string& odirname)
 {
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
@@ -329,6 +367,7 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     //Upper align this, and create a mask for it
     index_t new_count = upper_power_of_two(blog->blog_head);
     blog->blog_mask = new_count -1;
+    cout << " total edge count" << new_count << endl;
     
     double start = mywtime();
     
@@ -604,12 +643,13 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     cout << "BFS complex = " << end - start << endl;    
     
     free(level_array);
+    /*
     level_array = (uint8_t*) calloc(snaph->get_vcount(), sizeof(uint8_t));
     start = mywtime();
     mem_bfs_simple<T>(snaph, level_array, root);
     end = mywtime();
     cout << "BFS simple = " << end - start << endl;    
-    
+    */
     delete_static_view(snaph);
 }
 

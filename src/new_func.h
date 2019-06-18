@@ -6,9 +6,22 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
-    cout << "No plugin found for reading and parsing the input files" << endl;
-    assert(0); 
-    return 0;
+    
+    edgeT_t<T> edge;
+    index_t icount = 0;
+    ssize_t size = 0;
+    //tmp_blog_t<T> edges(64);
+    while((size = fread(&edge, sizeof(edge), 1, file)) > 0) {
+        //pgraph->batch_edge(&edges, edge);
+        pgraph->batch_edge(edge);
+        icount++;
+    }
+    if (size < 0) {
+        assert(0);
+    }
+    
+    fclose(file);
+    return icount;
 }
 
 template <class T>

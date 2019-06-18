@@ -9,9 +9,9 @@ using namespace std;
 #define PRIVATE_MASK 0x2
 #define SIMPLE_MASK  0x4
 
-#define SET_STALE(x) (x | STALE_MASK)
-#define SET_PRIVATE(x) (x | PRIVATE_MASK)
-#define SET_SIMPLE(x) (x | SIMPLE_MASK)
+#define SET_STALE(x) (x = (x | STALE_MASK))
+#define SET_PRIVATE(x) (x = (x | PRIVATE_MASK))
+#define SET_SIMPLE(x) (x = (x | SIMPLE_MASK))
 
 #define IS_STALE(x) (x & STALE_MASK)
 #define IS_PRIVATE(x) (x & PRIVATE_MASK)

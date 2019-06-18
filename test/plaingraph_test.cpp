@@ -11,6 +11,7 @@
 */
 
 #include "stream_analytics.h"
+#include "sstream_analytics.h"
 
 
 using namespace std;
@@ -773,6 +774,48 @@ void recover_testuni(const string& odir)
 }
 
 template <class T>
+void split_files(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph_memory(v_count);    
+    manager.split_files(idir, odir);    
+}
+
+template <class T>
+void llama_test(const string& idir, const string& odir,
+                typename callback<T>::parse_fn_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);
+    g->create_threads(true, false);
+    manager.prep_graph_fromtext(idir, odir, parsefile_fn);
+    manager.run_bfs();
+    manager.run_pr();    
+}
+
+template <class T>
+void llama_testd(const string& idir, const string& odir,
+                typename callback<T>::parse_fn_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraphd();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);
+    g->create_threads(true, false);
+    manager.prep_graph_fromtext(idir, odir, parsefile_fn);
+    manager.run_bfs();
+    manager.run_bfs();
+    manager.run_bfs();
+    manager.run_pr();
+    manager.run_pr();
+    manager.run_pr();
+}
+
+template <class T>
 void ingestion_fulluni(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
@@ -945,6 +988,72 @@ void test_archived(const string& idir, const string& odir)
         manager.run_1hop();
     }
     */
+}
+
+template <class T>
+void gen_kickstarter_files(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    manager.setup_graph(v_count);    
+    manager.prep_graph_mix(idir, odir);    
+    //manager.prep_graph_adj(idir, odir);    
+    manager.run_bfs(); 
+
+    pgraph_t<T>* pgraph1 = (pgraph_t<T>*)manager.get_plaingraph();
+    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    degree_t nebr_count = 0;
+    degree_t prior_sz = 65536;
+    T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+    index_t  offset = 0;
+    sid_t sid = 0;
+    
+    string vtfile = odir + "inputGraph.adj"; 
+	FILE* vtf = fopen(vtfile.c_str(), "w");
+    assert(vtf != 0);
+    char text[256];
+	
+    assert(v_count == snaph->get_vcount());
+    for (vid_t v = 0; v < v_count; v++) {
+        nebr_count = snaph->get_degree_out(v);
+        sprintf(text,"%lu\n", offset);
+        fwrite(text, sizeof(char), strlen(text), vtf);
+        //cerr << offset  << endl;
+        offset += nebr_count;
+    }
+
+	for (vid_t v = 0; v < v_count; v++) {
+        nebr_count = snaph->get_degree_out(v);
+        if (nebr_count == 0) {
+            continue;
+        } else if (nebr_count > prior_sz) {
+            prior_sz = nebr_count;
+            free(local_adjlist);
+            local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+        }
+        snaph->get_nebrs_out(v, local_adjlist);
+        for (degree_t i = 0; i < nebr_count; ++i) {
+            sid = get_nebr(local_adjlist, i);
+            sprintf(text,"%u\n", sid);
+            fwrite(text, sizeof(char), strlen(text), vtf);
+            //cerr << sid << endl;
+        }
+    }
+    fclose(vtf);
+    string etfile = odir + "additionsFile.snap";
+	FILE* etf = fopen(etfile.c_str(), "w");
+    vid_t src, dst;
+    edgeT_t<T>* edges;
+    index_t count = snaph->get_nonarchived_edges(edges);
+    
+    for (index_t i = 0; i < count; ++i) {
+        src = edges[i].src_id;
+        dst = get_dst(edges+i);
+        sprintf(text,"%u %u\n", src, dst);
+        fwrite(text, sizeof(char), strlen(text), etf);
+        //cerr << src << " " << dst << endl;
+    }
+    fclose(etf);
 }
 
 void stream_netflow_aggregation(const string& idir, const string& odir)
@@ -1235,12 +1344,26 @@ void test_stream_pr(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
-    wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &stream_pagerank_epsilon<T>, 0, 0 ,0);
+    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_bfs<T>, true, true ,true);
+    //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
+    //wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &stream_pagerank_epsilon<T>, 0, 0 ,0);
     
-    manager.prep_graph_and_scompute(idir, odir, sstreamh);
+    //----
+    //Create a thread for make graph and stream pagerank
+    pthread_t sstream_thread;
+    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
+        assert(0);
+    }
+    cout << "created stream thread" << endl;
+    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    
+    void* ret;
+    pthread_join(sstream_thread, &ret);
+    //--------
+    //manager.prep_graph_and_scompute(idir, odir, sstreamh);
 }
 
 template <class T>
@@ -1252,9 +1375,23 @@ void test_serial_stream_pr(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
+    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_serial_bfs<T>, true, true ,true);
     
-    manager.prep_graph_serial_scompute(idir, odir, sstreamh);
+    //----
+    //Create a thread for make graph and stream pagerank
+    pthread_t sstream_thread;
+    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
+        assert(0);
+    }
+    cout << "created stream thread" << endl;
+    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    
+    void* ret;
+    pthread_join(sstream_thread, &ret);
+    //--------
+    
+    //manager.prep_graph_serial_scompute(idir, odir, sstreamh);
 }
 
 void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
@@ -1382,6 +1519,21 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_ingestion_fulld<netflow_dst_t>(idir, odir, parsebuf_and_insert);
             break;
         
+        case 40:
+            split_files<weight_sid_t>(idir, odir);
+            break;
+        case 41://llama
+            llama_test<weight_sid_t>(idir, odir, parsefile_and_insert);
+            break;
+        case 42://llama
+            llama_testd<weight_sid_t>(idir, odir, parsefile_and_insert);
+            break;
+        case 43: 
+            test_archived<weight_sid_t>(idir, odir);
+            break;
+        case 44://generate kickstarter files
+            gen_kickstarter_files<sid_t>(idir, odir);
+            break;
         case 94:
             stream_netflow_aggregation(idir, odir);
             break;

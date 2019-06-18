@@ -12,7 +12,7 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
     sid_t src;
     T dst;
     vid_t vert1_id;
-    snap_id = a_snapid + 1;
+    snap_id = a_snapid;
     for (index_t i = 0; i < count; ++i) {
         src = edges[i].src_id;
         //src_index = TO_TID(src);
