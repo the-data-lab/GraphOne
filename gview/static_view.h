@@ -4,8 +4,6 @@
 
 template <class T>
 class snap_t : public gview_t <T> {
- public:
-    pgraph_t<T>*     pgraph;  
  protected: 
     onegraph_t<T>*   graph_out;
     onegraph_t<T>*   graph_in;
@@ -17,11 +15,15 @@ class snap_t : public gview_t <T> {
     index_t          edge_count;//their count
     vid_t            v_count;
     int              flag;
+ public:
+    pgraph_t<T>*     pgraph;  
+    void*    algo_meta;//algorithm specific data
 
  public:
     inline snap_t() {
         flag = 0;
         v_count = 0;
+        algo_meta = 0;
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
@@ -31,6 +33,13 @@ class snap_t : public gview_t <T> {
             delete degree_in;
         }
     }
+    inline void set_algometa(void* a_meta) {algo_meta = a_meta;}
+    inline void* get_algometa() {return algo_meta;}
+    inline index_t get_marker() {
+        if (snapshot) return snapshot->marker;
+        return 0;
+    }
+
     degree_t get_nebrs_out(vid_t vid, T* ptr);
     degree_t get_nebrs_in (vid_t vid, T* ptr);
     degree_t get_degree_out(vid_t vid);
@@ -46,6 +55,7 @@ class snap_t : public gview_t <T> {
     void create_degreesnapd();
     void create_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
     status_t update_view();
+    inline int  get_snapid() {return snapshot->snap_id;}
 };
 
 template <class T>

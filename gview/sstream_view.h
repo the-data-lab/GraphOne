@@ -21,12 +21,10 @@ class sstream_t : public snap_t<T> {
     Bitmap*  bitmap_in;
     Bitmap*  bitmap_out;
  public:
-    void*    algo_meta;//algorithm specific data
     typename callback<T>::sfunc   sstream_func; 
 
  public:
     inline sstream_t(): snap_t<T>() {
-        algo_meta = 0;
         pgraph = 0;
         bitmap_in = 0;
         bitmap_out = 0;
@@ -42,9 +40,6 @@ class sstream_t : public snap_t<T> {
         }
     }
 
-    inline void    set_algometa(void* a_meta) {algo_meta = a_meta;}
-    inline void*   get_algometa() {return algo_meta;}
-    
     status_t    update_view();
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
@@ -69,7 +64,7 @@ class sstream_t : public snap_t<T> {
 template <class T>
 void sstream_t<T>::update_degreesnap()
 {
-    #pragma omp parallel
+    #pragma omp parallel num_threads(THD_COUNT)
     {
         degree_t nebr_count = 0;
         snapid_t snap_id = 0;
@@ -101,7 +96,7 @@ void sstream_t<T>::update_degreesnap()
 template <class T>
 void sstream_t<T>::update_degreesnapd()
 {
-    #pragma omp parallel
+    #pragma omp parallel num_threads(THD_COUNT)
     {
         degree_t      nebr_count = 0;
         snapid_t snap_id = 0;

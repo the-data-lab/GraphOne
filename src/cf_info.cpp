@@ -20,7 +20,7 @@ index_t  BLOG_SHIFT = 27;
 //index_t  BLOG_MASK = (BLOG_SIZE - 1);
 
 vid_t RANGE_COUNT = 1024;
-index_t  SNAP_COUNT  = (2);
+index_t  SNAP_COUNT  = (3);
 index_t  LOCAL_VUNIT_COUNT = 20;
 index_t  LOCAL_DELTA_SIZE = 28;
 index_t  DURABLE_SIZE = (1L << 28);//Durable adj-list

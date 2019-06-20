@@ -23,6 +23,7 @@ void ontology_lubm();
 void fill_lubm_inference_type();
 
 extern index_t residue;
+index_t _edge_count = 0;
 
 int main(int argc, char* argv[])
 {
@@ -38,6 +39,7 @@ int main(int argc, char* argv[])
 		{"qfile",     required_argument,  0, 'q'},
         {"fileconf",  required_argument,  0, 'f'},
         {"threadcount",  required_argument,  0, 't'},
+        {"edgecount",  required_argument,  0, 'e'},
 		{0,			  0,				  0,  0},
 	};
 
@@ -53,7 +55,7 @@ int main(int argc, char* argv[])
 	THD_COUNT = omp_get_max_threads()-1;// - 3;
 
     g = new graph; 
-	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:h", longopts, &index)) != -1) {
+	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:h", longopts, &index)) != -1) {
 		switch(o) {
 			case 'v':
 				#ifdef B64
@@ -89,6 +91,9 @@ int main(int argc, char* argv[])
                 break;
             case 'f':
                 typefile = optarg;
+                break;
+            case 'e':
+                sscanf(optarg, "%ld", &_edge_count);
                 break;
             case 'r':
                 sscanf(optarg, "%ld", &residue);

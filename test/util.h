@@ -7,6 +7,8 @@
 #define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
 #endif
 
+short CorePin(int coreID);
+
 inline index_t upper_power_of_two(index_t v)
 {
     v--;
@@ -177,16 +179,18 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
     }
     closedir(dir);
 
+    index_t edge_count = 0;
     double end ;
     double start = mywtime();
-    #pragma omp parallel for num_threads(16) schedule(static)
+    //#pragma omp parallel for num_threads(16) schedule(static)
     for (int i = 0; i < icount; ++i) {
-        parsefile_and_insert(ifiles[i], ofilename, pgraph);
+        edge_count += parsefile_and_insert(ifiles[i], ofilename, pgraph);
+        //cout << edge_count << endl;
     }
     end = mywtime();
     cout <<" Batching Time = "<< end - start;
     vid_t vid = g->get_type_scount();
-    cout << "vertex count" << vid << endl;
+    cout << " vertex count = " << vid << endl;
     return;
 }
 

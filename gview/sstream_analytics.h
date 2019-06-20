@@ -10,47 +10,51 @@
 
 using std::min;
 
+//Required for exiting from the streaming computation
+extern index_t _edge_count;
+
 template<class T>
 void stream_bfs(gview_t<T>* viewh)
 {
+    double start = mywtime ();
+    double end = 0;
+    int update_count = 0;
+    
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     sstream_t<T>* snaph = sstreamh;
-    
     vid_t v_count = sstreamh->get_vcount();
-    pgraph_t<T>* ugraph  = sstreamh->pgraph;
-    assert(ugraph);
     
-    blog_t<T>* blog = ugraph->blog;
-    index_t marker = 0; 
-    double start = mywtime ();
-    
-    index_t beg_marker = (1 << 20);
-    while (blog->blog_head < beg_marker) {
-        usleep(1);
-    }
-    
-    
-    double end = 0;
-    cout << "starting BFS" << endl;
-
     uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
     memset(status, 255, v_count);
-
-    sid_t    root   = 1;
     uint8_t  level  = 0;
+    index_t  meta =  (index_t)snaph->get_algometa();//1;
+    sid_t    root   = meta;
     sid_t  frontier = 0;
-    status[root] = level;
-    index_t total_edge_count = residue;
-    int update_count = 0;
+    
+    //wait till half edges are done
+    pgraph_t<T>* pgraph  = sstreamh->pgraph;
+    //index_t beg_marker = (_edge_count >> 1);
+    //while (pgraph->get_snapshot_marker() < beg_marker)
+    //blog_t<T>* blog = pgraph->blog;
+    /*while (blog->blog_tail < beg_marker) {
+        usleep(100);
+    }*/
 
-    while (blog->blog_tail < total_edge_count) {
+    /*
+    while (pgraph->get_degree_out(root) <= 2) {
+        root += 512;
+    }*/
+    
+    status[root] = level;
+
+    while (sstreamh->get_marker() < _edge_count) {
         if (eOK != sstreamh->update_view()) continue;
         ++update_count;
 
 	    do {
 		    frontier = 0;
 		    //double start = mywtime();
-		    #pragma omp parallel reduction(+:frontier)
+		    #pragma omp parallel num_threads (THD_COUNT) reduction(+:frontier)
 		    {
             sid_t sid;
             uint8_t level = 0;
@@ -59,49 +63,51 @@ void stream_bfs(gview_t<T>* viewh)
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
             bool top_down = true;
 
-            if (top_down) {
-                #pragma omp for nowait
-				for (vid_t v = 0; v < v_count; v++) {
-                    if(false == snaph->has_vertex_changed_out(v) || status[v] == 255) continue;
-					//if (status[v] != level) continue;
-					snaph->reset_vertex_changed_out(v);
-                    level = status[v];
-                    nebr_count = snaph->get_degree_out(v);
-                    if (nebr_count == 0) {
-                        continue;
-                    } else if (nebr_count > prior_sz) {
-                        prior_sz = nebr_count;
-                        free(local_adjlist);
-                        local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-                    }
+            #pragma omp for nowait
+            for (vid_t v = 0; v < v_count; v++) {
+                if(false == snaph->has_vertex_changed_out(v) || status[v] == 255) continue;
+                //if (status[v] != level) continue;
+                snaph->reset_vertex_changed_out(v);
+                level = status[v];
+                nebr_count = snaph->get_degree_out(v);
+                if (nebr_count == 0) {
+                    continue;
+                } else if (nebr_count > prior_sz) {
+                    prior_sz = nebr_count;
+                    free(local_adjlist);
+                    local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+                }
 
-                    snaph->get_nebrs_out(v, local_adjlist);
+                snaph->get_nebrs_out(v, local_adjlist);
 
-                    for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
-                        if (status[sid] > level + 1) {
-                            status[sid] = level + 1;
-                            snaph->set_vertex_changed_out(sid);
-                            ++frontier;
-                            //cout << " " << sid << endl;
-                        }
+                for (degree_t i = 0; i < nebr_count; ++i) {
+                    sid = get_nebr(local_adjlist, i);
+                    if (status[sid] > level + 1) {
+                        status[sid] = level + 1;
+                        snaph->set_vertex_changed_out(sid);
+                        ++frontier;
+                        //cout << " " << sid << endl;
                     }
-				}
+                }
 			}
             }
         } while (frontier);
     } 
     
+    /*
     for (int l = 0; l < 7; ++l) {
         vid_t vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) {
             if (status[v] == l) ++vid_count;
         }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-        cout << "update_count = " << update_count << endl;
+        cout << root << " Level = " << l << " count = " << vid_count << endl;
     }
     
+    cout << "Root = " << root  
+         << " update_count = " << update_count 
+         << " snapshot count = " << snaph->get_snapid() << endl;
+         */
 }
 
 template<class T>
@@ -109,22 +115,14 @@ void stream_serial_bfs(gview_t<T>* viewh)
 {
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     sstream_t<T>* snaph = sstreamh;
-    
     vid_t v_count = sstreamh->get_vcount();
-    pgraph_t<T>* ugraph  = sstreamh->pgraph;
-    assert(ugraph);
     
-    blog_t<T>* blog = ugraph->blog;
-    index_t marker = 0; 
-    double start = mywtime ();
-    
-    index_t beg_marker = (1 << 20);
-    while (blog->blog_head < beg_marker) {
-        usleep(1);
-    }
+    index_t beg_marker = 0;//(_edge_count >> 1);
+    index_t rest_edges = _edge_count - beg_marker;
+    index_t do_count = residue;
+    index_t batch_size = rest_edges/do_count;
 
-    double end = 0;
-    cout << "starting BFS" << endl;
+    //cout << "starting BFS" << endl;
 
     uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
     memset(status, 255, v_count);
@@ -133,20 +131,36 @@ void stream_serial_bfs(gview_t<T>* viewh)
     uint8_t  level  = 0;
     sid_t  frontier = 0;
     status[root] = level;
-    int update_count = 0;
+    int update_count = 1;
+    
+    double start = mywtime();
+    double end = 0;
+    pgraph_t<T>* ugraph  = sstreamh->pgraph;
+    blog_t<T>* blog = ugraph->blog;
+    index_t marker = 0; 
+    
+    while (blog->blog_tail < _edge_count) {
+        marker = beg_marker + update_count*batch_size;
+        if (update_count == do_count - 1) marker = _edge_count;
 
-    while (blog->blog_tail < blog->blog_head) {
-        marker = blog->blog_head;
-        //cout << blog->blog_tail << " " << marker << endl;
+        while (blog->blog_head < marker) {
+            //cout << "in loop " << blog->blog_head << " " << marker <<endl;
+            usleep(100);
+            continue;
+        }
+        
         ugraph->create_marker(marker);
         ugraph->create_snapshot();
-
+        end = mywtime();
+        //cout << "Make Graph Time = " << end - start << " at Batch " << update_count << endl; 
+        
         //update the sstream view
         sstreamh->update_view();
         ++update_count;
+        bool top_down = true;
+        start = mywtime();
 	    do {
 		    frontier = 0;
-		    //double start = mywtime();
 		    #pragma omp parallel reduction(+:frontier)
 		    {
             sid_t sid;
@@ -154,15 +168,12 @@ void stream_serial_bfs(gview_t<T>* viewh)
             degree_t nebr_count = 0;
             degree_t prior_sz = 65536;
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-            bool top_down = true;
 
             if (top_down) {
                 #pragma omp for nowait
 				for (vid_t v = 0; v < v_count; v++) {
                     if(false == snaph->has_vertex_changed_out(v) || status[v] == 255) continue;
-					//if (status[v] != level) continue;
 					snaph->reset_vertex_changed_out(v);
-                    level = status[v];
                     nebr_count = snaph->get_degree_out(v);
                     if (nebr_count == 0) {
                         continue;
@@ -172,6 +183,7 @@ void stream_serial_bfs(gview_t<T>* viewh)
                         local_adjlist = (T*)malloc(prior_sz*sizeof(T));
                     }
 
+                    level = status[v];
                     snaph->get_nebrs_out(v, local_adjlist);
 
                     for (degree_t i = 0; i < nebr_count; ++i) {
@@ -184,9 +196,42 @@ void stream_serial_bfs(gview_t<T>* viewh)
                         }
                     }
 				}
-			}
+			}/* else {//bottom up
+				
+				#pragma omp for nowait
+				for (vid_t v = 0; v < v_count; v++) {
+					if (false == snaph->has_vertex_changed_in(v)) continue;
+                    
+                    nebr_count = snaph->get_degree_in(v);
+                    if (nebr_count > prior_sz) {
+                        prior_sz = nebr_count;
+                        free(local_adjlist);
+                        local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+                    }
+
+                    snaph->get_nebrs_in(v, local_adjlist);
+                    index_t prior_frontier = frontier;
+                    //traverse the delta adj list
+                    for (degree_t i = 0; i < nebr_count; ++i) {
+                        sid = get_nebr(local_adjlist, i);
+                        level = status[sid];
+                        if (status[v] >  level + 1) {
+                            status[v] = level + 1;
+                            ++frontier;
+                            break;
+                        }
+                    }
+				    if (frontier == prior_frontier) {
+                        snaph->reset_vertex_changed_out(v);
+                    }
+                }
+		    }*/
             }
+            //top_down = true;
         } while (frontier);
+		
+        end = mywtime();
+        //cout << "BFS Time at Batch " << update_count << " = " << end - start << endl;
     } 
     
     for (int l = 0; l < 7; ++l) {
@@ -196,8 +241,8 @@ void stream_serial_bfs(gview_t<T>* viewh)
             if (status[v] == l) ++vid_count;
         }
         cout << " Level = " << l << " count = " << vid_count << endl;
-        cout << "update_count = " << update_count << endl;
     }
+    cout << "update_count = " << update_count << endl;
 }
 /*
 template<class T>

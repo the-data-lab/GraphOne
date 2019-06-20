@@ -69,7 +69,8 @@ public:
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
         vunit_t<T>* v_unit = get_vunit(vid);
-        return v_unit->get_degree();
+        if (v_unit) return v_unit->get_degree();
+        return 0;
     }
     
     inline degree_t get_delcount(vid_t vid) {

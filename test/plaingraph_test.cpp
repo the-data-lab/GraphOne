@@ -1008,12 +1008,17 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     index_t  offset = 0;
     sid_t sid = 0;
     
+    assert(v_count == snaph->get_vcount());
+    
     string vtfile = odir + "inputGraph.adj"; 
 	FILE* vtf = fopen(vtfile.c_str(), "w");
     assert(vtf != 0);
     char text[256];
+    
+    index_t edge_count = (2<< residue);
+    sprintf(text,"AdjacencyGraph\n%u\n%lu\n", v_count, edge_count);
+    fwrite(text, sizeof(char), strlen(text), vtf);
 	
-    assert(v_count == snaph->get_vcount());
     for (vid_t v = 0; v < v_count; v++) {
         nebr_count = snaph->get_degree_out(v);
         sprintf(text,"%lu\n", offset);
@@ -1338,7 +1343,8 @@ void stream_wcc(const string& idir, const string& odir)
 }
 
 template <class T>
-void test_stream_pr(const string& idir, const string& odir)
+void test_stream(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
@@ -1347,7 +1353,7 @@ void test_stream_pr(const string& idir, const string& odir)
     g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_bfs<T>, true, true ,true);
+    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
     //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
     //wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &stream_pagerank_epsilon<T>, 0, 0 ,0);
     
@@ -1358,7 +1364,7 @@ void test_stream_pr(const string& idir, const string& odir)
         assert(0);
     }
     cout << "created stream thread" << endl;
-    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
     
     void* ret;
     pthread_join(sstream_thread, &ret);
@@ -1367,7 +1373,69 @@ void test_stream_pr(const string& idir, const string& odir)
 }
 
 template <class T>
-void test_serial_stream_pr(const string& idir, const string& odir)
+void multi_stream_bfsd(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraphd();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    g->create_threads(true, false);   
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    
+    pthread_t sstream_thread[count];
+    
+    for (int i = 0; i < count; ++i) {   
+        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
+        sstreamh->set_algometa((void*)i);
+        //Create a thread for make graph and stream pagerank
+        if (0 != pthread_create(&sstream_thread[i], 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created stream thread" << endl;
+    }
+    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    for (int i = 0; i < count; ++i) { 
+        void* ret;
+        pthread_join(sstream_thread[i], &ret);
+    }
+}
+
+template <class T>
+void multi_stream_bfs(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    g->create_threads(true, false);   
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    
+    pthread_t sstream_thread[count];
+    
+    for (int i = 0; i < count; ++i) {   
+        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
+        sstreamh->set_algometa((void*)i);
+        //Create a thread for make graph and stream pagerank
+        if (0 != pthread_create(&sstream_thread[i], 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created stream thread" << endl;
+    }
+    
+    CorePin(0);
+    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    
+    for (int i = 0; i < count; ++i) { 
+        void* ret;
+        pthread_join(sstream_thread[i], &ret);
+    }
+}
+
+template <class T>
+void test_serial_stream(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
@@ -1376,7 +1444,7 @@ void test_serial_stream_pr(const string& idir, const string& odir)
     pgraph_t<T>* graph = manager.get_plaingraph();
     
     //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_serial_bfs<T>, true, true ,true);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, true, true ,true);
     
     //----
     //Create a thread for make graph and stream pagerank
@@ -1385,7 +1453,36 @@ void test_serial_stream_pr(const string& idir, const string& odir)
         assert(0);
     }
     cout << "created stream thread" << endl;
-    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+    
+    void* ret;
+    pthread_join(sstream_thread, &ret);
+    //--------
+    
+    //manager.prep_graph_serial_scompute(idir, odir, sstreamh);
+}
+
+template <class T>
+void test_serial_streamd(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraphd();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    pgraph_t<T>* graph = manager.get_plaingraph();
+    
+    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, true, true ,true);
+    
+    //----
+    //Create a thread for make graph and stream pagerank
+    pthread_t sstream_thread;
+    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
+        assert(0);
+    }
+    cout << "created stream thread" << endl;
+    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
     
     void* ret;
     pthread_join(sstream_thread, &ret);
@@ -1480,10 +1577,11 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_logging<sid_t>(idir, odir);
             break;
         case 28:
-            test_stream_pr<sid_t>(idir, odir);
+            test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
+            //test_stream<sid_t>(idir, odir, stream_bfs);
             break;
         case 29:
-            test_serial_stream_pr<sid_t>(idir, odir);
+            test_serial_streamd<sid_t>(idir, odir, stream_serial_bfs);
             break;
 
         //netflow graph testing
@@ -1536,6 +1634,12 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 94:
             stream_netflow_aggregation(idir, odir);
+            break;
+        case 95:
+            multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
+            break;
+        case 96:
+            multi_stream_bfsd<sid_t>(idir, odir, stream_bfs, residue);
             break;
         case 97:
             estimate_chain_new<sid_t>(idir, odir);

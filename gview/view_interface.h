@@ -19,5 +19,7 @@ class gview_t {
     virtual bool has_vertex_changed_out(vid_t v) { assert(0); return false;}
     virtual bool has_vertex_changed_in(vid_t v) { assert(0); return false;}
     virtual vid_t    get_vcount() { assert(0); return 0; }
+    virtual int      get_snapid() { assert(0); return 0; }
+    
     inline virtual ~gview_t() {} 
 };

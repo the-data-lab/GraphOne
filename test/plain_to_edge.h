@@ -48,6 +48,8 @@ class plaingraph_manager_t {
     void setup_graph_vert_nocreate(vid_t v_count);
     void recover_graph_adj(const string& idirname, const string& odirname);
 
+    void prep_log_fromtext(const string& idirname, const string& odirname, 
+                             typename callback<T>::parse_fn_t);
     void prep_graph_fromtext(const string& idirname, const string& odirname, 
                              typename callback<T>::parse_fn_t);
     void prep_graph_fromtext2(const string& idirname, const string& odirname, 
@@ -374,10 +376,10 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     //Make Graph
     index_t marker = 0;
     index_t batch_size = (1L << residue);
-    cout << "edge count in view = " << batch_size << endl;
-
-    marker = blog->blog_head - batch_size;
-    ugraph->create_marker(marker);
+    //marker = blog->blog_head - batch_size;
+    cout << "edge counts in basefile = " << batch_size << endl;
+    
+    ugraph->create_marker(batch_size);
     ugraph->create_snapshot();
     double end = mywtime ();
     cout << "Make graph time = " << end - start << endl;
@@ -431,11 +433,25 @@ void plaingraph_manager_t<T>::prep_graph_fromtext(const string& idirname,
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
     
+    
     //----------
     g->waitfor_archive();
-    end = mywtime();
-    cout << "Make graph time = " << end - start << endl;
+    //end = mywtime();
+    //cout << "Make graph time = " << end - start << endl;
     //---------
+}
+
+template <class T>
+void plaingraph_manager_t<T>::prep_log_fromtext(const string& idirname, 
+        const string& odirname, typename callback<T>::parse_fn_t parsefile_fn)
+{
+    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
+    
+    //Batch and Make Graph
+    double start = mywtime();
+    read_idir_text(idirname, odirname, ugraph, parsefile_fn);    
+    double end = mywtime();
+    cout << "Batch Update Time = " << end - start << endl;
 }
 
 template <class T>

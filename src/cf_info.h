@@ -88,6 +88,11 @@ class cfinfo_t {
     void read_snapshot();
     void write_snapshot();
 
+    inline index_t get_snapshot_marker() {
+        if (snapshot) return snapshot->marker;
+        return 0;
+    }
+
  public:
     void create_columns(propid_t prop_count);
     void add_column(pinfo_t* prop_info, const char* longname, const char* shortname);
