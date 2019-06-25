@@ -998,7 +998,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     manager.setup_graph(v_count);    
     manager.prep_graph_mix(idir, odir);    
     //manager.prep_graph_adj(idir, odir);    
-    manager.run_bfs(); 
+    manager.run_bfs(1); 
 
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)manager.get_plaingraph();
     snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
@@ -1015,7 +1015,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     assert(vtf != 0);
     char text[256];
     
-    index_t edge_count = (2<< residue);
+    index_t edge_count = (2L << residue);
     sprintf(text,"AdjacencyGraph\n%u\n%lu\n", v_count, edge_count);
     fwrite(text, sizeof(char), strlen(text), vtf);
 	
@@ -1424,7 +1424,7 @@ void multi_stream_bfs(const string& idir, const string& odir,
         cout << "created stream thread" << endl;
     }
     
-    CorePin(0);
+    //CorePin(0);
     manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
     
     for (int i = 0; i < count; ++i) { 

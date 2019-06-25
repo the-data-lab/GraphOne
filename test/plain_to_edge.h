@@ -379,8 +379,15 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     //marker = blog->blog_head - batch_size;
     cout << "edge counts in basefile = " << batch_size << endl;
     
-    ugraph->create_marker(batch_size);
-    ugraph->create_snapshot();
+    index_t unit_size = (1L<<23);
+    while (marker < batch_size ) {
+        marker = min(batch_size, marker+ unit_size);
+        ugraph->create_marker(marker);
+        ugraph->create_snapshot();
+    }
+    
+    //ugraph->create_marker(batch_size);
+    //ugraph->create_snapshot();
     double end = mywtime ();
     cout << "Make graph time = " << end - start << endl;
 }

@@ -34,7 +34,7 @@ void stream_bfs(gview_t<T>* viewh)
     //wait till half edges are done
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
     //index_t beg_marker = (_edge_count >> 1);
-    //while (pgraph->get_snapshot_marker() < beg_marker)
+    //while (pgraph->get_snapshot_marker() < beg_marker) usleep(100);
     //blog_t<T>* blog = pgraph->blog;
     /*while (blog->blog_tail < beg_marker) {
         usleep(100);
@@ -103,11 +103,11 @@ void stream_bfs(gview_t<T>* viewh)
         }
         cout << root << " Level = " << l << " count = " << vid_count << endl;
     }
+    */
     
     cout << "Root = " << root  
          << " update_count = " << update_count 
          << " snapshot count = " << snaph->get_snapid() << endl;
-         */
 }
 
 template<class T>

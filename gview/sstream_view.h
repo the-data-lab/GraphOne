@@ -41,8 +41,16 @@ class sstream_t : public snap_t<T> {
     }
 
     status_t    update_view();
+
+    //These two functions are for vertex centric programming
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
+    
+    //This function is for edge centric programming. Memory management is our headache
+    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {return 0;}
+    //inline index_t get_new_edges_length() {return 0;}
+
+    
     inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
     inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
     
