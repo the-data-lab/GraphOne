@@ -49,7 +49,7 @@ class sstream_t : public snap_t<T> {
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
     
     //This function is for edge centric programming. Memory management is our headache
-    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {return new_edges;}
+    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {changed_edges = new_edges; return new_edge_count;}
     //inline index_t get_new_edges_length() {return 0;}
 
     
