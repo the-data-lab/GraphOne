@@ -76,6 +76,10 @@ class pgraph_t: public cfinfo_t {
         return blog->update_marker();
     }
 
+    inline index_t get_archived_marker() {
+        return blog->blog_tail;
+    }
+    
  protected:
     void prep_sgraph(sflag_t ori_flag, onegraph_t<T>** a_sgraph);
     void prep_skv(sflag_t ori_flag, onekv_t<T>** a_skv);
@@ -220,6 +224,12 @@ index_t pgraph_t<T>::create_marker(index_t marker)
 {
     if (marker ==0) {
         marker = blog->blog_head;
+    } else {
+        while (blog->blog_head < marker) {
+            //cout << "in loop " << blog->blog_head << " " << marker <<endl;
+            usleep(100);
+            continue;
+        }
     }
     pthread_mutex_lock(&snap_mutex);
     index_t m_index = __sync_fetch_and_add(&q_head, 1L);

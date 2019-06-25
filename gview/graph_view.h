@@ -8,6 +8,8 @@ using namespace std;
 #define STALE_MASK 0x1
 #define PRIVATE_MASK 0x2
 #define SIMPLE_MASK  0x4
+#define V_CENTRIC 0x8
+#define E_CENTRIC  0x10
 
 #define SET_STALE(x) (x = (x | STALE_MASK))
 #define SET_PRIVATE(x) (x = (x | PRIVATE_MASK))
@@ -16,6 +18,11 @@ using namespace std;
 #define IS_STALE(x) (x & STALE_MASK)
 #define IS_PRIVATE(x) (x & PRIVATE_MASK)
 #define IS_SIMPLE(x) (x & SIMPLE_MASK)
+
+#define SET_V_CENTRIC(x) (x = (x | V_CENTRIC))
+#define SET_E_CENTRIC(x) (x = (x | E_CENTRIC))
+#define IS_V_CENTRIC(x) (x & V_CENTRIC)
+#define IS_E_CENTRIC(x) (x & E_CENTRIC)
 
 template <class T>
 class vert_table_t;
@@ -44,11 +51,11 @@ void delete_static_view(snap_t<T>* snaph)
 
 template <class T>
 sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
-                               bool simple, bool priv, bool stale)
+                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
 {
     sstream_t<T>* sstreamh = new sstream_t<T>;
     
-    sstreamh->init_sstream_view(ugraph, simple, priv, stale);
+    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
     sstreamh->sstream_func = func;
     sstreamh->algo_meta = 0;
     

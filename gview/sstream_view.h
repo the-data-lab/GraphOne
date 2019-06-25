@@ -15,6 +15,8 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::snapshot;
     using snap_t<T>::edges;
     using snap_t<T>::edge_count;
+    using snap_t<T>::new_edges;
+    using snap_t<T>::new_edge_count;
     using snap_t<T>::v_count;
     using snap_t<T>::flag;
 
@@ -47,16 +49,16 @@ class sstream_t : public snap_t<T> {
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
     
     //This function is for edge centric programming. Memory management is our headache
-    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {return 0;}
+    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {return new_edges;}
     //inline index_t get_new_edges_length() {return 0;}
 
     
     inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
     inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
     
-    inline void init_sstream_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale)
+    inline void init_sstream_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale, index_t v_or_e_centric)
     {
-        this->init_view(pgraph, simple, priv, stale);
+        this->init_view(pgraph, simple, priv, stale, v_or_e_centric);
         
         bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {
@@ -153,13 +155,21 @@ status_t sstream_t<T>::update_view()
 {
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
+    
     snapshot_t* new_snapshot = pgraph->get_snapshot();
     
     if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
+    index_t old_marker = snapshot? snapshot->marker: 0;
+    index_t new_marker = new_snapshot->marker;
     
+    //Get the edge copies for edge centric computation
+    if (IS_E_CENTRIC(flag)) { 
+        new_edge_count = new_marker - old_marker;
+        if (new_edges!= 0) free(new_edges);
+        new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
+        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
+    }
     snapshot = new_snapshot;
-    
-    index_t new_marker   = new_snapshot->marker;
     
     //for stale
     edges = blog->blog_beg + (new_marker & blog->blog_mask);

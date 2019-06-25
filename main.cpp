@@ -22,8 +22,6 @@ int THD_COUNT = 0;
 void ontology_lubm();
 void fill_lubm_inference_type();
 
-extern index_t residue;
-index_t _edge_count = 0;
 
 int main(int argc, char* argv[])
 {

@@ -1,11 +1,8 @@
 #pragma once
 #include <omp.h>
 #include <algorithm>
-#include "graph.h"
-#include "wtime.h"
 
-#include "sgraph.h"
-#include "type.h"
+#include "graph_view.h"
 
 using std::min;
 
@@ -753,7 +750,7 @@ void mem_bfs(gview_t<T>* snaph,
                     }
 				}
 		    }
-            /*
+            
             //on-the-fly snapshots should process this
             //cout << "On the Fly" << endl;
             vid_t src, dst;
@@ -774,7 +771,7 @@ void mem_bfs(gview_t<T>* snaph,
                     ++frontier;
                     //cout << " " << dst << endl;
                 }
-            }*/
+            }
         }
         
         
@@ -788,7 +785,7 @@ void mem_bfs(gview_t<T>* snaph,
 
         //Point is to simulate bottom up bfs, and measure the trade-off    
         if ((frontier >= 0.002*v_count)){ // || level == 2)
-			top_down = false;
+			top_down = true;
 		} else {
             top_down = true;
         }

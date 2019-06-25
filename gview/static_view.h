@@ -11,8 +11,14 @@ class snap_t : public gview_t <T> {
     degree_t*        degree_in;
 
     snapshot_t*      snapshot;
-    edgeT_t<T>*      edges; //new edges
+    
+    edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
+    
+    //For edge-centric
+    edgeT_t<T>*      new_edges;//New edges
+    index_t          new_edge_count;//Their count
+
     vid_t            v_count;
     int              flag;
  public:
@@ -24,6 +30,8 @@ class snap_t : public gview_t <T> {
         flag = 0;
         v_count = 0;
         algo_meta = 0;
+        new_edges = 0;
+        new_edge_count = 0;
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
@@ -35,7 +43,7 @@ class snap_t : public gview_t <T> {
     }
     inline void set_algometa(void* a_meta) {algo_meta = a_meta;}
     inline void* get_algometa() {return algo_meta;}
-    inline index_t get_marker() {
+    inline index_t get_snapmarker() {
         if (snapshot) return snapshot->marker;
         return 0;
     }
@@ -50,7 +58,7 @@ class snap_t : public gview_t <T> {
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
-    void init_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
+    void init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale, index_t v_or_e_centric);
     void create_degreesnap();
     void create_degreesnapd();
     void create_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
@@ -118,7 +126,7 @@ void snap_t<T>::create_degreesnapd()
 }
 
 template <class T>
-void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale)
+void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale, index_t v_or_e_centric)
 {
     snapshot = 0;
     edges = 0;
@@ -146,12 +154,18 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stal
     if (simple) {
         SET_SIMPLE(flag);
     }
+    if (IS_V_CENTRIC(v_or_e_centric)) {
+        SET_V_CENTRIC(flag);
+    }
+    if (IS_E_CENTRIC(v_or_e_centric)) {
+        SET_E_CENTRIC(flag);
+    }
 }
 
 template <class T>
 void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool stale)
 {
-    init_view(pgraph1, simple, priv, stale);
+    init_view(pgraph1, simple, priv, stale, V_CENTRIC);
 
     blog_t<T>*  blog = pgraph->blog;
     index_t marker = blog->blog_head;

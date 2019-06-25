@@ -2,16 +2,10 @@
 #pragma once
 #include <omp.h>
 #include <algorithm>
-#include "graph.h"
-#include "wtime.h"
 
-#include "sgraph.h"
-#include "type.h"
+#include "graph_view.h"
 
 using std::min;
-
-//Required for exiting from the streaming computation
-extern index_t _edge_count;
 
 template<class T>
 void stream_bfs(gview_t<T>* viewh)
@@ -32,7 +26,7 @@ void stream_bfs(gview_t<T>* viewh)
     sid_t  frontier = 0;
     
     //wait till half edges are done
-    pgraph_t<T>* pgraph  = sstreamh->pgraph;
+    //pgraph_t<T>* pgraph  = sstreamh->pgraph;
     //index_t beg_marker = (_edge_count >> 1);
     //while (pgraph->get_snapshot_marker() < beg_marker) usleep(100);
     //blog_t<T>* blog = pgraph->blog;
@@ -47,7 +41,7 @@ void stream_bfs(gview_t<T>* viewh)
     
     status[root] = level;
 
-    while (sstreamh->get_marker() < _edge_count) {
+    while (sstreamh->get_snapmarker() < _edge_count) {
         if (eOK != sstreamh->update_view()) continue;
         ++update_count;
 
@@ -116,11 +110,13 @@ void stream_serial_bfs(gview_t<T>* viewh)
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     sstream_t<T>* snaph = sstreamh;
     vid_t v_count = sstreamh->get_vcount();
+    pgraph_t<T>* pgraph  = sstreamh->pgraph;
     
     index_t beg_marker = 0;//(_edge_count >> 1);
     index_t rest_edges = _edge_count - beg_marker;
     index_t do_count = residue;
     index_t batch_size = rest_edges/do_count;
+    index_t marker = 0; 
 
     //cout << "starting BFS" << endl;
 
@@ -135,22 +131,13 @@ void stream_serial_bfs(gview_t<T>* viewh)
     
     double start = mywtime();
     double end = 0;
-    pgraph_t<T>* ugraph  = sstreamh->pgraph;
-    blog_t<T>* blog = ugraph->blog;
-    index_t marker = 0; 
     
-    while (blog->blog_tail < _edge_count) {
+    while (pgraph->get_archived_marker() < _edge_count) {
         marker = beg_marker + update_count*batch_size;
         if (update_count == do_count - 1) marker = _edge_count;
 
-        while (blog->blog_head < marker) {
-            //cout << "in loop " << blog->blog_head << " " << marker <<endl;
-            usleep(100);
-            continue;
-        }
-        
-        ugraph->create_marker(marker);
-        ugraph->create_snapshot();
+        pgraph->create_marker(marker);
+        pgraph->create_snapshot();
         end = mywtime();
         //cout << "Make Graph Time = " << end - start << " at Batch " << update_count << endl; 
         
