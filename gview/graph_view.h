@@ -29,6 +29,7 @@ class vert_table_t;
 
 #include "static_view.h"
 #include "sstream_view.h"
+#include "scopy_view.h"
 #include "stream_view.h"
 #include "wsstream_view.h"
 #include "historical_view.h"
@@ -38,7 +39,8 @@ template <class T>
 snap_t<T>* create_static_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale)
 {
     snap_t<T>* snaph = new snap_t<T>;
-    snaph->create_view(pgraph, simple, priv, stale); 
+    snaph->init_view(pgraph, simple, priv, stale, V_CENTRIC); 
+    snaph->update_view();
     return snaph;
 }
 
@@ -64,6 +66,44 @@ sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc 
 
 template <class T>
 void unreg_sstream_view(sstream_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
+scopy_server_t<T>* reg_scopy_server(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
+                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
+{
+    scopy_server_t<T>* sstreamh = new scopy_server_t<T>;
+    
+    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
+    sstreamh->sstream_func = func;
+    sstreamh->algo_meta = 0;
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_scopy_server(scopy_server_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
+scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
+                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
+{
+    scopy_client_t<T>* sstreamh = new scopy_client_t<T>;
+    
+    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
+    sstreamh->sstream_func = func;
+    sstreamh->algo_meta = 0;
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_scopy_server(scopy_server_t<T>* sstreamh)
 {
     delete sstreamh;
 }

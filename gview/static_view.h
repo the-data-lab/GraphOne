@@ -27,6 +27,7 @@ class snap_t : public gview_t <T> {
 
  public:
     inline snap_t() {
+        pgraph = 0;
         flag = 0;
         v_count = 0;
         algo_meta = 0;
@@ -59,10 +60,9 @@ class snap_t : public gview_t <T> {
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
     void init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale, index_t v_or_e_centric);
+    status_t update_view();
     void create_degreesnap();
     void create_degreesnapd();
-    void create_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale);
-    status_t update_view();
     inline int  get_snapid() {return snapshot->snap_id;}
 };
 
@@ -163,10 +163,8 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stal
 }
 
 template <class T>
-void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool stale)
+status_t snap_t<T>::update_view()
 {
-    init_view(pgraph1, simple, priv, stale, V_CENTRIC);
-
     blog_t<T>*  blog = pgraph->blog;
     index_t marker = blog->blog_head;
     snapshot = pgraph->get_snapshot();
@@ -188,30 +186,6 @@ void snap_t<T>::create_view(pgraph_t<T>* pgraph1, bool simple, bool priv, bool s
     } else if (pgraph->sgraph_in != 0) {
         create_degreesnapd();
     }
-}
-template <class T>
-status_t snap_t<T>::update_view()
-{
-    blog_t<T>* blog = pgraph->blog;
-    index_t  marker = blog->blog_head;
-    snapshot_t* new_snapshot = pgraph->get_snapshot();
-    
-    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
-    
-    snapshot = new_snapshot;
-    
-    index_t new_marker   = new_snapshot->marker;
-    
-    //for stale
-    edges = blog->blog_beg + (new_marker & blog->blog_mask);
-    edge_count = marker - new_marker;
-    
-    if (pgraph->sgraph_in == 0) {
-        create_degreesnap();
-    } else {
-        create_degreesnapd();
-    }
-
     return eOK;
 }
 

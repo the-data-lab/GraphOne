@@ -27,7 +27,6 @@ class sstream_t : public snap_t<T> {
 
  public:
     inline sstream_t(): snap_t<T>() {
-        pgraph = 0;
         bitmap_in = 0;
         bitmap_out = 0;
     }
@@ -41,20 +40,6 @@ class sstream_t : public snap_t<T> {
             bitmap_out = 0;
         }
     }
-
-    status_t    update_view();
-
-    //These two functions are for vertex centric programming
-    inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
-    inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
-    
-    //This function is for edge centric programming. Memory management is our headache
-    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {changed_edges = new_edges; return new_edge_count;}
-    //inline index_t get_new_edges_length() {return 0;}
-
-    
-    inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
-    inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
     
     inline void init_sstream_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale, index_t v_or_e_centric)
     {
@@ -67,8 +52,23 @@ class sstream_t : public snap_t<T> {
             bitmap_in = new Bitmap(v_count);
         }
     }
-    void update_degreesnap();
+
+    status_t    update_view();
+    void  update_degreesnap();
     void update_degreesnapd();
+
+    //These two functions are for vertex centric programming
+    inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
+    inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
+    
+    //This function is for edge centric programming. Memory management is our headache
+    inline index_t get_new_edges(edgeT_t<T>*& changed_edges) {changed_edges = new_edges; return new_edge_count;}
+    //inline index_t get_new_edges_length() {return 0;}
+
+    
+    inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
+    inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
+   
 };
 
 template <class T>

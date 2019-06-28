@@ -33,6 +33,10 @@ class pgraph_t: public cfinfo_t {
         //edge sharding unit
         edge_shard_t<T>* edge_shard;
 
+#ifdef _MPI
+        MPI_Datatype data_type;//For T
+#endif
+
  public:    
     inline pgraph_t(): cfinfo_t(egraph){ 
         sgraph = 0;
@@ -40,6 +44,9 @@ class pgraph_t: public cfinfo_t {
         
         blog = new blog_t<T>;
         edge_shard = new edge_shard_t<T>(blog);
+#ifdef _MPI
+        data_type = create_MPI_datatype(T* type, data_type);
+#endif
     }
 
     inline void alloc_edgelog(index_t count) {
