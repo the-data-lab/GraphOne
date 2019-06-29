@@ -23,7 +23,9 @@ class snap_t : public gview_t <T> {
     int              flag;
  public:
     pgraph_t<T>*     pgraph;  
+    typename callback<T>::sfunc   sstream_func; 
     void*    algo_meta;//algorithm specific data
+    pthread_t thread;
 
  public:
     inline snap_t() {
@@ -59,7 +61,7 @@ class snap_t : public gview_t <T> {
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
-    void init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale, index_t v_or_e_centric);
+    void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
     void create_degreesnap();
     void create_degreesnapd();
@@ -126,13 +128,14 @@ void snap_t<T>::create_degreesnapd()
 }
 
 template <class T>
-void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stale, index_t v_or_e_centric)
+void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
     snapshot = 0;
     edges = 0;
     edge_count = 0;
     v_count = g->get_type_scount();
     pgraph  = ugraph;
+    flag = a_flag;
     
     graph_out = ugraph->sgraph_out[0];
     degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
@@ -143,22 +146,6 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, bool simple, bool priv, bool stal
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
         degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
-    }
-    
-    if (stale) {
-        SET_STALE(flag);
-    }
-    if (priv) {
-        SET_PRIVATE(flag);
-    }
-    if (simple) {
-        SET_SIMPLE(flag);
-    }
-    if (IS_V_CENTRIC(v_or_e_centric)) {
-        SET_V_CENTRIC(flag);
-    }
-    if (IS_E_CENTRIC(v_or_e_centric)) {
-        SET_E_CENTRIC(flag);
     }
 }
 

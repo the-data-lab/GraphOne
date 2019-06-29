@@ -639,7 +639,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     free(nebrs);
 
     //-------Run bfs and PR------
-    snap_t<lite_edge_t>* snaph = create_static_view(graph, true, true, true);
+    snap_t<lite_edge_t>* snaph = create_static_view(graph, STALE_MASK|V_CENTRIC);
     
     uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
@@ -1001,7 +1001,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     manager.run_bfs(1); 
 
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)manager.get_plaingraph();
-    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
     degree_t nebr_count = 0;
     degree_t prior_sz = 65536;
     T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
@@ -1353,21 +1353,11 @@ void test_stream(const string& idir, const string& odir,
     g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
-    //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
-    //wsstream_t<T>* wstreamh = reg_wsstream_view(pgraph, 10, &stream_pagerank_epsilon<T>, 0, 0 ,0);
-    
-    //----
-    //Create a thread for make graph and stream pagerank
-    pthread_t sstream_thread;
-    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
-        assert(0);
-    }
-    cout << "created stream thread" << endl;
-    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
+    //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, STALE_MASK|V_CENTRIC);
     
     void* ret;
-    pthread_join(sstream_thread, &ret);
+    pthread_join(sstreamh->thread, &ret);
     //--------
     //manager.prep_graph_and_scompute(idir, odir, sstreamh);
 }
@@ -1383,22 +1373,17 @@ void multi_stream_bfsd(const string& idir, const string& odir,
     g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    pthread_t sstream_thread[count];
+    sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
     
     for (int i = 0; i < count; ++i) {   
-        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
-        sstreamh->set_algometa((void*)i);
-        //Create a thread for make graph and stream pagerank
-        if (0 != pthread_create(&sstream_thread[i], 0, &sstream_func<T>, sstreamh)) {
-            assert(0);
-        }
-        cout << "created stream thread" << endl;
+        sstreamh[i] = reg_sstream_view(pgraph, stream_fn,               
+                        STALE_MASK|V_CENTRIC|C_THREAD, (void*)i);
     }
     manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
     for (int i = 0; i < count; ++i) { 
         void* ret;
-        pthread_join(sstream_thread[i], &ret);
-    }
+        pthread_join(sstreamh[i]->thread, &ret);
+    } 
 }
 
 template <class T>
@@ -1412,16 +1397,10 @@ void multi_stream_bfs(const string& idir, const string& odir,
     g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    pthread_t sstream_thread[count];
+    sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
     
-    for (int i = 0; i < count; ++i) {   
-        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, true, true ,true);
-        sstreamh->set_algometa((void*)i);
-        //Create a thread for make graph and stream pagerank
-        if (0 != pthread_create(&sstream_thread[i], 0, &sstream_func<T>, sstreamh)) {
-            assert(0);
-        }
-        cout << "created stream thread" << endl;
+    for (int i = 0; i < count; ++i) {
+        sstreamh[i] = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD, (void*)(i+1));
     }
     
     //CorePin(0);
@@ -1429,7 +1408,7 @@ void multi_stream_bfs(const string& idir, const string& odir,
     
     for (int i = 0; i < count; ++i) { 
         void* ret;
-        pthread_join(sstream_thread[i], &ret);
+        pthread_join(sstreamh[i]->thread, &ret);
     }
 }
 
@@ -1444,19 +1423,12 @@ void test_serial_stream(const string& idir, const string& odir,
     pgraph_t<T>* graph = manager.get_plaingraph();
     
     //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, true, true ,true);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
     
-    //----
-    //Create a thread for make graph and stream pagerank
-    pthread_t sstream_thread;
-    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
-        assert(0);
-    }
-    cout << "created stream thread" << endl;
     manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
     
     void* ret;
-    pthread_join(sstream_thread, &ret);
+    pthread_join(sstreamh->thread, &ret);
     //--------
     
     //manager.prep_graph_serial_scompute(idir, odir, sstreamh);
@@ -1472,20 +1444,13 @@ void test_serial_streamd(const string& idir, const string& odir,
     manager.setup_graph(v_count);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, true, true ,true);
+    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, STALE_MASK|V_CENTRIC);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
     
-    //----
-    //Create a thread for make graph and stream pagerank
-    pthread_t sstream_thread;
-    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
-        assert(0);
-    }
-    cout << "created stream thread" << endl;
     manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
     
     void* ret;
-    pthread_join(sstream_thread, &ret);
+    pthread_join(sstreamh->thread, &ret);
     //--------
     
     //manager.prep_graph_serial_scompute(idir, odir, sstreamh);

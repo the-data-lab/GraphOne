@@ -88,7 +88,7 @@ void stream_bfs(gview_t<T>* viewh)
         } while (frontier);
     } 
     
-    /*
+    
     for (int l = 0; l < 7; ++l) {
         vid_t vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
@@ -97,7 +97,7 @@ void stream_bfs(gview_t<T>* viewh)
         }
         cout << root << " Level = " << l << " count = " << vid_count << endl;
     }
-    */
+    
     
     cout << "Root = " << root  
          << " update_count = " << update_count 

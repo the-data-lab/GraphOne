@@ -1,6 +1,6 @@
 #pragma once
 #include <stdlib.h>
-
+#include <pthread.h>
 #include "graph.h"
 
 using namespace std;
@@ -10,14 +10,17 @@ using namespace std;
 #define SIMPLE_MASK  0x4
 #define V_CENTRIC 0x8
 #define E_CENTRIC  0x10
+#define C_THREAD  0x20
 
 #define SET_STALE(x) (x = (x | STALE_MASK))
 #define SET_PRIVATE(x) (x = (x | PRIVATE_MASK))
 #define SET_SIMPLE(x) (x = (x | SIMPLE_MASK))
+#define SET_THREAD(x) (x = (x | C_THREAD))
 
 #define IS_STALE(x) (x & STALE_MASK)
 #define IS_PRIVATE(x) (x & PRIVATE_MASK)
 #define IS_SIMPLE(x) (x & SIMPLE_MASK)
+#define IS_THREAD(x) (x & C_THREAD)
 
 #define SET_V_CENTRIC(x) (x = (x | V_CENTRIC))
 #define SET_E_CENTRIC(x) (x = (x | E_CENTRIC))
@@ -33,13 +36,25 @@ class vert_table_t;
 #include "stream_view.h"
 #include "wsstream_view.h"
 #include "historical_view.h"
+
+template<class T>
+void* sstream_func(void* arg) 
+{
+    snap_t<T>* sstreamh = (snap_t<T>*)arg;
+    sstreamh->sstream_func(sstreamh);
+    return 0;
+}
     
 // ------ VIEW CREATE/REGISTER API --------------
 template <class T>
-snap_t<T>* create_static_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale)
+snap_t<T>* create_static_view(pgraph_t<T>* pgraph, index_t flag)
 {
+    if (IS_THREAD(flag)) {
+        cout << "Thread creation is not implemented yet" << endl;
+        assert(0);
+    }
     snap_t<T>* snaph = new snap_t<T>;
-    snaph->init_view(pgraph, simple, priv, stale, V_CENTRIC); 
+    snaph->init_view(pgraph, flag); 
     snaph->update_view();
     return snaph;
 }
@@ -53,13 +68,20 @@ void delete_static_view(snap_t<T>* snaph)
 
 template <class T>
 sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
-                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
+                               index_t flag, void* algo_meta = 0)
 {
     sstream_t<T>* sstreamh = new sstream_t<T>;
     
-    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
+    sstreamh->init_sstream_view(ugraph, flag);
     sstreamh->sstream_func = func;
-    sstreamh->algo_meta = 0;
+    sstreamh->algo_meta = algo_meta;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created stream thread" << endl;
+    }
     
     return sstreamh;
 }
@@ -71,12 +93,12 @@ void unreg_sstream_view(sstream_t<T>* sstreamh)
 }
 
 template <class T>
-scopy_server_t<T>* reg_scopy_server(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
-                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
+scopy_server_t<T>* reg_scopy_server(pgraph_t<T>* ugraph, 
+                    typename callback<T>::sfunc func, index_t flag)
 {
     scopy_server_t<T>* sstreamh = new scopy_server_t<T>;
     
-    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
+    sstreamh->init_sstream_view(ugraph, flag);
     sstreamh->sstream_func = func;
     sstreamh->algo_meta = 0;
     
@@ -91,11 +113,11 @@ void unreg_scopy_server(scopy_server_t<T>* sstreamh)
 
 template <class T>
 scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
-                               bool simple, bool priv, bool stale, index_t v_or_e_centric = V_CENTRIC)
+                              index_t flag)
 {
     scopy_client_t<T>* sstreamh = new scopy_client_t<T>;
     
-    sstreamh->init_sstream_view(ugraph, simple, priv, stale, v_or_e_centric);
+    sstreamh->init_sstream_view(ugraph, flag);
     sstreamh->sstream_func = func;
     sstreamh->algo_meta = 0;
     
@@ -103,18 +125,18 @@ scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, typename callback<T>::s
 }
 
 template <class T>
-void unreg_scopy_server(scopy_server_t<T>* sstreamh)
+void unreg_scopy_client(scopy_client_t<T>* sstreamh)
 {
     delete sstreamh;
 }
 
 template <class T>
 wsstream_t<T>* reg_wsstream_view(pgraph_t<T>* ugraph, index_t window_sz, 
-                typename callback<T>::sfunc func, bool simple, bool priv, bool stale)
+                typename callback<T>::sfunc func, index_t flag)
 {
     wsstream_t<T>* wsstreamh = new wsstream_t<T>;
     
-    wsstreamh->init_wsstream_view(ugraph, window_sz, simple, priv, stale);
+    wsstreamh->init_wsstream_view(ugraph, window_sz, flag);
     wsstreamh->wsstream_func = func;
     wsstreamh->algo_meta = 0;
     

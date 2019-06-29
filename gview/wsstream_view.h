@@ -72,7 +72,7 @@ struct wsnap_t : public gview_t<T> {
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
-    void init_view(pgraph_t<T>* pgraph, index_t window_sz, bool simple, bool priv, bool stale);
+    void init_view(pgraph_t<T>* pgraph, index_t window_sz, index_t flag);
     void create_degreesnap();
     void create_degreesnapd();
 };
@@ -117,7 +117,7 @@ class wsstream_t : public wsnap_t<T> {
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
     
-    void init_wsstream_view(pgraph_t<T>* pgraph, index_t window_sz, bool simple, bool priv, bool stale);
+    void init_wsstream_view(pgraph_t<T>* pgraph, index_t window_sz, index_t flag);
     status_t update_view();
     
     void update_degreesnap();
@@ -184,7 +184,7 @@ void wsnap_t<T>::create_degreesnapd()
 }
 
 template <class T>
-void wsnap_t<T>::init_view(pgraph_t<T>* ugraph, index_t window_sz1, bool simple, bool priv, bool stale)
+void wsnap_t<T>::init_view(pgraph_t<T>* ugraph, index_t window_sz1, index_t a_flag)
 {
     pgraph  = ugraph;
     snapshot1 = pgraph->get_snapshot();
@@ -203,16 +203,7 @@ void wsnap_t<T>::init_view(pgraph_t<T>* ugraph, index_t window_sz1, bool simple,
     v_count = g->get_type_scount();
     
     window_sz = window_sz1;
-    if (stale) {
-        SET_STALE(flag);
-    }
-    if (priv) {
-        SET_PRIVATE(flag);
-    }
-    if (simple) {
-        SET_SIMPLE(flag);
-    }
-    
+    flag = a_flag; 
     graph_out = ugraph->sgraph_out[0];
     
     degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
@@ -233,9 +224,9 @@ void wsnap_t<T>::init_view(pgraph_t<T>* ugraph, index_t window_sz1, bool simple,
 
 template <class T>
 void wsstream_t<T>::init_wsstream_view(pgraph_t<T>* ugraph, index_t window_sz1, 
-                                       bool simple, bool priv, bool stale)
+                                       index_t flag)
 {
-    this->init_view(ugraph, window_sz1, simple, priv, stale);
+    this->init_view(ugraph, window_sz1, flag);
     
     if (graph_out == graph_in) {
         bitmap_in = bitmap_out;

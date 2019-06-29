@@ -22,8 +22,6 @@ class sstream_t : public snap_t<T> {
 
     Bitmap*  bitmap_in;
     Bitmap*  bitmap_out;
- public:
-    typename callback<T>::sfunc   sstream_func; 
 
  public:
     inline sstream_t(): snap_t<T>() {
@@ -41,9 +39,9 @@ class sstream_t : public snap_t<T> {
         }
     }
     
-    inline void init_sstream_view(pgraph_t<T>* pgraph, bool simple, bool priv, bool stale, index_t v_or_e_centric)
+    inline void init_sstream_view(pgraph_t<T>* pgraph, index_t a_flag) 
     {
-        this->init_view(pgraph, simple, priv, stale, v_or_e_centric);
+        this->init_view(pgraph, a_flag);
         
         bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {
@@ -68,7 +66,6 @@ class sstream_t : public snap_t<T> {
     
     inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
     inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
-   
 };
 
 template <class T>

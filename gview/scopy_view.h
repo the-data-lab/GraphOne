@@ -37,7 +37,11 @@ template <class T>
 class scopy_client_t : public gview_t<T> {
  public:
     pgraph_t<T> pgraph;
-
+    onegraph_t<T>* graph_in;
+    onegraph_t<T>* graph_out;
+    index_t flag;
+ 
+ public:
     status_t    update_view();
  private:
     void  apply_view();

@@ -155,7 +155,7 @@ void parse_dns15_file(FILE* file, char* buf)
         dns15->batch_edge(edge);
         
         ++line_count;
-        if (line_count == 10000000) break;
+        //if (line_count == 10000000) break;
     }
     cout << "dns=" << line_count << endl;
 }
@@ -190,7 +190,7 @@ void parse_flow15_file(FILE* file, char* buf)
         flow15->batch_edge(edge);
         
         ++line_count;
-        if (line_count == 10000000) break;
+        //if (line_count == 10000000) break;
     }
     cout << "flow=" << line_count << endl;
 }
@@ -225,7 +225,7 @@ void parse_proc15_file(FILE* file, char* buf)
         proc15->batch_edge(edge);    
         
         ++line_count;
-        if (line_count == 10000000) break;
+        //if (line_count == 10000000) break;
     }
     cout << "proc=" << line_count << endl;
 }
@@ -280,7 +280,7 @@ void parse_auth15_file(FILE* file, char* buf1)
         auth15->batch_edge(edge);    
         
         ++line_count;
-        if (line_count == 10000000) break;
+        //if (line_count == 10000000) break;
     }
     cout << "atuh=" << line_count << endl;
 }
@@ -355,9 +355,10 @@ void prep_graph_lanl15(const string& idirname, const string& odirname)
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     //---------
-    //g->store_graph_baseline();
-    //end = mywtime();
-    //cout << "Store graph time = " << end - start << endl;
+    g->store_graph_baseline();
+    end = mywtime();
+    cout << "Store graph time = " << end - start << endl;
+    
 }
 
 void lanl15_test0(const string& idir, const string& odir)

@@ -531,13 +531,6 @@ void plaingraph_manager_t<T>::waitfor_archive_durable(double start)
     }
 }
 
-template<class T>
-void* sstream_func(void* arg) 
-{
-    sstream_t<T>* sstreamh = (sstream_t<T>*)arg;
-    sstreamh->sstream_func(sstreamh);
-    return 0;
-}
 
 template <class T>
 void plaingraph_manager_t<T>::prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh)
@@ -627,7 +620,7 @@ template <class T>
 void plaingraph_manager_t<T>::run_pr() 
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
-    snap_t<T>* snaph = create_static_view(pgraph, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph, STALE_MASK|V_CENTRIC);
     
     mem_pagerank<T>(snaph, 5);
     delete_static_view(snaph);
@@ -638,7 +631,7 @@ void plaingraph_manager_t<T>::run_pr_simple()
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
     double start = mywtime();
-    snap_t<T>* snaph = create_static_view(pgraph, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph, STALE_MASK|V_CENTRIC);
     double end = mywtime();
     cout << "static View creation = " << end - start << endl;    
     
@@ -654,7 +647,7 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
     
     start = mywtime();
-    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
     end = mywtime();
     cout << "static View creation = " << end - start << endl;    
     
@@ -680,7 +673,7 @@ template <class T>
 void plaingraph_manager_t<T>::run_1hop()
 {
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
-    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
     mem_hop1<T>(snaph);
     delete_static_view(snaph);
 }
@@ -689,7 +682,7 @@ template <class T>
 void plaingraph_manager_t<T>::run_2hop()
 {
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
-    snap_t<T>* snaph = create_static_view(pgraph1, true, true, true);
+    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
     mem_hop2<T>(snaph);
     delete_static_view(snaph);
 }
