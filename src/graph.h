@@ -11,6 +11,8 @@ extern index_t residue;
 
 //Required for exiting from the streaming computation
 extern index_t _edge_count;
+    
+extern int _numtasks, _rank;
 
 ////////////main class/////////////////////
 class graph {
@@ -44,7 +46,6 @@ class graph {
 	tid_t get_tid(const char* type);
     sid_t type_update(const string& src, const string& dst);
     sid_t type_update(const string& src, tid_t tid = 0);
-    void  type_done();
     sid_t get_sid(const char* src);
     void  type_store(const string& odir);
 

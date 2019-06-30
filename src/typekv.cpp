@@ -182,8 +182,10 @@ void typekv_t::make_graph_baseline()
 
 void typekv_t::file_open(const string& dir, bool trunc) 
 {
+    string filename = dir + col_info[0]->p_name;
     string vtfile;
-    vtfile = dir + col_info[0]->p_name + ".vtable";
+    
+    vtfile = filename + ".vtable";
 
     if(trunc) {
 		//vtf = open(vtfile.c_str(), O_RDWR|O_CREAT|O_TRUNC, S_IRWXU);
@@ -193,6 +195,9 @@ void typekv_t::file_open(const string& dir, bool trunc)
 		//vtf = open(vtfile.c_str(), O_RDWR|O_CREAT, S_IRWXU);
 		vtf = fopen(vtfile.c_str(), "r+");
 		assert(vtf != 0); 
+    }
+    for (tid_t t = 0; t < t_count; ++t) {
+        t_info[t].strkv.file_open(filename, trunc);
     }
 }
 
@@ -256,8 +261,6 @@ typekv_t::typekv_t():cfinfo_t(etype)
 //Required to be called as we need to have a guess for max v_count
 tid_t typekv_t::manual_setup(vid_t vert_count, bool create_vert, const string& type_name/*="gtype"*/)
 {
-    string filename = g->odirname + col_info[0]->p_name;
-    
     str2enum[type_name.c_str()] = t_count;
     t_info[t_count].type_name = strdup(type_name.c_str());
 
@@ -268,7 +271,6 @@ tid_t typekv_t::manual_setup(vid_t vert_count, bool create_vert, const string& t
     }
     t_info[t_count].max_vcount = vert_count;
     t_info[t_count].strkv.setup(t_count, vert_count);
-    t_info[t_count].strkv.file_open(filename, true);
     return t_count++;//return the tid of this type
 }
 

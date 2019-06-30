@@ -18,6 +18,7 @@ void darshan_test0(const string& conf_file, const string& idir, const string& od
 
 graph* g;
 int THD_COUNT = 0;
+int _numtasks = 0, _rank = 0;
 
 void ontology_lubm();
 void fill_lubm_inference_type();
@@ -48,6 +49,12 @@ int main(int argc, char* argv[])
     int convert = -1;
 	vid_t v_count = 0;
     int job = 0;
+
+#ifdef _MPI    
+    MPI_Init(&argc,&argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &_numtasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
+#endif
 
     //Thread thing
 	THD_COUNT = omp_get_max_threads()-1;// - 3;

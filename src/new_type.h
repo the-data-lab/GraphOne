@@ -13,22 +13,25 @@ status_t create_MPI_datatype(T* type, MPI_Datatype& data_type)
 inline status_t free_MPI_datatype(MPI_Datatype& data_type)
 {
     MPI_Type_free(&data_type);
+    return eOK;
 }
 
 template<>
 inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type)
 {
     //create contiguous derived data type
-    int SIZE = 2;
+    //int SIZE = 1;
 #ifdef B32
-    MPI_Type_contiguous(SIZE, MPI_UINT32_T, &data_type);
+    data_type = MPI_UINT32_T; 
+    //MPI_Type_contiguous(SIZE, MPI_UINT32_T, &data_type);
 #elif B64
-    MPI_Type_contiguous(SIZE, MPI_UINT64_T, &data_type);
+    data_type = MPI_UINT64_T; 
+    //MPI_Type_contiguous(SIZE, MPI_UINT64_T, &data_type);
 #else
     assert(0);
 #endif
 
-    MPI_Type_commit(&data_type);
+    //MPI_Type_commit(&data_type);
     return eOK;
 }
 #endif

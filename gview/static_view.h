@@ -10,8 +10,6 @@ class snap_t : public gview_t <T> {
     degree_t*        degree_out;
     degree_t*        degree_in;
 
-    snapshot_t*      snapshot;
-    
     edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
     
@@ -19,14 +17,16 @@ class snap_t : public gview_t <T> {
     edgeT_t<T>*      new_edges;//New edges
     index_t          new_edge_count;//Their count
 
-    vid_t            v_count;
-    int              flag;
+ 
  public:
-    pgraph_t<T>*     pgraph;  
-    typename callback<T>::sfunc   sstream_func; 
-    void*    algo_meta;//algorithm specific data
-    pthread_t thread;
-
+    using gview_t<T>::pgraph;
+    using gview_t<T>::snapshot;
+    using gview_t<T>::sstream_func;
+    using gview_t<T>::thread;
+    using gview_t<T>::algo_meta;
+    using gview_t<T>::v_count;
+    using gview_t<T>::flag;
+ 
  public:
     inline snap_t() {
         pgraph = 0;
@@ -55,7 +55,6 @@ class snap_t : public gview_t <T> {
     degree_t get_nebrs_in (vid_t vid, T* ptr);
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
-    vid_t    get_vcount() { return v_count;};     
     
     delta_adjlist_t<T>* get_nebrs_archived_out(vid_t);
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);

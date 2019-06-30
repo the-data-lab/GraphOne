@@ -12,6 +12,7 @@
 
 #include "stream_analytics.h"
 #include "sstream_analytics.h"
+#include "scopy_analytics.h"
 
 
 using namespace std;
@@ -1239,16 +1240,19 @@ void test_ingestion_memory(const string& idir, const string& odir)
         cout << "local delta size  << " << residue << endl; 
     }
     plaingraph_manager_t<T> manager;
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    
     manager.schema_plaingraph();
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, false);   
-    manager.prep_graph(idir, odir); 
+    manager.setup_graph_memory(v_count);    
     
-    manager.run_bfs();    
-    pgraph_t<T>* graph = manager.get_plaingraph();
+    //g->create_threads(true, false);   
+    //manager.prep_graph(idir, odir);
+
+   
+    manager.run_bfs();
     double start = mywtime();
-    graph->compress_graph_baseline();
+    pgraph->compress_graph_baseline();
     double end = mywtime();
     cout << "Compress time = " << end - start << endl;
     manager.run_bfs();
@@ -1392,24 +1396,61 @@ void multi_stream_bfs(const string& idir, const string& odir,
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph_memory(v_count);    
+    g->create_threads(true, false);   
     
     sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
     
     for (int i = 0; i < count; ++i) {
-        sstreamh[i] = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD, (void*)(i+1));
+        sstreamh[i] = reg_sstream_view(pgraph, stream_fn, 
+                            STALE_MASK|V_CENTRIC|C_THREAD, (void*)(i+1));
     }
     
     //CorePin(0);
     manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
-    
-    for (int i = 0; i < count; ++i) { 
+
+    for (int i = 0; i < count; ++i) {
         void* ret;
         pthread_join(sstreamh[i]->thread, &ret);
     }
+    
+}
+
+template <class T>
+void serial_scopy_bfs(const string& idir, const string& odir,
+               typename callback<T>::sfunc stream_fn,
+               typename callback<T>::sfunc scopy_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph_memory(v_count);    
+    
+#ifdef _MPI
+
+    if (_rank == 0) {
+        //g->create_threads(true, false);   
+        //create scopy_server
+        scopy_server_t<T>* scopyh = reg_scopy_server(pgraph, scopy_fn, 
+                                            STALE_MASK|V_CENTRIC|C_THREAD);
+        //CorePin(0);
+        manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+        void* ret;
+        pthread_join(scopyh->thread, &ret);
+        usleep(100000000);
+
+    } else {
+        //create scopy_client
+        scopy_client_t<T>* sclienth = reg_scopy_client(pgraph, stream_fn, 
+                                                STALE_MASK|V_CENTRIC|C_THREAD);
+        void* ret;
+        pthread_join(sclienth->thread, &ret);
+    
+    }
+#endif
 }
 
 template <class T>
@@ -1597,8 +1638,11 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 44://generate kickstarter files
             gen_kickstarter_files<sid_t>(idir, odir);
             break;
-        case 94:
+        case 93:
             stream_netflow_aggregation(idir, odir);
+            break;
+        case 94:
+            serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);
             break;
         case 95:
             multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);

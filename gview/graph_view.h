@@ -40,7 +40,7 @@ class vert_table_t;
 template<class T>
 void* sstream_func(void* arg) 
 {
-    snap_t<T>* sstreamh = (snap_t<T>*)arg;
+    gview_t<T>* sstreamh = (gview_t<T>*)arg;
     sstreamh->sstream_func(sstreamh);
     return 0;
 }
@@ -102,6 +102,13 @@ scopy_server_t<T>* reg_scopy_server(pgraph_t<T>* ugraph,
     sstreamh->sstream_func = func;
     sstreamh->algo_meta = 0;
     
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created scopy_server thread" << endl;
+    }
+    
     return sstreamh;
 }
 
@@ -112,14 +119,20 @@ void unreg_scopy_server(scopy_server_t<T>* sstreamh)
 }
 
 template <class T>
-scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
-                              index_t flag)
+scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, 
+                        typename callback<T>::sfunc func, index_t flag)
 {
     scopy_client_t<T>* sstreamh = new scopy_client_t<T>;
     
-    sstreamh->init_sstream_view(ugraph, flag);
+    sstreamh->init_view(ugraph, flag);
     sstreamh->sstream_func = func;
-    sstreamh->algo_meta = 0;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created scopy_client thread" << endl;
+    }
     
     return sstreamh;
 }

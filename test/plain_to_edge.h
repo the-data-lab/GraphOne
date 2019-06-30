@@ -170,7 +170,6 @@ void plaingraph_manager_t<T>::setup_graph(vid_t v_count)
     //do some setup for plain graphs
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, true);
-    g->type_done();
     g->prep_graph_baseline();
     g->file_open(true);
 }
@@ -181,7 +180,6 @@ void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count)
     //do some setup for plain graphs
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, false);
-    g->type_done();
     g->prep_graph_baseline();
     g->file_open(true);
 }
@@ -192,8 +190,7 @@ void plaingraph_manager_t<T>::setup_graph_memory(vid_t v_count)
     //do some setup for plain graphs
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, true);
-    //g->file_open(true);
-    //g->prep_graph_baseline();
+    g->prep_graph_baseline();
     //g->file_open(true);
 }
 
