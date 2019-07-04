@@ -52,6 +52,8 @@ class scopy1d_client_t : public sstream_t<T> {
     using sstream_t<T>::graph_out;
     using sstream_t<T>::degree_in;
     using sstream_t<T>::degree_out;
+    using sstream_t<T>::bitmap_in;
+    using sstream_t<T>::bitmap_out;
 
  public:
     vid_t v_offset;
@@ -71,7 +73,7 @@ class scopy1d_client_t : public sstream_t<T> {
 template <class T>
 void scopy1d_server_t<T>::update_degreesnap()
 {
-
+    cout << "entering server update_view() " << endl;
 #pragma omp parallel num_threads(part_count)
 {
     index_t changed_v = 0;
@@ -147,8 +149,10 @@ void scopy1d_server_t<T>::update_degreesnap()
         //cout << "V = " << v << endl;
         MPI_Pack(local_adjlist, delta_count, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
     }
+    cout << " sending to rank " << tid + 1 << endl;
     MPI_Send(buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
 }
+    cout << "leaving server update_view() " << endl;
 }
 
 template <class T>
@@ -226,7 +230,7 @@ void scopy1d_client_t<T>::apply_view()
     char*    buf = 0;
     MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    cout << "MPI_get count = " << buf_size << endl;
+    cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
     buf = (char*)malloc(buf_size*sizeof(char));
 
     int position = 0;
@@ -265,12 +269,13 @@ void scopy1d_client_t<T>::apply_view()
             local_adjlist = (T*)malloc(prior_sz*sizeof(T));
         }
         MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
-        //cout << vid << endl;
-        graph_out->increment_count_noatomic(vid - v_offset, delta_count);
-        graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
+        //cout << " Rank " << _rank << " " << vid << " " << v_offset << endl;
+        graph_out->increment_count_noatomic(vid, delta_count);
+        graph_out->add_nebr_bulk(vid, local_adjlist, delta_count);
 
         //Update the degree of the view
-        degree_out[vid-v_offset] += delta_count;
+        degree_out[vid] += delta_count;
+        bitmap_out->set_bit(vid);
 
     }
     pgraph->new_snapshot(archive_marker);
@@ -287,11 +292,14 @@ void scopy1d_client_t<T>::apply_viewd()
 template <class T>
 void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
+    sstream_t<T>::init_view(ugraph, a_flag);
+
     local_vcount = (v_count/(_numtasks - 1));
     v_offset = (_rank - 1)*local_vcount;
     if (_rank == _numtasks - 1) {//last rank
         local_vcount = v_count - v_offset;
     }
+    /*
     snapshot = 0;
     v_count = g->get_type_scount();
     pgraph  = ugraph;
@@ -302,6 +310,6 @@ void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
         graph_in   = graph_out;
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
-    }
+    }*/
 }
 #endif

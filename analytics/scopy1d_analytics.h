@@ -4,44 +4,25 @@
 template<class T>
 void scopy1d_serial_bfs(gview_t<T>* viewh)
 {
-    cout << "Client Started" << endl;
+    cout << " Rank " << _rank <<" SCopy1D Client Started" << endl;
     scopy1d_client_t<T>* sstreamh = dynamic_cast<scopy1d_client_t<T>*>(viewh);
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
     vid_t        v_count = sstreamh->get_vcount();
 
-    // extract the original group handle
-    int group_count = _numtasks - 1;
-    int *ranks1 = (int*)malloc(sizeof(int)*group_count);
-
-    for (int i = 0; i < group_count; ++i) {
-        ranks1[i] = i+1;
-    }
-    MPI_Group  orig_group, new_group;
-    MPI_Comm   new_comm;  
-    
-    MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-    if (_rank > 0) {
-        MPI_Group_incl(orig_group, _numtasks - 1, ranks1, &new_group);
-    }
-
-    //create new communicator 
-    MPI_Comm_create(MPI_COMM_WORLD, new_group, &new_comm);
-
     scopy1d_client_t<T>* snaph = sstreamh;
     
-    //cout << "starting BFS" << endl;
     uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
     memset(status, 255, v_count);
 
     sid_t    root   = 1;
     uint8_t  level  = 0;
-    sid_t  frontier = 0;
+    index_t  frontier = 0;
     status[root] = level;
     int update_count = 0;
     
     double start = mywtime();
     double end = 0;
-
+    
     usleep(10000);
 
     
@@ -59,7 +40,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
         start = mywtime();
 	    do {
 		    frontier = 0;
-		    #pragma omp parallel reduction(+:frontier)
+		    #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
 		    {
             sid_t sid;
             uint8_t level = 0;
@@ -68,11 +49,11 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
             #pragma omp for nowait
-            for (vid_t v = 0; v < snaph->local_vcount; v++) {
+            for (vid_t v = snaph->v_offset; v < snaph->v_offset + snaph->local_vcount; v++) {
                 if(false == snaph->has_vertex_changed_out(v) || status[v] == 255) continue;
                 snaph->reset_vertex_changed_out(v);
 
-                nebr_count = snaph->get_degree_out(v+snaph->v_offset);
+                nebr_count = snaph->get_degree_out(v);
                 if (nebr_count == 0) {
                     continue;
                 } else if (nebr_count > prior_sz) {
@@ -82,7 +63,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
                 }
 
                 level = status[v];
-                snaph->get_nebrs_out(v+snaph->v_offset, local_adjlist);
+                snaph->get_nebrs_out(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
                     sid = get_nebr(local_adjlist, i);
@@ -96,9 +77,10 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
             }
             }
             //Finalize the iteration
-            MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, new_comm);
+            MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
             MPI_Allreduce(MPI_IN_PLACE, snaph->bitmap_out->get_start(), snaph->bitmap_out->get_size(),
-                          MPI_UINT64_T, MPI_BOR, new_comm);
+                          MPI_UINT64_T, MPI_BOR, _analytics_comm);
+            MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
         } while (frontier);
 		
         end = mywtime();
@@ -121,7 +103,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
 template<class T>
 void scopy1d_server(gview_t<T>* viewh)
 {
-    scopy_server_t<T>* sstreamh = dynamic_cast<scopy_server_t<T>*>(viewh);
+    scopy1d_server_t<T>* sstreamh = dynamic_cast<scopy1d_server_t<T>*>(viewh);
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
     vid_t        v_count = sstreamh->get_vcount();
     
@@ -132,7 +114,7 @@ void scopy1d_server(gview_t<T>* viewh)
     index_t marker = 0; 
     int update_count = 1;
     
-    cout << "Copy Started" << endl;
+    cout << "SCopy1d Server Started" << endl;
     
     while (pgraph->get_archived_marker() < _edge_count) {
         marker = beg_marker + update_count*batch_size;
@@ -149,5 +131,6 @@ void scopy1d_server(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    cout << "update_count = " << update_count << endl;
+    cout << " RANK" << _rank 
+         << " update_count = " << update_count << endl;
 }

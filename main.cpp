@@ -19,6 +19,9 @@ void darshan_test0(const string& conf_file, const string& idir, const string& od
 graph* g;
 int THD_COUNT = 0;
 int _numtasks = 0, _rank = 0;
+#ifdef _MPI
+MPI_Comm   _analytics_comm;
+#endif
 
 void ontology_lubm();
 void fill_lubm_inference_type();
@@ -134,6 +137,9 @@ int main(int argc, char* argv[])
         default:
             break;
     }
+#ifdef _MPI    
+    MPI_Finalize();
+#endif
 
     return 0;
 }

@@ -13,6 +13,9 @@ extern index_t residue;
 extern index_t _edge_count;
     
 extern int _numtasks, _rank;
+#ifdef _MPI
+extern MPI_Comm   _analytics_comm;
+#endif
 
 ////////////main class/////////////////////
 class graph {

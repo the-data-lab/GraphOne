@@ -114,6 +114,31 @@ scopy_server_t<T>* reg_scopy_server(pgraph_t<T>* ugraph,
 }
 
 template <class T>
+scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, 
+                        typename callback<T>::sfunc func, index_t flag)
+{
+    scopy_client_t<T>* sstreamh = new scopy_client_t<T>;
+    
+    sstreamh->init_view(ugraph, flag);
+    sstreamh->sstream_func = func;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        cout << "created scopy_client thread" << endl;
+    }
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_scopy_client(scopy_client_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
 void unreg_scopy_server(scopy_server_t<T>* sstreamh)
 {
     delete sstreamh;
@@ -145,32 +170,6 @@ void unreg_scopy1d_server(scopy1d_server_t<T>* sstreamh)
     delete sstreamh;
 }
 
-
-template <class T>
-scopy_client_t<T>* reg_scopy_client(pgraph_t<T>* ugraph, 
-                        typename callback<T>::sfunc func, index_t flag)
-{
-    scopy_client_t<T>* sstreamh = new scopy_client_t<T>;
-    
-    sstreamh->init_view(ugraph, flag);
-    sstreamh->sstream_func = func;
-    
-    if (IS_THREAD(flag)) {
-        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
-            assert(0);
-        }
-        cout << "created scopy_client thread" << endl;
-    }
-    
-    return sstreamh;
-}
-
-template <class T>
-void unreg_scopy_client(scopy_client_t<T>* sstreamh)
-{
-    delete sstreamh;
-}
-
 template <class T>
 scopy1d_client_t<T>* reg_scopy1d_client(pgraph_t<T>* ugraph, 
                         typename callback<T>::sfunc func, index_t flag)
@@ -184,7 +183,7 @@ scopy1d_client_t<T>* reg_scopy1d_client(pgraph_t<T>* ugraph,
         if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
             assert(0);
         }
-        cout << "created scopy_client thread" << endl;
+        cout << "created scopy1d_client thread" << endl;
     }
     
     return sstreamh;
