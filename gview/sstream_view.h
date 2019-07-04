@@ -20,6 +20,7 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::v_count;
     using snap_t<T>::flag;
 
+ public:   
     Bitmap*  bitmap_in;
     Bitmap*  bitmap_out;
 
@@ -39,9 +40,9 @@ class sstream_t : public snap_t<T> {
         }
     }
     
-    inline void init_sstream_view(pgraph_t<T>* pgraph, index_t a_flag) 
+    inline void init_view(pgraph_t<T>* pgraph, index_t a_flag) 
     {
-        this->init_view(pgraph, a_flag);
+        snap_t<T>::init_view(pgraph, a_flag);
         
         bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {

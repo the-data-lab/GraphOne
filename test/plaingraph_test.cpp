@@ -13,6 +13,7 @@
 #include "stream_analytics.h"
 #include "sstream_analytics.h"
 #include "scopy_analytics.h"
+#include "scopy1d_analytics.h"
 
 
 using namespace std;
@@ -1454,6 +1455,41 @@ void serial_scopy_bfs(const string& idir, const string& odir,
 }
 
 template <class T>
+void serial_scopy1d_bfs(const string& idir, const string& odir,
+               typename callback<T>::sfunc stream_fn,
+               typename callback<T>::sfunc scopy_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph_memory(v_count);    
+    
+#ifdef _MPI
+
+    if (_rank == 0) {
+        //g->create_threads(true, false);   
+        //create scopy_server
+        scopy1d_server_t<T>* scopyh = reg_scopy1d_server(pgraph, scopy_fn, 
+                                            STALE_MASK|V_CENTRIC|C_THREAD);
+        //CorePin(0);
+        manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+        void* ret;
+        pthread_join(scopyh->thread, &ret);
+        usleep(100000000);
+
+    } else {
+        //create scopy_client
+        scopy1d_client_t<T>* sclienth = reg_scopy1d_client(pgraph, stream_fn, 
+                                                STALE_MASK|V_CENTRIC|C_THREAD);
+        void* ret;
+        pthread_join(sclienth->thread, &ret);
+    
+    }
+#endif
+}
+
+template <class T>
 void test_serial_stream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
@@ -1638,8 +1674,11 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 44://generate kickstarter files
             gen_kickstarter_files<sid_t>(idir, odir);
             break;
-        case 93:
+        case 45:
             stream_netflow_aggregation(idir, odir);
+            break;
+        case 93:
+            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_serial_bfs, scopy1d_server);
             break;
         case 94:
             serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);

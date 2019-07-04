@@ -76,6 +76,12 @@ class Bitmap {
     end_ = start_ + num_words;
   }
 
+  inline size_t get_size() {
+      return end_ - start_;
+  }
+  inline uint64_t* get_start() {
+      return start_;
+  }
   inline ~Bitmap() {
       //if (-1 == munmap(start_, sizeof(uint64_t)* (end_ - start_))) {
       //}

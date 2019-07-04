@@ -29,10 +29,6 @@ class snap_t : public gview_t <T> {
  
  public:
     inline snap_t() {
-        pgraph = 0;
-        flag = 0;
-        v_count = 0;
-        algo_meta = 0;
         new_edges = 0;
         new_edge_count = 0;
     }
@@ -43,12 +39,6 @@ class snap_t : public gview_t <T> {
             delete degree_out;
             delete degree_in;
         }
-    }
-    inline void set_algometa(void* a_meta) {algo_meta = a_meta;}
-    inline void* get_algometa() {return algo_meta;}
-    inline index_t get_snapmarker() {
-        if (snapshot) return snapshot->marker;
-        return 0;
     }
 
     degree_t get_nebrs_out(vid_t vid, T* ptr);
@@ -64,7 +54,6 @@ class snap_t : public gview_t <T> {
     status_t update_view();
     void create_degreesnap();
     void create_degreesnapd();
-    inline int  get_snapid() {return snapshot->snap_id;}
 };
 
 template <class T>

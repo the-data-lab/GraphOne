@@ -2,11 +2,14 @@
 
 #include "sstream_view.h"
 
+#ifdef _MPI
+
 template <class T>
-class scopy_server_t : public sstream_t<T> {
+class scopy1d_server_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
-
+    using sstream_t<T>::sstream_func;
+    int   part_count;
  protected:
     using sstream_t<T>::degree_in;
     using sstream_t<T>::degree_out;
@@ -21,12 +24,14 @@ class scopy_server_t : public sstream_t<T> {
     using sstream_t<T>::flag;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::bitmap_out;
- public:
-    using sstream_t<T>::sstream_func;
 
  public:
-    inline scopy_server_t():sstream_t<T>() {}
-    inline ~scopy_server_t() {}
+    inline scopy1d_server_t():sstream_t<T>() {
+        part_count = 0;
+    }
+    inline ~scopy1d_server_t() {}
+
+    void        init_view(pgraph_t<T>* pgraph, index_t a_flag);
     status_t    update_view();
  
  private:   
@@ -35,58 +40,65 @@ class scopy_server_t : public sstream_t<T> {
 };
 
 template <class T>
-class scopy_client_t : public gview_t<T> {
+class scopy1d_client_t : public sstream_t<T> {
  public:
-    using gview_t<T>::pgraph;
-    using gview_t<T>::snapshot;
-    using gview_t<T>::sstream_func; 
-    using gview_t<T>::thread;
-    using gview_t<T>::v_count;
-    using gview_t<T>::flag;
+    using sstream_t<T>::pgraph;
+    using sstream_t<T>::snapshot;
+    using sstream_t<T>::sstream_func; 
+    using sstream_t<T>::thread;
+    using sstream_t<T>::v_count;
+    using sstream_t<T>::flag;
+    using sstream_t<T>::graph_in;
+    using sstream_t<T>::graph_out;
+    using sstream_t<T>::degree_in;
+    using sstream_t<T>::degree_out;
 
- protected:
-    onegraph_t<T>* graph_in;
-    onegraph_t<T>* graph_out;
+ public:
+    vid_t v_offset;
+    vid_t local_vcount;
  
  public:
-    inline scopy_client_t():gview_t<T>() {}
-    inline ~scopy_client_t() {}
-    void    init_view(pgraph_t<T>* ugraph, index_t a_flag); 
-    status_t   update_view();
+    inline    scopy1d_client_t():sstream_t<T>() {}
+    inline    ~scopy1d_client_t() {}
+   
+    void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
+    status_t  update_view();
  private:
     void  apply_view();
     void  apply_viewd();
 };
 
 template <class T>
-void scopy_server_t<T>::update_degreesnap()
+void scopy1d_server_t<T>::update_degreesnap()
+{
+
+#pragma omp parallel num_threads(part_count)
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
+    degree_t nebr_count = 0;
+    degree_t  old_count = 0;
+    snapid_t    snap_id = snapshot->snap_id;
 
-    #pragma omp parallel num_threads(THD_COUNT) reduction(+:changed_v) reduction(+:changed_e)
-    {
-        degree_t nebr_count = 0;
-        degree_t  old_count = 0;
-        snapid_t    snap_id = 0;
-        if (snapshot) {
-            snap_id = snapshot->snap_id;
+    int tid = omp_get_thread_num();
+    vid_t v_local = v_count/part_count;
+    vid_t v_start = tid*v_local;
+    vid_t v_end =  v_start + v_local;
+    if (tid == part_count - 1) v_end = v_count;
 
-            #pragma omp for 
-            for (vid_t v = 0; v < v_count; ++v) {
-                nebr_count = graph_out->get_degree(v, snap_id);
-                old_count = degree_out[v];
-                if (degree_out[v] != nebr_count) {
-                    ++changed_v;
-                    changed_e += (nebr_count - old_count);
-                    bitmap_out->set_bit(v);
-                } else {
-                    bitmap_out->reset_bit(v);
-                }
-            }
+    #pragma omp for 
+    for (vid_t v = v_start; v < v_end; ++v) {
+        nebr_count = graph_out->get_degree(v, snap_id);
+        old_count = degree_out[v];
+        if (degree_out[v] != nebr_count) {
+            ++changed_v;
+            changed_e += (nebr_count - old_count);
+            bitmap_out->set_bit(v);
+        } else {
+            bitmap_out->reset_bit(v);
         }
     }
-#ifdef _MPI
+    
     //Lets copy the data
     int position = 0;
     int buf_size = 0;
@@ -104,13 +116,13 @@ void scopy_server_t<T>::update_degreesnap()
     MPI_Pack(&changed_v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
     MPI_Pack(&changed_e, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
     
-    degree_t nebr_count  = 0;
+    nebr_count  = 0;
+    old_count  = 0;
     degree_t delta_count = 0;
-    degree_t  old_count  = 0;
     degree_t    prior_sz = 16384;
     T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
-    for (vid_t v = 0; v < v_count; ++v) {
+    for (vid_t v = v_start; v < v_end; ++v) {
         if (false == this->has_vertex_changed_out(v)) {
             continue;
         }
@@ -135,13 +147,12 @@ void scopy_server_t<T>::update_degreesnap()
         //cout << "V = " << v << endl;
         MPI_Pack(local_adjlist, delta_count, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
     }
-    cout << "MPI_Send position" << endl;
-    MPI_Send(buf, position, MPI_PACKED, 1, 0, MPI_COMM_WORLD);
-#endif
+    MPI_Send(buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
+}
 }
 
 template <class T>
-void scopy_server_t<T>::update_degreesnapd()
+void scopy1d_server_t<T>::update_degreesnapd()
 {
     vid_t changed_v = 0;
     index_t changed_e = 0;
@@ -152,7 +163,14 @@ void scopy_server_t<T>::update_degreesnapd()
 }
 
 template <class T>
-status_t scopy_server_t<T>::update_view()
+void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag) 
+{
+    sstream_t<T>::init_view(pgraph, a_flag);
+    part_count = _numtasks - 1;
+}
+
+template <class T>
+status_t scopy1d_server_t<T>::update_view()
 {
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
@@ -186,7 +204,7 @@ status_t scopy_server_t<T>::update_view()
 }
 
 template <class T>
-status_t scopy_client_t<T>::update_view()
+status_t scopy1d_client_t<T>::update_view()
 {
     if (graph_in == graph_out) {
         apply_view();
@@ -197,12 +215,11 @@ status_t scopy_client_t<T>::update_view()
 }
 
 template <class T>
-void scopy_client_t<T>::apply_view()
+void scopy1d_client_t<T>::apply_view()
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
 
-#ifdef _MPI
     //Lets copy the data
     MPI_Status status;
     int buf_size = 0;
@@ -249,24 +266,32 @@ void scopy_client_t<T>::apply_view()
         }
         MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
         //cout << vid << endl;
-        graph_out->increment_count_noatomic(vid, delta_count);
-        graph_out->add_nebr_bulk(vid, local_adjlist, delta_count);
+        graph_out->increment_count_noatomic(vid - v_offset, delta_count);
+        graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
+
+        //Update the degree of the view
+        degree_out[vid-v_offset] += delta_count;
+
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
     cout << "Client Archive Marker = " << archive_marker << endl;
-#endif
 }
 
 template <class T>
-void scopy_client_t<T>::apply_viewd()
+void scopy1d_client_t<T>::apply_viewd()
 {
 
 }
 
 template <class T>
-void scopy_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
+void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
+    local_vcount = (v_count/(_numtasks - 1));
+    v_offset = (_rank - 1)*local_vcount;
+    if (_rank == _numtasks - 1) {//last rank
+        local_vcount = v_count - v_offset;
+    }
     snapshot = 0;
     v_count = g->get_type_scount();
     pgraph  = ugraph;
@@ -279,3 +304,4 @@ void scopy_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
         graph_in  = ugraph->sgraph_in[0];
     }
 }
+#endif

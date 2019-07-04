@@ -21,6 +21,7 @@ include_directories(include)
 include_directories(src)
 include_directories(gview)
 include_directories(onedata)
+include_directories(analytics)
 
 add_subdirectory(src)
 add_subdirectory(onedata)
