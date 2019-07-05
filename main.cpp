@@ -71,14 +71,14 @@ int main(int argc, char* argv[])
 				#elif B32
                 sscanf(optarg, "%d", &v_count);
 				#endif
-				cout << "v_count = " << v_count << endl;
+				//cout << "v_count = " << v_count << endl;
 				break;
 			case 'h':
 				cout << "Help coming soon" << endl;
 				break;
 			case 'i':
 				idir = optarg;
-				cout << "input dir = " << idir << endl;
+				//cout << "input dir = " << idir << endl;
 				break;
             case 'c':
                 convert = atoi(optarg);
@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
 				break;
 			case 'o':
 				odir = optarg;
-				cout << "output dir = " << odir << endl;
+				//cout << "output dir = " << odir << endl;
 				break;
             case 'q':
                 queryfile = optarg;
@@ -105,14 +105,14 @@ int main(int argc, char* argv[])
                 break;
             case 'r':
                 sscanf(optarg, "%ld", &residue);
-                cout << "residue (multi-purpose) value) = " << residue << endl;
+                //cout << "residue (multi-purpose) value) = " << residue << endl;
                 break;
 			default:
                 cout << "invalid input " << endl;
                 return 1;
 		}
 	}
-	cout << "Total thds = " << THD_COUNT << endl;
+	//cout << "Total thds = " << THD_COUNT << endl;
     g->set_odir(odir);
     switch (convert) {
         case 0:

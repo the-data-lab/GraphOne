@@ -1441,7 +1441,6 @@ void serial_scopy_bfs(const string& idir, const string& odir,
         manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
         void* ret;
         pthread_join(scopyh->thread, &ret);
-        usleep(100000000);
 
     } else {
         //create scopy_client
@@ -1491,7 +1490,6 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
         void* ret;
         pthread_join(scopyh->thread, &ret);
-        //usleep(100000000);
 
     } else {
         //create scopy_client

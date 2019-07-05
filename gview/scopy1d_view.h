@@ -73,7 +73,6 @@ class scopy1d_client_t : public sstream_t<T> {
 template <class T>
 void scopy1d_server_t<T>::update_degreesnap()
 {
-    cout << "entering server update_view() " << endl;
 #pragma omp parallel num_threads(part_count)
 {
     index_t changed_v = 0;
@@ -88,7 +87,6 @@ void scopy1d_server_t<T>::update_degreesnap()
     vid_t v_end =  v_start + v_local;
     if (tid == part_count - 1) v_end = v_count;
 
-    #pragma omp for 
     for (vid_t v = v_start; v < v_end; ++v) {
         nebr_count = graph_out->get_degree(v, snap_id);
         old_count = degree_out[v];
@@ -149,10 +147,15 @@ void scopy1d_server_t<T>::update_degreesnap()
         //cout << "V = " << v << endl;
         MPI_Pack(local_adjlist, delta_count, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
     }
-    cout << " sending to rank " << tid + 1 << endl;
+    /*
+    cout << " sending to rank " << tid + 1 << " = "<< v_start << ":"<< v_end 
+         << " size "<< position 
+         << " changed v " << changed_v
+         << " changed e " << changed_e
+         << endl;
+         */
     MPI_Send(buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
 }
-    cout << "leaving server update_view() " << endl;
 }
 
 template <class T>
@@ -230,7 +233,7 @@ void scopy1d_client_t<T>::apply_view()
     char*    buf = 0;
     MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+    //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
     buf = (char*)malloc(buf_size*sizeof(char));
 
     int position = 0;
@@ -280,7 +283,13 @@ void scopy1d_client_t<T>::apply_view()
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-    cout << "Client Archive Marker = " << archive_marker << endl;
+    /*
+    cout << "Client Archive Marker = " << archive_marker 
+         << " size "<< position 
+         << " changed v " << changed_v
+         << " changed e " << changed_e
+         << endl;
+         */
 }
 
 template <class T>
