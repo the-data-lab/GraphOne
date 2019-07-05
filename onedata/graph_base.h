@@ -66,6 +66,7 @@ public:
     void  file_open(const string& filename, bool trunc);
     
     
+    inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
         vunit_t<T>* v_unit = get_vunit(vid);

@@ -226,6 +226,7 @@ void scopy1d_client_t<T>::apply_view()
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
+    bitmap_out->reset();
 
     //Lets copy the data
     MPI_Status status;

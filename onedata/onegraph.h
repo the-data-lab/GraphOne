@@ -129,6 +129,18 @@ void onegraph_t<T>::add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count)
     vunit_t<T>* v_unit = get_vunit(vid); 
     delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
     #ifndef BULK 
+    //First add whatever spaces are left
+    if (adj_list1 != 0) {
+        degree_t left_space = adj_list1->get_maxcount() - adj_list1->get_nebrcount();
+        if (left_space < count) { 
+            adj_list1->add_nebr_bulk(adj_list2, left_space);
+            adj_list2 += left_space;
+            count -= left_space; 
+        } else {
+            adj_list1->add_nebr_bulk(adj_list2, count);
+            return;
+        }
+    }
     if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
         
         delta_adjlist_t<T>* adj_list = 0;

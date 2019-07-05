@@ -132,10 +132,15 @@ void scopy_server_t<T>::update_degreesnap()
         MPI_Pack(&v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
         MPI_Pack(&delta_count, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
 #endif
-        //cout << "V = " << v << endl;
+        /*if (v == 0) {
+            cout << v << ":" << old_count << "-" << delta_count << endl;
+            for (degree_t i = 0; i < delta_count; ++i) {
+                cout << "  " << local_adjlist[i]; 
+            }
+        }*/
         MPI_Pack(local_adjlist, delta_count, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
     }
-    cout << "MPI_Send position" << endl;
+    cout << " MPI_Send position" << endl;
     MPI_Send(buf, position, MPI_PACKED, 1, 0, MPI_COMM_WORLD);
 #endif
 }
@@ -201,6 +206,7 @@ void scopy_client_t<T>::apply_view()
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
+    graph_out->set_snapid(pgraph->snap_id + 1);
 
 #ifdef _MPI
     //Lets copy the data
@@ -249,12 +255,21 @@ void scopy_client_t<T>::apply_view()
         }
         MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
         //cout << vid << endl;
+        /*if (vid == 0) {
+            cout << vid << " client:" << delta_count << endl;
+            for (degree_t i = 0; i < delta_count; ++i) {
+                cout << "  " << local_adjlist[i]; 
+            }
+        }*/
         graph_out->increment_count_noatomic(vid, delta_count);
         graph_out->add_nebr_bulk(vid, local_adjlist, delta_count);
+        /*for (degree_t i = 0; i < delta_count; ++i) {
+            graph_out->add_nebr_noatomic(vid, local_adjlist[i]); 
+        }*/
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-    cout << "Client Archive Marker = " << archive_marker << endl;
+    cout << " Client Archive Marker = " << archive_marker << endl;
 #endif
 }
 
