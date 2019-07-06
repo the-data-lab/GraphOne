@@ -22,18 +22,12 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
     double start = mywtime();
     double end = 0;
     
-    usleep(10000);
-    Bitmap bitmap;
-    bitmap.init(v_count);
-    
     while (pgraph->get_snapshot_marker() < _edge_count) {
         //update the sstream view
         if (eOK != sstreamh->update_view()) {
             usleep(100);
         }
-        //snaph->update_view();
         ++update_count;
-        bitmap.copy(sstreamh->bitmap_out);
     
         start = mywtime();
 	    do {
@@ -50,9 +44,9 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
             #pragma omp for nowait
             for (vid_t v = 0; v < snaph->v_count; v++) 
             {
-                vid = v+ snaph->v_offset;
-                if(0 == bitmap.get_bit(vid) || status[vid] == 255) continue;
-                bitmap.reset_bit(vid);
+                vid = v + snaph->v_offset;
+                if(false == snaph->has_vertex_changed_out(vid) || status[vid] == 255) continue;
+                snaph->reset_vertex_changed_out(vid);
 
                 nebr_count = snaph->get_degree_out(v);
                 if (nebr_count == 0) {
@@ -70,7 +64,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
                     sid = get_nebr(local_adjlist, i);
                     if (status[sid] > level + 1) {
                         status[sid] = level + 1;
-                        bitmap.set_bit_atomic(sid);
+                        snaph->set_vertex_changed_out(sid);
                         ++frontier;
                         //cout << " " << sid << endl;
                     }
@@ -79,7 +73,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
             }
             //Finalize the iteration
             MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
-            MPI_Allreduce(MPI_IN_PLACE, bitmap.get_start(), bitmap.get_size(),
+            MPI_Allreduce(MPI_IN_PLACE, snaph->bitmap_out->get_start(), snaph->bitmap_out->get_size(),
                           MPI_UINT64_T, MPI_BOR, _analytics_comm);
             MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
         } while (frontier);

@@ -54,10 +54,9 @@ class scopy1d_client_t : public sstream_t<T> {
     using sstream_t<T>::degree_out;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::bitmap_out;
+    using sstream_t<T>::v_offset;
+    using sstream_t<T>::global_vcount;
 
- public:
-    vid_t v_offset;
-    vid_t global_vcount;
  
  public:
     inline    scopy1d_client_t():sstream_t<T>() {}
@@ -279,7 +278,7 @@ void scopy1d_client_t<T>::apply_view()
 
         //Update the degree of the view
         degree_out[vid - v_offset] += delta_count;
-        bitmap_out->set_bit(vid - v_offset);
+        bitmap_out->set_bit(vid);
 
     }
     pgraph->new_snapshot(archive_marker);
@@ -303,22 +302,5 @@ template <class T>
 void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
     sstream_t<T>::init_view(ugraph, a_flag);
-    global_vcount = _global_vcount;
-    vid_t local_vcount = (global_vcount/(_numtasks - 1));
-    v_offset = (_rank - 1)*local_vcount;
-
-    
-    /*
-    snapshot = 0;
-    v_count = g->get_type_scount();
-    pgraph  = ugraph;
-    flag = a_flag;
-    
-    graph_out = ugraph->sgraph_out[0];
-    if (ugraph->sgraph_in == ugraph->sgraph_out) {
-        graph_in   = graph_out;
-    } else if (ugraph->sgraph_in != 0) {
-        graph_in  = ugraph->sgraph_in[0];
-    }*/
 }
 #endif

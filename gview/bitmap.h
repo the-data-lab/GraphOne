@@ -65,16 +65,16 @@ class Bitmap {
     inline Bitmap(size_t size) {
         init(size);
     }
-  inline void init(size_t size) {
-    uint64_t num_words = (size + bits_per_word - 1) / bits_per_word;
+    inline void init(size_t size) {
+        uint64_t num_words = (size + bits_per_word - 1) / bits_per_word;
+        start_ = (uint64_t*)calloc(sizeof(uint64_t), num_words);
+        end_ = start_ + num_words;
 
-    //start_ = (uint64_t*)mmap(NULL, sizeof(uint64_t)*num_words, 
-    //                   PROT_READ|PROT_WRITE,
-    //                   MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0 , 0);
-    //if (MAP_FAILED == start_)
-    start_ = (uint64_t*)calloc(sizeof(uint64_t), num_words);
-    end_ = start_ + num_words;
-  }
+        //start_ = (uint64_t*)mmap(NULL, sizeof(uint64_t)*num_words, 
+        //                   PROT_READ|PROT_WRITE,
+        //                   MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0 , 0);
+        //if (MAP_FAILED == start_)
+    }
 
   inline size_t get_size() {
       return end_ - start_;
@@ -104,7 +104,6 @@ class Bitmap {
     start_[word_offset(pos)] |= ((uint64_t) 1l << bit_offset(pos));
   }
 
-  
   inline void set_bit_atomic(size_t pos) {
     uint64_t old_val, new_val;
     do {
@@ -121,9 +120,6 @@ class Bitmap {
   inline void swap(Bitmap &other) {
     std::swap(start_, other.start_);
     std::swap(end_, other.end_);
-  }
-  inline void copy(Bitmap* other) {
-    memcpy(start_, other->start_, other->get_size()*sizeof(uint64_t));
   }
 
  private:
