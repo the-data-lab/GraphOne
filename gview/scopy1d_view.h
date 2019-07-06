@@ -57,7 +57,7 @@ class scopy1d_client_t : public sstream_t<T> {
 
  public:
     vid_t v_offset;
-    vid_t local_vcount;
+    vid_t global_vcount;
  
  public:
     inline    scopy1d_client_t():sstream_t<T>() {}
@@ -234,7 +234,7 @@ void scopy1d_client_t<T>::apply_view()
     char*    buf = 0;
     MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+    cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
     buf = (char*)malloc(buf_size*sizeof(char));
 
     int position = 0;
@@ -273,24 +273,24 @@ void scopy1d_client_t<T>::apply_view()
             local_adjlist = (T*)malloc(prior_sz*sizeof(T));
         }
         MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
-        //cout << " Rank " << _rank << " " << vid << " " << v_offset << endl;
-        graph_out->increment_count_noatomic(vid, delta_count);
-        graph_out->add_nebr_bulk(vid, local_adjlist, delta_count);
+        
+        graph_out->increment_count_noatomic(vid - v_offset, delta_count);
+        graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
 
         //Update the degree of the view
-        degree_out[vid] += delta_count;
-        bitmap_out->set_bit(vid);
+        degree_out[vid - v_offset] += delta_count;
+        bitmap_out->set_bit(vid - v_offset);
 
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-    /*
+    
     cout << "Client Archive Marker = " << archive_marker 
          << " size "<< position 
          << " changed v " << changed_v
          << " changed e " << changed_e
          << endl;
-         */
+         
 }
 
 template <class T>
@@ -303,12 +303,11 @@ template <class T>
 void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
     sstream_t<T>::init_view(ugraph, a_flag);
-
-    local_vcount = (v_count/(_numtasks - 1));
+    global_vcount = _global_vcount;
+    vid_t local_vcount = (global_vcount/(_numtasks - 1));
     v_offset = (_rank - 1)*local_vcount;
-    if (_rank == _numtasks - 1) {//last rank
-        local_vcount = v_count - v_offset;
-    }
+
+    
     /*
     snapshot = 0;
     v_count = g->get_type_scount();

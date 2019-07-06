@@ -7,7 +7,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
     cout << " Rank " << _rank <<" SCopy1D Client Started" << endl;
     scopy1d_client_t<T>* sstreamh = dynamic_cast<scopy1d_client_t<T>*>(viewh);
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
-    vid_t        v_count = sstreamh->get_vcount();
+    vid_t        v_count = sstreamh->global_vcount;
 
     scopy1d_client_t<T>* snaph = sstreamh;
     
@@ -23,7 +23,8 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
     double end = 0;
     
     usleep(10000);
-
+    Bitmap bitmap;
+    bitmap.init(v_count);
     
     while (pgraph->get_snapshot_marker() < _edge_count) {
         //update the sstream view
@@ -32,6 +33,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
         }
         //snaph->update_view();
         ++update_count;
+        bitmap.copy(sstreamh->bitmap_out);
     
         start = mywtime();
 	    do {
@@ -39,16 +41,18 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
 		    #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
 		    {
             sid_t sid;
+            vid_t vid;
             uint8_t level = 0;
             degree_t nebr_count = 0;
             degree_t prior_sz = 65536;
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
             #pragma omp for nowait
-            for (vid_t v = snaph->v_offset; v < snaph->v_offset + snaph->local_vcount; v++) 
+            for (vid_t v = 0; v < snaph->v_count; v++) 
             {
-                if(false == snaph->has_vertex_changed_out(v) || status[v] == 255) continue;
-                snaph->reset_vertex_changed_out(v);
+                vid = v+ snaph->v_offset;
+                if(0 == bitmap.get_bit(vid) || status[vid] == 255) continue;
+                bitmap.reset_bit(vid);
 
                 nebr_count = snaph->get_degree_out(v);
                 if (nebr_count == 0) {
@@ -59,14 +63,14 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
                     local_adjlist = (T*)malloc(prior_sz*sizeof(T));
                 }
 
-                level = status[v];
+                level = status[vid];
                 snaph->get_nebrs_out(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
                     sid = get_nebr(local_adjlist, i);
                     if (status[sid] > level + 1) {
                         status[sid] = level + 1;
-                        snaph->set_vertex_changed_out(sid);
+                        bitmap.set_bit_atomic(sid);
                         ++frontier;
                         //cout << " " << sid << endl;
                     }
@@ -75,7 +79,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
             }
             //Finalize the iteration
             MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
-            MPI_Allreduce(MPI_IN_PLACE, snaph->bitmap_out->get_start(), snaph->bitmap_out->get_size(),
+            MPI_Allreduce(MPI_IN_PLACE, bitmap.get_start(), bitmap.get_size(),
                           MPI_UINT64_T, MPI_BOR, _analytics_comm);
             MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
         } while (frontier);

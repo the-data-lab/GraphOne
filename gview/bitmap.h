@@ -65,7 +65,7 @@ class Bitmap {
     inline Bitmap(size_t size) {
         init(size);
     }
-    inline void init(size_t size) {
+  inline void init(size_t size) {
     uint64_t num_words = (size + bits_per_word - 1) / bits_per_word;
 
     //start_ = (uint64_t*)mmap(NULL, sizeof(uint64_t)*num_words, 
@@ -121,6 +121,9 @@ class Bitmap {
   inline void swap(Bitmap &other) {
     std::swap(start_, other.start_);
     std::swap(end_, other.end_);
+  }
+  inline void copy(Bitmap* other) {
+    memcpy(start_, other->start_, other->get_size()*sizeof(uint64_t));
   }
 
  private:

@@ -1461,8 +1461,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    //do some setup for plain graphs
-    manager.setup_graph_memory(v_count);    
+    _global_vcount = v_count;
     
 #ifdef _MPI
     // extract the original group handle
@@ -1482,7 +1481,10 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
     
     if (_rank == 0) {
+        //do some setup for plain graphs
+        manager.setup_graph_memory(v_count);    
         //g->create_threads(true, false);   
+        
         //create scopy_server
         scopy1d_server_t<T>* scopyh = reg_scopy1d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
@@ -1492,6 +1494,13 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         pthread_join(scopyh->thread, &ret);
 
     } else {
+        //do some setup for plain graphs
+        vid_t local_vcount = (v_count/(_numtasks - 1));
+        vid_t v_offset = (_rank - 1)*local_vcount;
+        if (_rank == _numtasks - 1) {//last rank
+            local_vcount = v_count - v_offset;
+        }
+        manager.setup_graph_memory(local_vcount);    
         //create scopy_client
         scopy1d_client_t<T>* sclienth = reg_scopy1d_client(pgraph, stream_fn, 
                                                 STALE_MASK|V_CENTRIC|C_THREAD);

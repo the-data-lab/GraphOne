@@ -18,6 +18,7 @@ void darshan_test0(const string& conf_file, const string& idir, const string& od
 
 graph* g;
 int THD_COUNT = 0;
+vid_t _global_vcount = 0;
 int _numtasks = 0, _rank = 0;
 #ifdef _MPI
 MPI_Comm   _analytics_comm;
