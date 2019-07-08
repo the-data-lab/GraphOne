@@ -30,10 +30,41 @@ using namespace std;
 template <class T>
 class vert_table_t;
 
+status_t pack_meta(char* buf, int buf_size, int& position,  uint64_t flag, 
+                   uint64_t archive_marker, uint64_t changed_v, uint64_t changed_e)
+{
+    //Header of the package
+    uint64_t endian = 0x0123456789ABCDEF;//endian
+    
+    MPI_Pack(&endian, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+    MPI_Pack(&archive_marker, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+    MPI_Pack(&flag, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+    MPI_Pack(&changed_v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+    MPI_Pack(&changed_e, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+    return eOK;
+}
+
+status_t unpack_meta(char* buf, int buf_size, int& position, uint64_t& flag, 
+                   uint64_t& archive_marker, uint64_t& changed_v, uint64_t& changed_e)
+{
+    //Header of the package
+    uint64_t endian; 
+    MPI_Unpack(buf, buf_size, &position, &endian, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+    assert(endian == 0x0123456789ABCDEF);
+    MPI_Unpack(buf, buf_size, &position, &archive_marker, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+    MPI_Unpack(buf, buf_size, &position, &flag, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+    
+    MPI_Unpack(buf, buf_size, &position, &changed_v, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+    MPI_Unpack(buf, buf_size, &position, &changed_e, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+    
+    return eOK;
+}
+
 #include "static_view.h"
 #include "sstream_view.h"
 #include "scopy_view.h"
 #include "scopy1d_view.h"
+#include "scopy2d_view.h"
 #include "stream_view.h"
 #include "wsstream_view.h"
 #include "historical_view.h"
@@ -247,3 +278,53 @@ prior_snap_t<T>* create_prior_static_view(pgraph_t<T>* pgraph, index_t start_off
     return snaph;
 }
 
+template <class T>
+scopy2d_server_t<T>* reg_scopy2d_server(pgraph_t<T>* ugraph, 
+                    typename callback<T>::sfunc func, index_t flag)
+{
+    scopy2d_server_t<T>* sstreamh = new scopy2d_server_t<T>;
+    
+    sstreamh->init_view(ugraph, flag);
+    sstreamh->sstream_func = func;
+    sstreamh->algo_meta = 0;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        //cout << "created scopy2d_server thread" << endl;
+    }
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_scopy2d_server(scopy2d_server_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
+scopy2d_client_t<T>* reg_scopy2d_client(pgraph_t<T>* ugraph, 
+                        typename callback<T>::sfunc func, index_t flag)
+{
+    scopy2d_client_t<T>* sstreamh = new scopy2d_client_t<T>;
+    
+    sstreamh->init_view(ugraph, flag);
+    sstreamh->sstream_func = func;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        //cout << "created scopy2d_client thread" << endl;
+    }
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_scopy2d_client(scopy2d_client_t<T>* sstreamh)
+{
+    delete sstreamh;
+}

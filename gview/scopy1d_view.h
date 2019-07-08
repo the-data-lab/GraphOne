@@ -106,14 +106,11 @@ void scopy1d_server_t<T>::update_degreesnap()
 
     //Header of the package
     uint64_t endian = 0x0123456789ABCDEF;//endian
-    uint64_t flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
+    uint64_t meta_flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = snapshot->marker;
-    
-    MPI_Pack(&endian, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&archive_marker, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&flag, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&changed_v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&changed_e, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
+                
+    pack_meta(buf, buf_size, position, meta_flag, archive_marker, 
+              changed_v, changed_e);
     
     nebr_count  = 0;
     old_count  = 0;
@@ -241,15 +238,10 @@ void scopy1d_client_t<T>::apply_view()
 
     //Header of the package
     uint64_t endian = 0;//endian
-    uint64_t flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
+    uint64_t meta_flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = 0;
-    
-    MPI_Unpack(buf, buf_size, &position, &endian, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    assert(endian == 0x0123456789ABCDEF);
-    MPI_Unpack(buf, buf_size, &position, &archive_marker, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &flag, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &changed_v, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &changed_e, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+
+    unpack_meta(buf, buf_size, position, meta_flag, archive_marker, changed_v, changed_e);
     
     vid_t            vid = 0;
     degree_t  nebr_count = 0;

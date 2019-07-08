@@ -73,23 +73,30 @@ template <class T>
 struct part_t {
     index_t changed_v;
     index_t changed_e;
-    int poistion;
+    int position;
     int delta_count;
-    T* local_adjlist;
+    int prior_sz;
     int buf_size;
     int rank;
-    char* buf;
     vid_t v_offset;
+    char* buf;
+    T* local_adjlist;
+
+    void reset() {
+        changed_v = 0;
+        changed_e = 0;
+        position = 0;
+        delta_count = 0;
+    }    
 }; 
 
 template <class T>
 void scopy2d_server_t<T>::update_degreesnap()
 {
-
 #pragma omp parallel num_threads(part_count)
 {
 
-    part_t<T> part;
+    part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
     int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
@@ -98,31 +105,28 @@ void scopy2d_server_t<T>::update_degreesnap()
 
     
     //Lets copy the data
-    index_t   changed_v = 0;
-    index_t   changed_e = 0;
     int header_size = 5*sizeof(uint64_t);
-    for (int j = 0; j < part_count; ++j) {
-        part[j].buf_size = 0; //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-        part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
-
-    //Header of the package
-    uint64_t endian = 0x0123456789ABCDEF;//endian
-    uint64_t flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = snapshot->marker;
-    
-    MPI_Pack(&endian, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-    MPI_Pack(&archive_marker, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-    MPI_Pack(&flag, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-    MPI_Pack(&part[j].changed_v, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-    MPI_Pack(&part[j].changed_e, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+    uint64_t meta_flag = 1;
+    //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
+    int j = 0;
+
+    for (j = 0; j < part_count; ++j) {
+        part[j].buf_size = (1<<29); //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
+        part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
+        part[j].position = header_size;
+        part[j].rank = 1 + tid*part_count + j;
+        part[j].v_offset = j*v_local;
+        part[j].prior_sz = 16384*256;
+        part[j].local_adjlist = (T*)malloc(part[j].prior_sz*sizeof(T));
     }
     
-    degree_t nebr_count = 0;
-    degree_t  old_count = 0;
-    snapid_t    snap_id = snapshot->snap_id;
+    degree_t  nebr_count = 0;
+    degree_t   old_count = 0;
+    snapid_t     snap_id = snapshot->snap_id;
     degree_t delta_count = 0;
     degree_t    prior_sz = 16384;
-    T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+    T*     local_adjlist = (T*)malloc(prior_sz*sizeof(T));
     sid_t sid;
 
     for (vid_t v = v_start; v < v_end; ++v) {
@@ -138,16 +142,34 @@ void scopy2d_server_t<T>::update_degreesnap()
             local_adjlist = (T*)malloc(prior_sz*sizeof(T));
         }
         graph_out->get_wnebrs(v, local_adjlist, old_count, delta_count);
-        for (int i = 0; i < delta_count; ++i) {
+        for (degree_t i = 0; i < delta_count; ++i) {
             sid = get_sid(local_adjlist[i]);
-            int j = 0;
-            while (sid < part[j].v_offset) ++j;
+            for (j = 0;  j < part_count - 1; ++j) {
+                 if(sid < part[j+1].v_offset) break;
+            }
+            
+            assert(part[j].delta_count < part[j].prior_sz); 
             part[j].local_adjlist[part[j].delta_count] = local_adjlist[i];
             part[j].delta_count += 1;
         }
 
         for (int j = 0; j < part_count; ++j) {
             if (0 == part[j].delta_count) continue;
+            
+            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) 
+                > part[j].buf_size) {
+                //send and reset the data
+                int t_pos = 0;
+                pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, 
+                          archive_marker, part[j].changed_v, part[j].changed_e);
+                assert(t_pos == header_size);
+                MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank,
+                         0, MPI_COMM_WORLD);
+                part[j].reset();
+                cout << " reset once" << endl;
+            }
+
+            //cout << "V = " << v << endl;
             part[j].changed_v++;
             part[j].changed_e += part[j].delta_count;
 #ifdef B32
@@ -157,18 +179,22 @@ void scopy2d_server_t<T>::update_degreesnap()
             MPI_Pack(&v, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
             MPI_Pack(&part[j].delta_count, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
 #endif
-            //cout << "V = " << v << endl;
             MPI_Pack(part[j].local_adjlist, part[j].delta_count, MPI_UINT32_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            part[j].delta_count = 0;
         }
     }
-    /*
-    cout << " sending to rank " << tid + 1 << " = "<< v_start << ":"<< v_end 
-         << " size "<< position 
-         << " changed v " << changed_v
-         << " changed e " << changed_e
-         << endl;
-         */
+    
     for (int j = 0; j < part_count; ++j) {
+        cout << " sending to rank " << part[j].rank << " = "<< v_start << ":"<< v_end 
+             << " size "<< part[j].position 
+             << " changed v " << part[j].changed_v
+             << " changed e " << part[j].changed_e
+             << endl;
+         
+        int t_pos = 0;
+        pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, archive_marker, 
+                  part[j].changed_v, part[j].changed_e);
+        assert(t_pos == header_size);
         MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
     }
 }
@@ -189,7 +215,20 @@ template <class T>
 void scopy2d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag) 
 {
     sstream_t<T>::init_view(pgraph, a_flag);
-    part_count = _numtasks - 1;
+    switch (_numtasks - 1) {
+    case 1:
+        part_count = 1;
+        break;
+    case 4:
+        part_count = 2;
+        break;
+    case 9: 
+        part_count = 3;
+        break;
+    default:
+    part_count = 1;
+        break;
+    }
 }
 
 template <class T>
@@ -250,25 +289,24 @@ void scopy2d_client_t<T>::apply_view()
     char*    buf = 0;
     MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+    //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
     buf = (char*)malloc(buf_size*sizeof(char));
 
     int position = 0;
     MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
 
     //Header of the package
-    uint64_t endian = 0;//endian
     uint64_t flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = 0;
+    unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
     
-    MPI_Unpack(buf, buf_size, &position, &endian, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    assert(endian == 0x0123456789ABCDEF);
-    MPI_Unpack(buf, buf_size, &position, &archive_marker, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &flag, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    
-    MPI_Unpack(buf, buf_size, &position, &changed_v, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &changed_e, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    
+    cout << "Rank " << _rank << ":" << v_offset
+         << " Archive Marker = " << archive_marker 
+         << " size "<< buf_size 
+         << " changed v " << changed_v
+         << " changed e " << changed_e
+         << endl;
+
     vid_t            vid = 0;
     degree_t  nebr_count = 0;
     degree_t delta_count = 0;
@@ -301,13 +339,8 @@ void scopy2d_client_t<T>::apply_view()
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-    
-    cout << "Client Archive Marker = " << archive_marker 
-         << " size "<< position 
-         << " changed v " << changed_v
-         << " changed e " << changed_e
-         << endl;
-         
+
+    //cout << "Rank " << _rank << " done" << endl;
 }
 
 template <class T>
@@ -320,5 +353,22 @@ template <class T>
 void scopy2d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
     sstream_t<T>::init_view(ugraph, a_flag);
+    int t_vid = 0;
+    switch (_numtasks - 1) {
+    case 1:
+        v_offset = (_rank - 1)*global_vcount;
+        break;
+    case 4:
+        t_vid = (_rank - 1)/2;
+        v_offset = t_vid*(global_vcount/2);
+        break;
+    case 9:
+        t_vid = (_rank - 1)/3;
+        v_offset = t_vid*(global_vcount/3);
+        break;
+    default:
+        v_offset = (_rank - 1)*global_vcount;
+        break;
+    }
 }
 #endif
