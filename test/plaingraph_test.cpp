@@ -1501,7 +1501,18 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
         if (_rank == _numtasks - 1) {//last rank
             local_vcount = v_count - v_offset;
         }
-        local_vcount = v_count/2;
+        local_vcount = v_count;
+        switch (_numtasks - 1) {
+        case 4:
+            local_vcount = v_count/2;
+            break;
+        case 9:
+            local_vcount = v_count/3;
+            break;
+        default:
+            v_offset = v_count;
+            break;
+        }
         manager.setup_graph_memory(local_vcount);    
         //create scopy_client
         scopy2d_client_t<T>* sclienth = reg_scopy2d_client(pgraph, stream_fn, 

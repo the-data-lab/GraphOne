@@ -158,6 +158,7 @@ void scopy2d_server_t<T>::update_degreesnap()
             
             if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) 
                 > part[j].buf_size) {
+                assert(0);
                 //send and reset the data
                 int t_pos = 0;
                 pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, 
@@ -187,8 +188,8 @@ void scopy2d_server_t<T>::update_degreesnap()
     for (int j = 0; j < part_count; ++j) {
         cout << " sending to rank " << part[j].rank << " = "<< v_start << ":"<< v_end 
              << " size "<< part[j].position 
-             << " changed v " << part[j].changed_v
-             << " changed e " << part[j].changed_e
+             << " changed_v " << part[j].changed_v
+             << " changed_e " << part[j].changed_e
              << endl;
          
         int t_pos = 0;
@@ -303,8 +304,8 @@ void scopy2d_client_t<T>::apply_view()
     cout << "Rank " << _rank << ":" << v_offset
          << " Archive Marker = " << archive_marker 
          << " size "<< buf_size 
-         << " changed v " << changed_v
-         << " changed e " << changed_e
+         << " changed_v " << changed_v
+         << " changed_e " << changed_e
          << endl;
 
     vid_t            vid = 0;
