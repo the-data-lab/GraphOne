@@ -25,6 +25,7 @@ include_directories(analytics)
 
 add_subdirectory(src)
 add_subdirectory(onedata)
+add_subdirectory(analytics)
 add_subdirectory(test)
 
 

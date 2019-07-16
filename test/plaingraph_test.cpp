@@ -1466,21 +1466,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     
 #ifdef _MPI
     // extract the original group handle
-    int group_count = _numtasks - 1;
-    int *ranks1 = (int*)malloc(sizeof(int)*group_count);
-
-    for (int i = 0; i < group_count; ++i) {
-        ranks1[i] = i+1;
-    }
-    MPI_Group  orig_group, analytics_group;
-    
-    MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-    //if (_rank > 0) { }
-    MPI_Group_incl(orig_group, group_count, ranks1, &analytics_group);
-
-    //create new communicator 
-    MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
-    
+    create_2d_comm();
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph_memory(v_count);    
@@ -1489,7 +1475,6 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
         //create scopy_server
         scopy2d_server_t<T>* scopyh = reg_scopy2d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
-        //CorePin(0);
         manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
         void* ret;
         pthread_join(scopyh->thread, &ret);
@@ -1535,20 +1520,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     
 #ifdef _MPI
     // extract the original group handle
-    int group_count = _numtasks - 1;
-    int *ranks1 = (int*)malloc(sizeof(int)*group_count);
-
-    for (int i = 0; i < group_count; ++i) {
-        ranks1[i] = i+1;
-    }
-    MPI_Group  orig_group, analytics_group;
-    
-    MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-    //if (_rank > 0) { }
-    MPI_Group_incl(orig_group, group_count, ranks1, &analytics_group);
-
-    //create new communicator 
-    MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
+    create_1d_comm();
     
     if (_rank == 0) {
         //do some setup for plain graphs

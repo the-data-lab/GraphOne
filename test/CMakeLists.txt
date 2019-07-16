@@ -24,8 +24,8 @@ set(test_source64_files
 add_library(test32 ${test_source_files})
 set_target_properties(test32 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS32}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(test32 src32)
+target_link_libraries(test32 src32 analytics32)
 add_library(test64 ${test_source64_files})
 set_target_properties(test64 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS64}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(test64 src64)
+target_link_libraries(test64 src64 analytics64)
