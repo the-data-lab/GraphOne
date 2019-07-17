@@ -3,10 +3,20 @@
 #include "communicator.h"
 
 template<class T>
-void do_stream_bfs(gview_t<T>* viewh, uint8_t* status)
+void do_stream_bfs(gview_t<T>* viewh, uint8_t* status, Bitmap* bitmap2)
 {
     index_t  frontier = 0;
     scopy2d_client_t<T>* snaph = dynamic_cast<scopy2d_client_t<T>*>(viewh);
+    Bitmap* bitmap1 = snaph->bitmap_out;
+    
+
+    int row_rank, col_rank;
+    MPI_Comm_rank(_row_comm, &row_rank);
+    MPI_Comm_rank(_col_comm, &col_rank);
+    int col_root = row_rank;
+    int row_root = col_rank;
+    cout << "col rank = " << col_rank << ":" << _rank <<endl;
+
     do {
         frontier = 0;
         //#pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
@@ -22,8 +32,11 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* status)
         for (vid_t v = 0; v < snaph->v_count; v++) 
         {
             vid = v + snaph->v_offset;
-            if(false == snaph->has_vertex_changed_out(vid) || status[vid] == 255) continue;
-            //snaph->reset_vertex_changed_out(vid);
+            if(false == bitmap1->get_bit(v) || status[vid] == 255) {
+                bitmap1->reset_bit(v);
+                continue;
+            }
+            bitmap1->reset_bit(v);
 
             nebr_count = snaph->get_degree_out(v);
             if (nebr_count > prior_sz) {
@@ -39,7 +52,7 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* status)
                 sid = get_nebr(local_adjlist, i);
                 if (status[sid] > level + 1) {
                     status[sid] = level + 1;
-                    snaph->set_vertex_changed_out(sid);
+                    bitmap2->set_bit(sid - snaph->dst_offset);//dest
                     ++frontier;
                     //if (level == 0) { cout << "," << sid; }
                 }
@@ -47,10 +60,21 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* status)
         }
         }
         //Finalize the iteration
-        MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
-        MPI_Allreduce(MPI_IN_PLACE, snaph->bitmap_out->get_start(), snaph->bitmap_out->get_size(),
-                      MPI_UINT64_T, MPI_BOR, _analytics_comm);
+        //rank should be root
+        if (col_rank == col_root) {
+            MPI_Reduce(MPI_IN_PLACE, bitmap2->get_start(), bitmap2->get_size(),
+                      MPI_UINT64_T, MPI_BOR, col_root, _col_comm);
+        } else {
+            MPI_Reduce(bitmap2->get_start(), bitmap2->get_start(), bitmap2->get_size(),
+                      MPI_UINT64_T, MPI_BOR, col_root, _col_comm);
+        }
+
+        MPI_Bcast(bitmap2->get_start(), bitmap2->get_size(), MPI_UINT64_T, row_root, _row_comm);
+        
         MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
+        MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
+        //Swap the bitmaps
+        bitmap1->swap(bitmap2);
     } while (frontier);
 }
 
@@ -83,6 +107,7 @@ void scopy2d_serial_bfs(gview_t<T>* viewh)
 
     sid_t    root   = 1;
     status[root] = 0;
+    Bitmap bitmap(snaph->v_count);
     int update_count = 0;
     
     double start = mywtime();
@@ -96,7 +121,7 @@ void scopy2d_serial_bfs(gview_t<T>* viewh)
         ++update_count;
         //cout << " Rank " << _rank << " "<< snaph->v_offset << ":" << snaph->v_count << endl;
         start = mywtime();
-	    do_stream_bfs(snaph, status);	
+	    do_stream_bfs(snaph, status, &bitmap);
         //end = mywtime();
         //cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
     } 

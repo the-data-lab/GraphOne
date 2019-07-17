@@ -57,9 +57,11 @@ class scopy2d_client_t : public sstream_t<T> {
     using sstream_t<T>::v_offset;
     using sstream_t<T>::global_vcount;
 
- 
  public:
-    inline    scopy2d_client_t():sstream_t<T>() {}
+   vid_t dst_offset;
+
+ public:
+    inline    scopy2d_client_t():sstream_t<T>() {dst_offset = 0;}
     inline    ~scopy2d_client_t() {}
    
     void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
@@ -216,20 +218,7 @@ template <class T>
 void scopy2d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag) 
 {
     sstream_t<T>::init_view(pgraph, a_flag);
-    switch (_numtasks - 1) {
-    case 1:
-        part_count = 1;
-        break;
-    case 4:
-        part_count = 2;
-        break;
-    case 9: 
-        part_count = 3;
-        break;
-    default:
-    part_count = 1;
-        break;
-    }
+    part_count = _part_count;
 }
 
 template <class T>
@@ -335,7 +324,7 @@ void scopy2d_client_t<T>::apply_view()
 
         //Update the degree of the view
         degree_out[vid - v_offset] += delta_count;
-        bitmap_out->set_bit(vid);
+        bitmap_out->set_bit(vid - v_offset);
 
     }
     pgraph->new_snapshot(archive_marker);
@@ -353,23 +342,19 @@ void scopy2d_client_t<T>::apply_viewd()
 template <class T>
 void scopy2d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
-    sstream_t<T>::init_view(ugraph, a_flag);
-    int t_vid = 0;
-    switch (_numtasks - 1) {
-    case 1:
-        v_offset = (_rank - 1)*global_vcount;
-        break;
-    case 4:
-        t_vid = (_rank - 1)/2;
-        v_offset = t_vid*(global_vcount/2);
-        break;
-    case 9:
-        t_vid = (_rank - 1)/3;
-        v_offset = t_vid*(global_vcount/3);
-        break;
-    default:
-        v_offset = (_rank - 1)*global_vcount;
-        break;
+    snap_t<T>::init_view(ugraph, a_flag);
+    global_vcount = _global_vcount;
+    
+    bitmap_out = new Bitmap(v_count);
+    if (graph_out == graph_in) {
+        bitmap_in = bitmap_out;
+    } else {
+        bitmap_in = new Bitmap(v_count);
     }
+    
+    int row_id = (_rank - 1)/_part_count;
+    int col_id = (_rank - 1)%_part_count;
+    v_offset = row_id*(global_vcount/_part_count);
+    dst_offset = col_id*(global_vcount/_part_count);
 }
 #endif

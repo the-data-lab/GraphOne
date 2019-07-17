@@ -61,9 +61,10 @@ class sstream_t : public snap_t<T> {
     }
 
     status_t    update_view();
+ private:
     void  update_degreesnap();
     void update_degreesnapd();
-
+ public:
     //These two functions are for vertex centric programming
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}

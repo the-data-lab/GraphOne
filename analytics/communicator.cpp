@@ -19,6 +19,22 @@ void create_2d_comm()
     MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
 }
 
+void create_2d_comm1()
+{
+    int row_id, col_id;
+    // extract the original group handle
+    if (0 == _rank) {
+        row_id = MPI_UNDEFINED;
+        col_id = MPI_UNDEFINED;
+    } else {
+        row_id = (_rank - 1) / _part_count;
+        col_id = (_rank - 1) % _part_count;
+    }
+
+    MPI_Comm_split(MPI_COMM_WORLD, row_id, _rank, &_row_comm);
+    MPI_Comm_split(MPI_COMM_WORLD, col_id, _rank, &_col_comm);
+}
+
 void create_1d_comm()
 {
     // extract the original group handle

@@ -1465,8 +1465,21 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     _global_vcount = v_count;
     
 #ifdef _MPI
+    switch (_numtasks - 1) {
+    case 4:
+        _part_count = 2;
+        break;
+    case 9:
+        _part_count = 3;
+        break;
+    default:
+        _part_count = 1;
+        break;
+    }
+
     // extract the original group handle
     create_2d_comm();
+    create_2d_comm1();
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph_memory(v_count);    
@@ -1481,23 +1494,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
 
     } else {
         //do some setup for plain graphs
-        vid_t local_vcount = (v_count/(_numtasks - 1));
-        vid_t v_offset = (_rank - 1)*local_vcount;
-        if (_rank == _numtasks - 1) {//last rank
-            local_vcount = v_count - v_offset;
-        }
-        local_vcount = v_count;
-        switch (_numtasks - 1) {
-        case 4:
-            local_vcount = v_count/2;
-            break;
-        case 9:
-            local_vcount = v_count/3;
-            break;
-        default:
-            v_offset = v_count;
-            break;
-        }
+        vid_t local_vcount = v_count/_part_count;
         manager.setup_graph_memory(local_vcount);    
         //create scopy_client
         scopy2d_client_t<T>* sclienth = reg_scopy2d_client(pgraph, stream_fn, 

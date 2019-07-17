@@ -117,9 +117,9 @@ class Bitmap {
     return (start_[word_offset(pos)] >> bit_offset(pos)) & 1l;
   }
 
-  inline void swap(Bitmap &other) {
-    std::swap(start_, other.start_);
-    std::swap(end_, other.end_);
+  inline void swap(Bitmap* other) {
+    std::swap(start_, other->start_);
+    std::swap(end_, other->end_);
   }
 
  private:

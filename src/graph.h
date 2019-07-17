@@ -13,8 +13,10 @@ extern vid_t _global_vcount;
 extern index_t _edge_count;
     
 extern int _numtasks, _rank;
+extern int _part_count;
 #ifdef _MPI
 extern MPI_Comm   _analytics_comm;
+extern MPI_Comm  _row_comm, _col_comm;
 #endif
 
 ////////////main class/////////////////////

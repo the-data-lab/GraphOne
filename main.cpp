@@ -20,8 +20,10 @@ graph* g;
 int THD_COUNT = 0;
 vid_t _global_vcount = 0;
 int _numtasks = 0, _rank = 0;
+int _part_count;
 #ifdef _MPI
 MPI_Comm   _analytics_comm;
+MPI_Comm  _row_comm, _col_comm;
 #endif
 
 void ontology_lubm();
