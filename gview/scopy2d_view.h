@@ -5,6 +5,27 @@
 #ifdef _MPI
 
 template <class T>
+struct part_t {
+    index_t changed_v;
+    index_t changed_e;
+    int position;
+    int delta_count;
+    int prior_sz;
+    int buf_size;
+    int rank;
+    vid_t v_offset;
+    char* buf;
+    T* local_adjlist;
+
+    void reset() {
+        changed_v = 0;
+        changed_e = 0;
+        position = 0;
+        delta_count = 0;
+    }    
+}; 
+
+template <class T>
 class scopy2d_server_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
@@ -35,8 +56,11 @@ class scopy2d_server_t : public sstream_t<T> {
     status_t    update_view();
  
  private:   
+    void  init_buf(part_t<T>* part);
+    void  send_buf(part_t<T>* part);
+    void  send_buf_one(part_t<T>* part, int j);
     void  update_degreesnap();
-    void update_degreesnapd();
+    void  update_degreesnapd();
 };
 
 template <class T>
@@ -71,49 +95,20 @@ class scopy2d_client_t : public sstream_t<T> {
     void  apply_viewd();
 };
 
-template <class T>
-struct part_t {
-    index_t changed_v;
-    index_t changed_e;
-    int position;
-    int delta_count;
-    int prior_sz;
-    int buf_size;
-    int rank;
-    vid_t v_offset;
-    char* buf;
-    T* local_adjlist;
-
-    void reset() {
-        changed_v = 0;
-        changed_e = 0;
-        position = 0;
-        delta_count = 0;
-    }    
-}; 
 
 template <class T>
-void scopy2d_server_t<T>::update_degreesnap()
+void scopy2d_server_t<T>::init_buf(part_t<T>* part)
 {
-#pragma omp parallel num_threads(part_count)
-{
-
-    part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
     int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
     if (tid == part_count - 1) v_end = v_count;
-
     
-    //Lets copy the data
     int header_size = 5*sizeof(uint64_t);
-    uint64_t  archive_marker = snapshot->marker;
-    uint64_t meta_flag = 1;
     //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
-    int j = 0;
 
-    for (j = 0; j < part_count; ++j) {
+    for (int j = 0; j < part_count; ++j) {
         part[j].buf_size = (1<<29); //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
         part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
         part[j].position = header_size;
@@ -122,6 +117,56 @@ void scopy2d_server_t<T>::update_degreesnap()
         part[j].prior_sz = 16384*256;
         part[j].local_adjlist = (T*)malloc(part[j].prior_sz*sizeof(T));
     }
+}
+
+template <class T>
+void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j)
+{
+    int header_size = 5*sizeof(uint64_t);
+    uint64_t  archive_marker = snapshot->marker;
+    //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
+    uint64_t meta_flag = 1;
+    int t_pos = 0;
+    
+    cout << " sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
+         << " size "<< part[j].position 
+         << " changed_v " << part[j].changed_v
+         << " changed_e " << part[j].changed_e
+         << endl;
+     
+    pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, archive_marker, 
+              part[j].changed_v, part[j].changed_e);
+    assert(t_pos == header_size);
+    MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
+
+}
+
+template <class T>
+void scopy2d_server_t<T>::send_buf(part_t<T>* part)
+{
+    for (int j = 0; j < part_count; ++j) {
+        send_buf_one(part, j);
+    }
+}
+
+template <class T>
+void scopy2d_server_t<T>::update_degreesnap()
+{
+#pragma omp parallel num_threads(part_count)
+{
+
+    part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
+    init_buf(part);
+    int j = 0;
+    
+    int tid = omp_get_thread_num();
+    vid_t v_local = v_count/part_count;
+    vid_t v_start = tid*v_local;
+    vid_t v_end =  v_start + v_local;
+    if (tid == part_count - 1) v_end = v_count;
+
+    
+    //Lets copy the data
     
     degree_t  nebr_count = 0;
     degree_t   old_count = 0;
@@ -158,16 +203,11 @@ void scopy2d_server_t<T>::update_degreesnap()
         for (int j = 0; j < part_count; ++j) {
             if (0 == part[j].delta_count) continue;
             
+            //send and reset the data
             if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) 
                 > part[j].buf_size) {
                 assert(0);
-                //send and reset the data
-                int t_pos = 0;
-                pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, 
-                          archive_marker, part[j].changed_v, part[j].changed_e);
-                assert(t_pos == header_size);
-                MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank,
-                         0, MPI_COMM_WORLD);
+                send_buf_one(part, j);
                 part[j].reset();
                 cout << " reset once" << endl;
             }
@@ -186,20 +226,7 @@ void scopy2d_server_t<T>::update_degreesnap()
             part[j].delta_count = 0;
         }
     }
-    
-    for (int j = 0; j < part_count; ++j) {
-        cout << " sending to rank " << part[j].rank << " = "<< v_start << ":"<< v_end 
-             << " size "<< part[j].position 
-             << " changed_v " << part[j].changed_v
-             << " changed_e " << part[j].changed_e
-             << endl;
-         
-        int t_pos = 0;
-        pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, archive_marker, 
-                  part[j].changed_v, part[j].changed_e);
-        assert(t_pos == header_size);
-        MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
-    }
+    send_buf(part);    
 }
 }
 
