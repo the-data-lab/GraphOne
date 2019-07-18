@@ -56,6 +56,15 @@ class delta_adjlist_t {
     
 };
 
+template <class T> 
+class header_t {
+ public:
+	delta_adjlist_t<T>* next;
+    degree_t   max_count;
+	degree_t   count;
+	T*  adj_list;
+};
+
 template <class T>
 class durable_adjlist_t {
     union {

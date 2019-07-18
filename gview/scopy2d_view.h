@@ -159,44 +159,40 @@ void scopy2d_server_t<T>::update_degreesnap()
     init_buf(part);
     int j = 0;
     
+    
     int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
     if (tid == part_count - 1) v_end = v_count;
-
+    
     
     //Lets copy the data
-    
+    snapid_t     snap_id = snapshot->snap_id;
     degree_t  nebr_count = 0;
     degree_t   old_count = 0;
-    snapid_t     snap_id = snapshot->snap_id;
     degree_t delta_count = 0;
-    degree_t    prior_sz = 16384;
-    T*     local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+    header_t<T> delta_adjlist;
     sid_t sid;
-
+    T dst;
+    //#pragma omp for schedule (static)
     for (vid_t v = v_start; v < v_end; ++v) {
         nebr_count = graph_out->get_degree(v, snap_id);
         old_count = degree_out[v];
         if (old_count == nebr_count) continue;
 
         degree_out[v] = nebr_count;
-        delta_count = nebr_count - old_count;
-        if (delta_count > prior_sz) {
-            prior_sz = delta_count;
-            free(local_adjlist);
-            local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-        }
-        graph_out->get_wnebrs(v, local_adjlist, old_count, delta_count);
+        
+        delta_count = this->start_wout(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < delta_count; ++i) {
-            sid = get_sid(local_adjlist[i]);
+            this->next(delta_adjlist, dst);
+            sid = get_sid(dst);
             for (j = 0;  j < part_count - 1; ++j) {
                  if(sid < part[j+1].v_offset) break;
             }
             
             assert(part[j].delta_count < part[j].prior_sz); 
-            part[j].local_adjlist[part[j].delta_count] = local_adjlist[i];
+            part[j].local_adjlist[part[j].delta_count] = dst;
             part[j].delta_count += 1;
         }
 
@@ -204,8 +200,7 @@ void scopy2d_server_t<T>::update_degreesnap()
             if (0 == part[j].delta_count) continue;
             
             //send and reset the data
-            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) 
-                > part[j].buf_size) {
+            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) > part[j].buf_size) {
                 assert(0);
                 send_buf_one(part, j);
                 part[j].reset();
