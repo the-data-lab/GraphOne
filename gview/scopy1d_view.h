@@ -54,8 +54,8 @@ class scopy1d_client_t : public sstream_t<T> {
     using sstream_t<T>::degree_out;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::bitmap_out;
-    using sstream_t<T>::v_offset;
-    using sstream_t<T>::global_vcount;
+    vid_t    v_offset;
+    vid_t    global_vcount;
 
  
  public:
@@ -293,6 +293,16 @@ void scopy1d_client_t<T>::apply_viewd()
 template <class T>
 void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 {
-    sstream_t<T>::init_view(ugraph, a_flag);
+    snap_t<T>::init_view(ugraph, a_flag);
+    global_vcount = _global_vcount;
+    vid_t local_vcount = (global_vcount/(_numtasks - 1));
+    v_offset = (_rank - 1)*local_vcount;
+    
+    bitmap_out = new Bitmap(global_vcount);
+    if (graph_out == graph_in) {
+        bitmap_in = bitmap_out;
+    } else {
+        bitmap_in = new Bitmap(global_vcount);
+    }
 }
 #endif

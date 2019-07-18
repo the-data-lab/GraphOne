@@ -23,15 +23,11 @@ class sstream_t : public snap_t<T> {
  public:   
     Bitmap*  bitmap_in;
     Bitmap*  bitmap_out;
-    vid_t    v_offset;
-    vid_t    global_vcount;
 
  public:
     inline sstream_t(): snap_t<T>() {
         bitmap_in = 0;
         bitmap_out = 0;
-        v_offset = 0;
-        global_vcount = 0;
     }
     inline ~sstream_t() {
         if (bitmap_in != bitmap_out) {
@@ -48,15 +44,11 @@ class sstream_t : public snap_t<T> {
     {
         snap_t<T>::init_view(pgraph, a_flag);
         
-        global_vcount = _global_vcount;
-        vid_t local_vcount = (global_vcount/(_numtasks - 1));
-        v_offset = (_rank - 1)*local_vcount;
-        
-        bitmap_out = new Bitmap(global_vcount);
+        bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {
             bitmap_in = bitmap_out;
         } else {
-            bitmap_in = new Bitmap(global_vcount);
+            bitmap_in = new Bitmap(v_count);
         }
     }
 
@@ -93,9 +85,9 @@ void sstream_t<T>::update_degreesnap()
                 nebr_count = graph_out->get_degree(v, snap_id);
                 if (degree_out[v] != nebr_count) {
                     degree_out[v] = nebr_count;
-                    bitmap_out->set_bit(v+v_offset);
+                    bitmap_out->set_bit(v);
                 } else {
-                    bitmap_out->reset_bit(v+v_offset);
+                    bitmap_out->reset_bit(v);
                 }
                 //cout << v << " " << degree_out[v] << endl;
             }
@@ -128,9 +120,9 @@ void sstream_t<T>::update_degreesnapd()
                 nebr_count = graph_out->get_degree(v, snap_id);
                 if (degree_out[v] != nebr_count) {
                     degree_out[v] = nebr_count;
-                    bitmap_out->set_bit(v+v_offset);
+                    bitmap_out->set_bit(v);
                 } else {
-                    bitmap_out->reset_bit(v+v_offset);
+                    bitmap_out->reset_bit(v);
                 }
             }
             

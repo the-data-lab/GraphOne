@@ -54,11 +54,11 @@ class scopy2d_client_t : public sstream_t<T> {
     using sstream_t<T>::degree_out;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::bitmap_out;
-    using sstream_t<T>::v_offset;
-    using sstream_t<T>::global_vcount;
 
  public:
-   vid_t dst_offset;
+    vid_t    v_offset;
+    vid_t    global_vcount;
+    vid_t    dst_offset;
 
  public:
     inline    scopy2d_client_t():sstream_t<T>() {dst_offset = 0;}
