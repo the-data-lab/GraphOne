@@ -154,7 +154,6 @@ void scopy2d_server_t<T>::update_degreesnap()
 {
 #pragma omp parallel num_threads(part_count)
 {
-
     part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
     init_buf(part);
     
@@ -216,7 +215,7 @@ void scopy2d_server_t<T>::update_degreesnap()
             MPI_Pack(&v, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
             MPI_Pack(&part[j].delta_count, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
 #endif
-            MPI_Pack(part[j].local_adjlist, part[j].delta_count, MPI_UINT32_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            MPI_Pack(part[j].local_adjlist, part[j].delta_count, pgraph->data_type, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
             part[j].delta_count = 0;
         }
     }
@@ -326,16 +325,11 @@ void scopy2d_client_t<T>::apply_view()
         degree_out[vid - v_offset] += delta_count;
         bitmap_out->set_bit(vid - v_offset);
         
-        if (delta_count <= prior_sz) {
-            MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
-            graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
-        } else {
-            while (delta_count > 0) {
-                icount = delta_count > prior_sz ? prior_sz : delta_count;
-                MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, MPI_UINT32_T, MPI_COMM_WORLD);
-                graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
-                delta_count -= icount;
-            }
+        while (delta_count > 0) {
+            icount = delta_count > prior_sz ? prior_sz : delta_count;
+            MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
+            graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
+            delta_count -= icount;
         }
     }
     pgraph->new_snapshot(archive_marker);

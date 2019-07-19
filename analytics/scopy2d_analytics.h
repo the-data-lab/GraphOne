@@ -9,26 +9,23 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitmap
     scopy2d_client_t<T>* snaph = dynamic_cast<scopy2d_client_t<T>*>(viewh);
     Bitmap* bitmap1 = snaph->bitmap_out;
     
-
     int row_rank, col_rank;
     MPI_Comm_rank(_row_comm, &row_rank);
     MPI_Comm_rank(_col_comm, &col_rank);
     int col_root = row_rank;
     int row_root = col_rank;
-    cout << "col rank = " << col_rank << ":" << _rank <<endl;
 
     do {
         frontier = 0;
-        //#pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
+        #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
         {
         sid_t sid;
         vid_t vid;
         uint8_t level = 0;
         degree_t nebr_count = 0;
-        degree_t prior_sz = 65536;
-        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-
-        //#pragma omp for nowait
+        header_t<T> header; 
+        T dst;
+        #pragma omp for nowait
         for (vid_t v = 0; v < snaph->v_count; v++) 
         {
             vid = v;// + snaph->v_offset;
@@ -37,19 +34,11 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitmap
                 continue;
             }
             bitmap1->reset_bit(v);
-
-            nebr_count = snaph->get_degree_out(v);
-            if (nebr_count > prior_sz) {
-                prior_sz = nebr_count;
-                free(local_adjlist);
-                local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-            }
-
             level = lstatus[vid];
-            snaph->get_nebrs_out(v, local_adjlist);
-
+            nebr_count = snaph->start_out(v, header);
             for (degree_t i = 0; i < nebr_count; ++i) {
-                sid = get_nebr(local_adjlist, i) -  snaph->dst_offset;
+                snaph->next(header, dst);
+                sid = get_sid(dst) - snaph->dst_offset;
                 if (rstatus[sid] > level + 1) {
                     rstatus[sid] = level + 1;
                     bitmap2->set_bit(sid);//dest
@@ -88,13 +77,13 @@ void print_bfs_summary(gview_t<T>* viewh, uint8_t* status, vid_t v_count)
     scopy2d_client_t<T>* snaph = dynamic_cast<scopy2d_client_t<T>*>(viewh);
     for (int l = 0; l < 10; ++l) {
         uint64_t vid_count = 0;
-        //#pragma omp parallel for reduction (+:vid_count) 
+        #pragma omp parallel for num_threads(THD_COUNT) reduction (+:vid_count) 
         for (vid_t v = 0; v < snaph->v_count; ++v) {
             if (status[v] == l) ++vid_count;
         }
         MPI_Allreduce(MPI_IN_PLACE, &vid_count, 1, MPI_UINT64_T, MPI_SUM, _col_comm);
             
-        if (_rank == 1) { 
+        if (_rank == 1 && vid_count > 0) { 
             cout << " Level = " << l << " count = " << vid_count << endl;
         }
     }
@@ -104,17 +93,13 @@ template<class T>
 void scopy2d_serial_bfs(gview_t<T>* viewh)
 {
     cout << " Rank " << _rank <<" SCopy2d Client Started" << endl;
-    scopy2d_client_t<T>* sstreamh = dynamic_cast<scopy2d_client_t<T>*>(viewh);
-    pgraph_t<T>* pgraph  = sstreamh->pgraph;
-    vid_t        v_count = sstreamh->global_vcount;
+    scopy2d_client_t<T>* snaph = dynamic_cast<scopy2d_client_t<T>*>(viewh);
+    pgraph_t<T>* pgraph  = snaph->pgraph;
+    vid_t        v_count = snaph->global_vcount;
 
-    scopy2d_client_t<T>* snaph = sstreamh;
-    
     int row_rank, col_rank;
     MPI_Comm_rank(_row_comm, &row_rank);
     MPI_Comm_rank(_col_comm, &col_rank);
-    int col_root = row_rank;
-    int row_root = col_rank;
     
     sid_t    root   = 1;
     Bitmap bitmap(snaph->v_count);
@@ -141,7 +126,7 @@ void scopy2d_serial_bfs(gview_t<T>* viewh)
     
     while (pgraph->get_snapshot_marker() < _edge_count) {
         //update the sstream view
-        if (eOK != sstreamh->update_view()) {
+        if (eOK != snaph->update_view()) {
             usleep(100);
         }
         ++update_count;
@@ -185,6 +170,5 @@ void scopy2d_server(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    cout << " RANK" << _rank 
-         << " update_count = " << update_count << endl;
+    //cout << " RANK" << _rank << " update_count = " << update_count << endl;
 }

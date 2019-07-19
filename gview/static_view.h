@@ -190,9 +190,10 @@ degree_t snap_t<T>::start_out(vid_t v, header_t<T>& header)
 
     delta_adjlist_t<T>* delta_adjlist = graph_out->get_delta_adjlist(v);
     header.count = 0; 
-    header.next = delta_adjlist->next;
-    header.max_count = delta_adjlist->max_count;
+    header.next = delta_adjlist->get_next();
+    header.max_count = delta_adjlist->get_maxcount();
     header.adj_list = delta_adjlist->get_adjlist();
+    return degree;
 }
 
 template <class T>
@@ -203,10 +204,10 @@ degree_t snap_t<T>::start_in(vid_t v, header_t<T>& header)
     
     delta_adjlist_t<T>* delta_adjlist = graph_in->get_delta_adjlist(v);
     header.count = 0; 
-    header.next = delta_adjlist->next;
-    header.max_count = delta_adjlist->max_count;
+    header.next = delta_adjlist->get_next();
+    header.max_count = delta_adjlist->get_maxcount();
     header.adj_list = delta_adjlist->get_adjlist();
-
+    return degree;
 }
 
 template <class T>
