@@ -20,7 +20,7 @@ struct part_t {
     void reset() {
         changed_v = 0;
         changed_e = 0;
-        position = 0;
+        position = 5*sizeof(uint64_t);
         delta_count = 0;
     }    
 }; 
@@ -31,6 +31,7 @@ class scopy2d_server_t : public sstream_t<T> {
     using sstream_t<T>::pgraph;
     using sstream_t<T>::sstream_func;
     int   part_count;
+    part_t<T>* _part;
  protected:
     using sstream_t<T>::degree_in;
     using sstream_t<T>::degree_out;
@@ -56,7 +57,7 @@ class scopy2d_server_t : public sstream_t<T> {
     status_t    update_view();
  
  private:   
-    void  init_buf(part_t<T>* part);
+    void  init_buf();
     void  send_buf(part_t<T>* part);
     void  send_buf_one(part_t<T>* part, int j);
     void  update_degreesnap();
@@ -97,23 +98,21 @@ class scopy2d_client_t : public sstream_t<T> {
 
 
 template <class T>
-void scopy2d_server_t<T>::init_buf(part_t<T>* part)
+void scopy2d_server_t<T>::init_buf()
 {
+    part_t<T>* part = (part_t<T>*)malloc(sizeof(part_t<T>)*part_count*part_count);
+    _part = part;
     int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
-    vid_t v_start = tid*v_local;
-    vid_t v_end =  v_start + v_local;
-    if (tid == part_count - 1) v_end = v_count;
-    
     int header_size = 5*sizeof(uint64_t);
-    //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
 
-    for (int j = 0; j < part_count; ++j) {
-        part[j].buf_size = (1<<29); //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
+    for (int j = 0; j < part_count*part_count; ++j) {
+        //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
+        part[j].buf_size = (1<<29); 
         part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
         part[j].position = header_size;
-        part[j].rank = 1 + tid*part_count + j;
-        part[j].v_offset = j*v_local;
+        part[j].rank = 1 + j;
+        part[j].v_offset = (j%part_count)*v_local;
         part[j].prior_sz = 16384*256;
         part[j].local_adjlist = (T*)malloc(part[j].prior_sz*sizeof(T));
     }
@@ -138,7 +137,7 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j)
               part[j].changed_v, part[j].changed_e);
     assert(t_pos == header_size);
     MPI_Send(part[j].buf, part[j].position, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
-
+    part[j].reset();
 }
 
 template <class T>
@@ -154,35 +153,32 @@ void scopy2d_server_t<T>::update_degreesnap()
 {
 #pragma omp parallel num_threads(part_count)
 {
-    part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
-    init_buf(part);
-    
     int tid = omp_get_thread_num();
+    part_t<T>* part = _part + tid*part_count;
+    
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
-    if (tid == part_count - 1) v_end = v_count;
+    //if (tid == part_count - 1) v_end = v_count;
     
     //Lets copy the data
     snapid_t     snap_id = snapshot->snap_id;
     degree_t  nebr_count = 0;
     degree_t   old_count = 0;
-    degree_t delta_count = 0;
     header_t<T> delta_adjlist;
     sid_t sid;
     T dst;
     int j = 0;
     
-    //#pragma omp for schedule (static)
-    for (vid_t v = v_start; v < v_end; ++v) {
+    for (vid_t v = v_start; v < v_end; ++v) { 
         nebr_count = graph_out->get_degree(v, snap_id);
         old_count = degree_out[v];
         if (old_count == nebr_count) continue;
 
         degree_out[v] = nebr_count;
         
-        delta_count = this->start_wout(v, delta_adjlist, old_count);
-        for (degree_t i = 0; i < delta_count; ++i) {
+        nebr_count = this->start_wout(v, delta_adjlist, old_count);
+        for (degree_t i = 0; i < nebr_count; ++i) {
             this->next(delta_adjlist, dst);
             sid = get_sid(dst);
             for (j = 0;  j < part_count - 1; ++j) {
@@ -201,8 +197,6 @@ void scopy2d_server_t<T>::update_degreesnap()
             if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) > part[j].buf_size) {
                 assert(0);
                 send_buf_one(part, j);
-                part[j].reset();
-                cout << " reset once" << endl;
             }
 
             //cout << "V = " << v << endl;
@@ -239,6 +233,7 @@ void scopy2d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
 {
     sstream_t<T>::init_view(pgraph, a_flag);
     part_count = _part_count;
+    init_buf();
 }
 
 template <class T>
