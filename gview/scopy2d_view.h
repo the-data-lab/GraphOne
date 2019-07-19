@@ -157,15 +157,12 @@ void scopy2d_server_t<T>::update_degreesnap()
 
     part_t<T>* part = (part_t<T>*)calloc(sizeof(part_t<T>), part_count);
     init_buf(part);
-    int j = 0;
-    
     
     int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
     if (tid == part_count - 1) v_end = v_count;
-    
     
     //Lets copy the data
     snapid_t     snap_id = snapshot->snap_id;
@@ -175,6 +172,8 @@ void scopy2d_server_t<T>::update_degreesnap()
     header_t<T> delta_adjlist;
     sid_t sid;
     T dst;
+    int j = 0;
+    
     //#pragma omp for schedule (static)
     for (vid_t v = v_start; v < v_end; ++v) {
         nebr_count = graph_out->get_degree(v, snap_id);
@@ -255,18 +254,7 @@ status_t scopy2d_server_t<T>::update_view()
     index_t old_marker = snapshot? snapshot->marker: 0;
     index_t new_marker = new_snapshot->marker;
     
-    //Get the edge copies for edge centric computation
-    if (IS_E_CENTRIC(flag)) { 
-        new_edge_count = new_marker - old_marker;
-        if (new_edges!= 0) free(new_edges);
-        new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
-        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
-    }
     snapshot = new_snapshot;
-    
-    //for stale
-    edges = blog->blog_beg + (new_marker & blog->blog_mask);
-    edge_count = marker - new_marker;
     
     if (graph_in == graph_out) {
         update_degreesnap();
@@ -320,9 +308,8 @@ void scopy2d_client_t<T>::apply_view()
          << endl;
 
     vid_t            vid = 0;
-    degree_t  nebr_count = 0;
     degree_t delta_count = 0;
-    degree_t   old_count = 0;
+    degree_t      icount = 0;
     degree_t    prior_sz = 16384;
     T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
@@ -334,24 +321,25 @@ void scopy2d_client_t<T>::apply_view()
         MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT64_T, MPI_COMM_WORLD);
         MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT64_T, MPI_COMM_WORLD);
 #endif
-        if (delta_count > prior_sz) {
-            prior_sz = delta_count;
-            free(local_adjlist);
-            local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-        }
-        MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
-        
         graph_out->increment_count_noatomic(vid - v_offset, delta_count);
-        graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
-
         //Update the degree of the view
         degree_out[vid - v_offset] += delta_count;
         bitmap_out->set_bit(vid - v_offset);
-
+        
+        if (delta_count <= prior_sz) {
+            MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
+            graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
+        } else {
+            while (delta_count > 0) {
+                icount = delta_count > prior_sz ? prior_sz : delta_count;
+                MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, MPI_UINT32_T, MPI_COMM_WORLD);
+                graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
+                delta_count -= icount;
+            }
+        }
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-
     //cout << "Rank " << _rank << " done" << endl;
 }
 
