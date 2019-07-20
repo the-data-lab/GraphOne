@@ -9,13 +9,12 @@ struct part_t {
     index_t changed_v;
     index_t changed_e;
     int position;
+    int back_position;
     int delta_count;
-    int prior_sz;
     int buf_size;
     int rank;
     vid_t v_offset;
     char* buf;
-    T* local_adjlist;
 
     void reset() {
         changed_v = 0;
@@ -108,13 +107,11 @@ void scopy2d_server_t<T>::init_buf()
 
     for (int j = 0; j < part_count*part_count; ++j) {
         //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-        part[j].buf_size = (1<<29); 
+        part[j].buf_size = (1<<24); 
         part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
         part[j].position = header_size;
         part[j].rank = 1 + j;
         part[j].v_offset = (j%part_count)*v_local;
-        part[j].prior_sz = 16384*256;
-        part[j].local_adjlist = (T*)malloc(part[j].prior_sz*sizeof(T));
     }
 }
 
@@ -151,6 +148,12 @@ void scopy2d_server_t<T>::send_buf(part_t<T>* part)
 template <class T>
 void scopy2d_server_t<T>::update_degreesnap()
 {
+#ifdef B32    
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#elif B64 
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#endif
+
 #pragma omp parallel num_threads(part_count)
 {
     int tid = omp_get_thread_num();
@@ -176,6 +179,10 @@ void scopy2d_server_t<T>::update_degreesnap()
         if (old_count == nebr_count) continue;
 
         degree_out[v] = nebr_count;
+        for (int j = 0; j < part_count; j++) {
+            part[j].back_position = part[j].position;
+            part[j].position += 2*sizeof(vid_t);
+        }
         
         nebr_count = this->start_wout(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < nebr_count; ++i) {
@@ -185,31 +192,33 @@ void scopy2d_server_t<T>::update_degreesnap()
                  if(sid < part[j+1].v_offset) break;
             }
             
-            assert(part[j].delta_count < part[j].prior_sz); 
-            part[j].local_adjlist[part[j].delta_count] = dst;
+            //send and reset the data
+            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) > part[j].buf_size) {
+                assert(0);//XXX
+                part[j].changed_v++;
+                part[j].changed_e += part[j].delta_count;
+                MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+                MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+                part[j].delta_count = 0;
+                send_buf_one(part, j);
+                part[j].back_position = part[j].position;
+                part[j].position += 2*sizeof(vid_t);
+            }
+            
+            MPI_Pack(&dst, 1, pgraph->data_type, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
             part[j].delta_count += 1;
         }
 
         for (int j = 0; j < part_count; ++j) {
-            if (0 == part[j].delta_count) continue;
-            
-            //send and reset the data
-            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) > part[j].buf_size) {
-                assert(0);
-                send_buf_one(part, j);
+            if (0 == part[j].delta_count) {
+                part[j].position -= 2*sizeof(vid_t);
+                continue;
             }
-
-            //cout << "V = " << v << endl;
+            
             part[j].changed_v++;
             part[j].changed_e += part[j].delta_count;
-#ifdef B32
-            MPI_Pack(&v, 1, MPI_UINT32_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-            MPI_Pack(&part[j].delta_count, 1, MPI_UINT32_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-#else
-            MPI_Pack(&v, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-            MPI_Pack(&part[j].delta_count, 1, MPI_UINT64_T, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
-#endif
-            MPI_Pack(part[j].local_adjlist, part[j].delta_count, pgraph->data_type, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+            MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
             part[j].delta_count = 0;
         }
     }
