@@ -58,7 +58,7 @@ class scopy2d_server_t : public sstream_t<T> {
  private:   
     void  init_buf();
     void  send_buf(part_t<T>* part);
-    void  send_buf_one(part_t<T>* part, int j);
+    void  send_buf_one(part_t<T>* part, int j, int partial = 1);
     void  update_degreesnap();
     void  update_degreesnapd();
 };
@@ -107,7 +107,7 @@ void scopy2d_server_t<T>::init_buf()
 
     for (int j = 0; j < part_count*part_count; ++j) {
         //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-        part[j].buf_size = (1<<24); 
+        part[j].buf_size = (1<<20); 
         part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
         part[j].position = header_size;
         part[j].rank = 1 + j;
@@ -116,12 +116,15 @@ void scopy2d_server_t<T>::init_buf()
 }
 
 template <class T>
-void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j)
+void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1*/)
 {
     int header_size = 5*sizeof(uint64_t);
     uint64_t  archive_marker = snapshot->marker;
     //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
     uint64_t meta_flag = 1;
+    if (partial) {
+        meta_flag = partial;
+    }
     int t_pos = 0;
     
     cout << " sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
@@ -193,14 +196,15 @@ void scopy2d_server_t<T>::update_degreesnap()
             }
             
             //send and reset the data
-            if (part[j].position + part[j].delta_count*sizeof(T) + sizeof(vid_t) > part[j].buf_size) {
-                assert(0);//XXX
+            if (part[j].position + part[j].delta_count*sizeof(T) + 2*sizeof(vid_t) 
+                > part[j].buf_size) {
+                //assert(0);//XXX
                 part[j].changed_v++;
                 part[j].changed_e += part[j].delta_count;
                 MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
                 MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
                 part[j].delta_count = 0;
-                send_buf_one(part, j);
+                send_buf_one(part, j, 2);
                 part[j].back_position = part[j].position;
                 part[j].position += 2*sizeof(vid_t);
             }
@@ -290,52 +294,59 @@ void scopy2d_client_t<T>::apply_view()
     MPI_Status status;
     int buf_size = 0;
     char*    buf = 0;
-    MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
-    MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
-    buf = (char*)malloc(buf_size*sizeof(char));
-
-    int position = 0;
-    MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
-
+    int  partial = 0;
     //Header of the package
     uint64_t flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
+    int position = 0;
     uint64_t  archive_marker = 0;
-    unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
-    
-    cout << "Rank " << _rank << ":" << v_offset
-         << " Archive Marker = " << archive_marker 
-         << " size "<< buf_size 
-         << " changed_v " << changed_v
-         << " changed_e " << changed_e
-         << endl;
 
-    vid_t            vid = 0;
-    degree_t delta_count = 0;
-    degree_t      icount = 0;
-    degree_t    prior_sz = 16384;
-    T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+    do {
+        MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_CHAR, &buf_size);
+        //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+        buf = (char*)malloc(buf_size*sizeof(char));
 
-    for (vid_t v = 0; v < changed_v; ++v) {
+        MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
+        position = 0;
+
+        unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
+        partial = flag;
+
+        cout << "Rank " << _rank << ":" << v_offset
+             << " Archive Marker = " << archive_marker 
+             << " size "<< buf_size 
+             << " changed_v " << changed_v
+             << " changed_e " << changed_e
+             << endl;
+
+        vid_t            vid = 0;
+        degree_t delta_count = 0;
+        degree_t      icount = 0;
+        degree_t    prior_sz = 16384;
+        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+
+        for (vid_t v = 0; v < changed_v; ++v) {
 #ifdef B32
-        MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT32_T, MPI_COMM_WORLD);
-        MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT32_T, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT32_T, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT32_T, MPI_COMM_WORLD);
 #else
-        MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-        MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT64_T, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT64_T, MPI_COMM_WORLD);
 #endif
-        graph_out->increment_count_noatomic(vid - v_offset, delta_count);
-        //Update the degree of the view
-        degree_out[vid - v_offset] += delta_count;
-        bitmap_out->set_bit(vid - v_offset);
-        
-        while (delta_count > 0) {
-            icount = delta_count > prior_sz ? prior_sz : delta_count;
-            MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
-            graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
-            delta_count -= icount;
+            graph_out->increment_count_noatomic(vid - v_offset, delta_count);
+            //Update the degree of the view
+            degree_out[vid - v_offset] += delta_count;
+            bitmap_out->set_bit(vid - v_offset);
+            
+            while (delta_count > 0) {
+                icount = delta_count > prior_sz ? prior_sz : delta_count;
+                MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
+                graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
+                delta_count -= icount;
+            }
         }
-    }
+    } while(2 == partial);
+
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
     //cout << "Rank " << _rank << " done" << endl;
