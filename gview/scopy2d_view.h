@@ -16,6 +16,19 @@ struct part_t {
     vid_t v_offset;
     char* buf;
 
+    void init() {
+        //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
+        buf_size = (1<<20); 
+        buf = (char*) malloc(sizeof(char)*buf_size);
+        
+        position = 0;
+        changed_v = 0;
+        changed_e = 0;
+        back_position = 0;
+        delta_count = 0;
+        rank = 0;
+        v_offset = 0;
+    }
     void reset() {
         changed_v = 0;
         changed_e = 0;
@@ -106,9 +119,7 @@ void scopy2d_server_t<T>::init_buf()
     int header_size = 5*sizeof(uint64_t);
 
     for (int j = 0; j < part_count*part_count; ++j) {
-        //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-        part[j].buf_size = (1<<20); 
-        part[j].buf = (char*) malloc(sizeof(char)*part[j].buf_size);
+        part[j].init();
         part[j].position = header_size;
         part[j].rank = 1 + j;
         part[j].v_offset = (j%part_count)*v_local;
@@ -183,6 +194,9 @@ void scopy2d_server_t<T>::update_degreesnap()
 
         degree_out[v] = nebr_count;
         for (int j = 0; j < part_count; j++) {
+            if (part[j].position + 2*sizeof(vid_t) + sizeof(T) >= part[j].buf_size) {
+                send_buf_one(part, j, 2);
+            }
             part[j].back_position = part[j].position;
             part[j].position += 2*sizeof(vid_t);
         }
@@ -194,16 +208,12 @@ void scopy2d_server_t<T>::update_degreesnap()
             for (j = 0;  j < part_count - 1; ++j) {
                  if(sid < part[j+1].v_offset) break;
             }
-            
             //send and reset the data
-            if (part[j].position + part[j].delta_count*sizeof(T) + 2*sizeof(vid_t) 
-                > part[j].buf_size) {
-                //assert(0);//XXX
+            if (part[j].position  + sizeof(T)>= part[j].buf_size) {
                 part[j].changed_v++;
                 part[j].changed_e += part[j].delta_count;
                 MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
                 MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
-                part[j].delta_count = 0;
                 send_buf_one(part, j, 2);
                 part[j].back_position = part[j].position;
                 part[j].position += 2*sizeof(vid_t);
