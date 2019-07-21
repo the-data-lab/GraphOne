@@ -38,7 +38,7 @@ void do_stream_bfs(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitmap
             nebr_count = snaph->start_out(v, header);
             for (degree_t i = 0; i < nebr_count; ++i) {
                 snaph->next(header, dst);
-                sid = get_sid(dst) - snaph->dst_offset;
+                sid = get_sid(dst);
                 if (rstatus[sid] > level + 1) {
                     rstatus[sid] = level + 1;
                     bitmap2->set_bit(sid);//dest

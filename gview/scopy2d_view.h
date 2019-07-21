@@ -21,7 +21,7 @@ struct part_t {
     int delta_count;
     int buf_size;
     int rank;
-    vid_t v_offset;
+    vid_t dst_offset;
     char* buf;
 
     void init() {
@@ -35,7 +35,7 @@ struct part_t {
         back_position = 0;
         delta_count = 0;
         rank = 0;
-        v_offset = 0;
+        dst_offset = 0;
     }
     void reset() {
         changed_v = 0;
@@ -130,7 +130,7 @@ void scopy2d_server_t<T>::init_buf()
         part[j].init();
         part[j].position = header_size;
         part[j].rank = 1 + j;
-        part[j].v_offset = (j%part_count)*v_local;
+        part[j].dst_offset = (j%part_count)*v_local;
     }
 }
 
@@ -186,6 +186,7 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
     degree_t   old_count = 0;
     header_t<T> delta_adjlist;
     sid_t sid;
+    vid_t vid;
     T dst;
     int j = 0;
     
@@ -194,6 +195,7 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
         old_count = degree[v];
         if (old_count == nebr_count) continue;
 
+        vid = v - v_start;
         degree[v] = nebr_count;
         for (int j = 0; j < part_count; j++) {
             if (part[j].position + 2*sizeof(vid_t) + sizeof(T) >= part[j].buf_size) {
@@ -209,19 +211,20 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
             graph->next(delta_adjlist, dst);
             sid = get_sid(dst);
             for (j = 0;  j < part_count - 1; ++j) {
-                 if(sid < part[j+1].v_offset) break;
+                 if(sid < part[j+1].dst_offset) break;
             }
             //send and reset the data
             if (part[j].position  + sizeof(T)>= part[j].buf_size) {
                 part[j].changed_v++;
                 part[j].changed_e += part[j].delta_count;
-                MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+                MPI_Pack(&vid, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
                 MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
                 send_buf_one(part, j, 2);
                 part[j].back_position = part[j].position;
                 part[j].position += 2*sizeof(vid_t);
             }
             
+            set_sid(dst, sid - part[j].dst_offset);
             MPI_Pack(&dst, 1, pgraph->data_type, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
             part[j].delta_count += 1;
         }
@@ -234,7 +237,8 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
             
             part[j].changed_v++;
             part[j].changed_e += part[j].delta_count;
-            MPI_Pack(&v, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+
+            MPI_Pack(&vid, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
             MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
             part[j].delta_count = 0;
         }
@@ -339,15 +343,15 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
             MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
             MPI_Unpack(buf, buf_size, &position, &delta_count, 1, mpi_type_vid, MPI_COMM_WORLD);
             
-            graph->increment_count_noatomic(vid - v_offset, delta_count);
+            graph->increment_count_noatomic(vid, delta_count);
             //Update the degree of the view
-            degree[vid - v_offset] += delta_count;
-            bitmap->set_bit(vid - v_offset);
+            degree[vid] += delta_count;
+            bitmap->set_bit(vid);
             
             while (delta_count > 0) {
                 icount = delta_count > prior_sz ? prior_sz : delta_count;
                 MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
-                graph->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
+                graph->add_nebr_bulk(vid, local_adjlist, icount);
                 delta_count -= icount;
             }
         }
