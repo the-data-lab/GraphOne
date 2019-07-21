@@ -14,6 +14,7 @@
 
 index_t residue = 0;
 index_t _edge_count = 0;
+int _dir = 0;
 
 typedef cfinfo_t* (*get_graph_instance)();
 map<string, get_graph_instance>  graph_instance;

@@ -37,6 +37,7 @@ class plaingraph_manager_t {
         pgraph = a_pgraph;
     }
 
+    void schema(int dir);
     void schema_plaingraph();
     void schema_plaingraphd();
     void schema_plaingraphuni();
@@ -75,6 +76,24 @@ class plaingraph_manager_t {
     void run_1hop();
     void run_2hop();
 };
+
+template <class T>
+void plaingraph_manager_t<T>::schema(int dir)
+{
+    switch(dir) {
+        case 0:
+            schema_plaingraph();
+            break;
+        case 1:
+            schema_plaingraphd();
+            break;
+        case 2:
+            schema_plaingraphuni();
+            break;
+        default:
+            assert(0);
+    }
+}
 
 template <class T>
 void plaingraph_manager_t<T>::schema_plaingraph()

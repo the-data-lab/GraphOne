@@ -1460,7 +1460,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
                typename callback<T>::sfunc scopy_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     _global_vcount = v_count;
     

@@ -383,6 +383,50 @@ degree_t onegraph_t<T>::get_degree(vid_t vid, snapid_t snap_id)
     return 0;
 }
 
+template <class T>
+degree_t onegraph_t<T>::start(vid_t v, header_t<T>& header, degree_t offset/*=0*/)
+{
+    delta_adjlist_t<T>* delta_adjlist = get_delta_adjlist(v);
+    
+    //traverse the delta adj list
+    degree_t delta_degree = offset; 
+    degree_t local_degree = 0;
+    
+    while (delta_adjlist != 0 && delta_degree > 0) {
+        local_degree = delta_adjlist->get_nebrcount();
+        if (delta_degree >= local_degree) {
+            delta_adjlist = delta_adjlist->get_next();
+            delta_degree -= local_degree;
+        } else {
+            break;
+        }
+    }
+    
+    header.next = delta_adjlist->get_next();
+    header.max_count = delta_adjlist->get_maxcount();
+    header.count = delta_degree;
+    header.adj_list = delta_adjlist->get_adjlist();
+    
+    return 0;
+}
+
+template <class T>
+status_t onegraph_t<T>::next(header_t<T>& header, T& dst)
+{
+    if (header.max_count == header.count) {
+        delta_adjlist_t<T>* delta_adjlist = header.next;
+        header.next = delta_adjlist->get_next();
+        header.max_count = delta_adjlist->get_maxcount();
+        header.count = 0;
+        header.adj_list = delta_adjlist->get_adjlist();
+    }
+    
+    T* local_adjlist = header.adj_list;
+    dst = local_adjlist[header.count++];
+    return eOK;
+}
+
+
 #ifdef BULK
 template <class T>
 void onegraph_t<T>::setup_adjlist()

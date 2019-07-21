@@ -4,6 +4,14 @@
 
 #ifdef _MPI
 
+#ifdef B32    
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#elif B64 
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#endif
+
+#define BUF_TX_SZ (1<<20)
+
 template <class T>
 struct part_t {
     index_t changed_v;
@@ -18,7 +26,7 @@ struct part_t {
 
     void init() {
         //header_size + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-        buf_size = (1<<20); 
+        buf_size = BUF_TX_SZ; 
         buf = (char*) malloc(sizeof(char)*buf_size);
         
         position = 0;
@@ -72,8 +80,7 @@ class scopy2d_server_t : public sstream_t<T> {
     void  init_buf();
     void  send_buf(part_t<T>* part);
     void  send_buf_one(part_t<T>* part, int j, int partial = 1);
-    void  update_degreesnap();
-    void  update_degreesnapd();
+    void  prep_buf(degree_t* degree, onegraph_t<T>* graph);
 };
 
 template <class T>
@@ -106,8 +113,7 @@ class scopy2d_client_t : public sstream_t<T> {
     void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
     status_t  update_view();
  private:
-    index_t  apply_view();
-    index_t  apply_viewd();
+    index_t  apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap);
 };
 
 
@@ -154,23 +160,17 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
 }
 
 template <class T>
-void scopy2d_server_t<T>::send_buf(part_t<T>* part)
+void scopy2d_server_t<T>::send_buf(part_t<T>* _part1)
 {
+    int tid = omp_get_thread_num();
+    part_t<T>* part = _part + tid*part_count;
     for (int j = 0; j < part_count; ++j) {
         send_buf_one(part, j);
     }
 }
 
 template <class T>
-void scopy2d_server_t<T>::update_degreesnap()
-{
-#ifdef B32    
-    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
-#elif B64 
-    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
-#endif
-
-#pragma omp parallel num_threads(part_count)
+void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
 {
     int tid = omp_get_thread_num();
     part_t<T>* part = _part + tid*part_count;
@@ -190,11 +190,11 @@ void scopy2d_server_t<T>::update_degreesnap()
     int j = 0;
     
     for (vid_t v = v_start; v < v_end; ++v) { 
-        nebr_count = graph_out->get_degree(v, snap_id);
-        old_count = degree_out[v];
+        nebr_count = graph->get_degree(v, snap_id);
+        old_count = degree[v];
         if (old_count == nebr_count) continue;
 
-        degree_out[v] = nebr_count;
+        degree[v] = nebr_count;
         for (int j = 0; j < part_count; j++) {
             if (part[j].position + 2*sizeof(vid_t) + sizeof(T) >= part[j].buf_size) {
                 send_buf_one(part, j, 2);
@@ -203,9 +203,10 @@ void scopy2d_server_t<T>::update_degreesnap()
             part[j].position += 2*sizeof(vid_t);
         }
         
-        nebr_count = this->start_wout(v, delta_adjlist, old_count);
+        nebr_count -= old_count; 
+        graph->start(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < nebr_count; ++i) {
-            this->next(delta_adjlist, dst);
+            graph->next(delta_adjlist, dst);
             sid = get_sid(dst);
             for (j = 0;  j < part_count - 1; ++j) {
                  if(sid < part[j+1].v_offset) break;
@@ -238,19 +239,6 @@ void scopy2d_server_t<T>::update_degreesnap()
             part[j].delta_count = 0;
         }
     }
-    send_buf(part);    
-}
-}
-
-template <class T>
-void scopy2d_server_t<T>::update_degreesnapd()
-{
-    vid_t changed_v = 0;
-    index_t changed_e = 0;
-
-    //Lets copy the data
-
-    return;
 }
 
 template <class T>
@@ -275,30 +263,42 @@ status_t scopy2d_server_t<T>::update_view()
     
     snapshot = new_snapshot;
     
+#pragma omp parallel num_threads(part_count)
+{
     if (graph_in == graph_out) {
-        update_degreesnap();
+        prep_buf(degree_out, graph_out);
+        send_buf(_part);    
     } else {
-        update_degreesnapd();
+        prep_buf(degree_out, graph_out);
+        send_buf(_part);    
+        prep_buf(degree_in, graph_in);
+        send_buf(_part);    
     }
+}
 
-    return eOK;
+return eOK;
 }
 
 template <class T>
 status_t scopy2d_client_t<T>::update_view()
 {
+    index_t archive_marker;
     if (graph_in == graph_out) {
-        apply_view();
+        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
     } else {
-        apply_viewd();
+        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
+        archive_marker = apply_view(degree_in, graph_in, bitmap_in);
     }
+    
+    pgraph->new_snapshot(archive_marker);
+    snapshot = pgraph->get_snapshot();
     return eOK;
 }
 
 template <class T>
-index_t scopy2d_client_t<T>::apply_view()
+index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap)
 {
-    bitmap_out->reset();
+    bitmap->reset();
 
     //Lets copy the data
     MPI_Status status;
@@ -336,33 +336,25 @@ index_t scopy2d_client_t<T>::apply_view()
         T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
         for (vid_t v = 0; v < changed_v; ++v) {
-            MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT32_T, MPI_COMM_WORLD);
-            MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT32_T, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &delta_count, 1, mpi_type_vid, MPI_COMM_WORLD);
             
-            graph_out->increment_count_noatomic(vid - v_offset, delta_count);
+            graph->increment_count_noatomic(vid - v_offset, delta_count);
             //Update the degree of the view
-            degree_out[vid - v_offset] += delta_count;
-            bitmap_out->set_bit(vid - v_offset);
+            degree[vid - v_offset] += delta_count;
+            bitmap->set_bit(vid - v_offset);
             
             while (delta_count > 0) {
                 icount = delta_count > prior_sz ? prior_sz : delta_count;
                 MPI_Unpack(buf, buf_size, &position, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
-                graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
+                graph->add_nebr_bulk(vid - v_offset, local_adjlist, icount);
                 delta_count -= icount;
             }
         }
     } while(2 == partial);
 
-    pgraph->new_snapshot(archive_marker);
-    snapshot = pgraph->get_snapshot();
     //cout << "Rank " << _rank << " done" << endl;
     return archive_marker;
-}
-
-template <class T>
-index_t scopy2d_client_t<T>::apply_viewd()
-{
-    return 0;
 }
 
 template <class T>
@@ -382,7 +374,7 @@ void scopy2d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     int col_id = (_rank - 1)%_part_count;
     v_offset = row_id*(global_vcount/_part_count);
     dst_offset = col_id*(global_vcount/_part_count);
-    buf_size = (1<<20); 
+    buf_size = BUF_TX_SZ; 
     buf = (char*) malloc(sizeof(char)*buf_size);
 }
 #endif

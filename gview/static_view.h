@@ -46,10 +46,8 @@ class snap_t : public gview_t <T> {
     degree_t get_degree_out(vid_t vid);
     degree_t get_degree_in (vid_t vid);
 
-    degree_t start_out(vid_t v, header_t<T>& header);
-    degree_t start_in(vid_t v, header_t<T>& header);
-    degree_t start_wout(vid_t v, header_t<T>& header, degree_t start);
-    degree_t start_win(vid_t v, header_t<T>& header, degree_t start);
+    degree_t start_out(vid_t v, header_t<T>& header, degree_t offset = 0);
+    degree_t start_in(vid_t v, header_t<T>& header, degree_t offset = 0);
     status_t next(header_t<T>& header, T& dst);
     
     delta_adjlist_t<T>* get_nebrs_archived_out(vid_t);
@@ -183,88 +181,22 @@ delta_adjlist_t<T>* snap_t<T>::get_nebrs_archived_out(vid_t v)
 }
 
 template <class T>
-degree_t snap_t<T>::start_out(vid_t v, header_t<T>& header)
+degree_t snap_t<T>::start_out(vid_t v, header_t<T>& header, degree_t offset/*=0*/)
 {
-    degree_t degree = get_degree_out(v);
-    if (degree == 0) return 0;
-
-    delta_adjlist_t<T>* delta_adjlist = graph_out->get_delta_adjlist(v);
-    header.count = 0; 
-    header.next = delta_adjlist->get_next();
-    header.max_count = delta_adjlist->get_maxcount();
-    header.adj_list = delta_adjlist->get_adjlist();
-    return degree;
-}
-
-template <class T>
-degree_t snap_t<T>::start_in(vid_t v, header_t<T>& header)
-{
-    degree_t degree = get_degree_in(v);
-    if (degree == 0) return 0;
-    
-    delta_adjlist_t<T>* delta_adjlist = graph_in->get_delta_adjlist(v);
-    header.count = 0; 
-    header.next = delta_adjlist->get_next();
-    header.max_count = delta_adjlist->get_maxcount();
-    header.adj_list = delta_adjlist->get_adjlist();
-    return degree;
-}
-
-template <class T>
-degree_t snap_t<T>::start_wout(vid_t v, header_t<T>& header, degree_t start)
-{
-    degree_t degree = get_degree_out(v) - start;
-
-    delta_adjlist_t<T>* delta_adjlist = graph_out->get_delta_adjlist(v);
-    
-    //traverse the delta adj list
-    degree_t delta_degree = start; 
-    degree_t local_degree = 0;
-    
-    while (delta_adjlist != 0 && delta_degree > 0) {
-        local_degree = delta_adjlist->get_nebrcount();
-        if (delta_degree >= local_degree) {
-            delta_adjlist = delta_adjlist->get_next();
-            delta_degree -= local_degree;
-        } else {
-            break;
-        }
+    degree_t degree = get_degree_out(v) - offset;
+    if (degree != 0) {
+        graph_out->start(v, header, offset);
     }
-    
-    header.next = delta_adjlist->get_next();
-    header.max_count = delta_adjlist->get_maxcount();
-    header.count = delta_degree;
-    header.adj_list = delta_adjlist->get_adjlist();
-    
     return degree;
 }
 
 template <class T>
-degree_t snap_t<T>::start_win(vid_t v, header_t<T>& header, degree_t start)
+degree_t snap_t<T>::start_in(vid_t v, header_t<T>& header, degree_t offset/*=0*/)
 {
-    degree_t degree = get_degree_in(v) - start;
-
-    delta_adjlist_t<T>* delta_adjlist = graph_in->get_delta_adjlist(v);
-    
-    //traverse the delta adj list
-    degree_t delta_degree = start; 
-    degree_t local_degree = 0;
-    
-    while (delta_adjlist != 0 && delta_degree > 0) {
-        local_degree = delta_adjlist->get_nebrcount();
-        if (delta_degree >= local_degree) {
-            delta_adjlist = delta_adjlist->get_next();
-            delta_degree -= local_degree;
-        } else {
-            break;
-        }
+    degree_t degree = get_degree_in(v) - offset;
+    if (degree != 0) {
+        graph_in->start(v, header, offset);
     }
-    
-    header.next = delta_adjlist->get_next();
-    header.max_count = delta_adjlist->get_maxcount();
-    header.count = delta_degree;
-    header.adj_list = delta_adjlist->get_adjlist();
-    
     return degree;
 }
 

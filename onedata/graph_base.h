@@ -81,6 +81,8 @@ public:
 
     degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
+    degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
+    status_t next(header_t<T>& header, T& dst);
 
 	void increment_count_noatomic(vid_t vid, degree_t count = 1);
     void decrement_count_noatomic(vid_t vid, degree_t count = 1);
