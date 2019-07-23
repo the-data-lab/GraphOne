@@ -78,9 +78,10 @@ class scopy2d_server_t : public sstream_t<T> {
  
  private:   
     void  init_buf();
+    void  prep_buf(degree_t* degree, onegraph_t<T>* graph);
+    void  buf_vertex(part_t<T>* part, vid_t vid);
     void  send_buf(part_t<T>* part);
     void  send_buf_one(part_t<T>* part, int j, int partial = 1);
-    void  prep_buf(degree_t* degree, onegraph_t<T>* graph);
 };
 
 template <class T>
@@ -170,6 +171,91 @@ void scopy2d_server_t<T>::send_buf(part_t<T>* _part1)
 }
 
 template <class T>
+void scopy2d_server_t<T>::buf_vertex(part_t<T>* part, vid_t vid)
+{
+    part->changed_v++;
+    part->changed_e += part->delta_count;
+    MPI_Pack(&vid, 1, mpi_type_vid, part->buf, part->buf_size, &part->back_position, MPI_COMM_WORLD);
+    MPI_Pack(&part->delta_count, 1, mpi_type_vid, part->buf, part->buf_size, &part->back_position, MPI_COMM_WORLD);
+    part->delta_count = 0;
+}
+
+/*
+template <class T>
+void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
+{
+    int tid = omp_get_thread_num();
+    part_t<T>* part = _part + tid*part_count;
+    
+    vid_t v_local = v_count/part_count;
+    vid_t v_start = tid*v_local;
+    vid_t v_end =  v_start + v_local;
+    //if (tid == part_count - 1) v_end = v_count;
+    
+    //Lets copy the data
+    snapid_t     snap_id = snapshot->snap_id;
+    degree_t  nebr_count = 0;
+    degree_t   old_count = 0;
+    header_t<T> delta_adjlist;
+    sid_t sid;
+    vid_t vid;
+    T dst;
+    int j = 0;
+    
+    for (vid_t v = v_start; v < v_end; ++v) { 
+        nebr_count = graph->get_degree(v, snap_id);
+        old_count = degree[v];
+        if (old_count == nebr_count) continue;
+
+        vid = v - v_start;
+        nebr_count -= old_count; 
+        graph->start(v, delta_adjlist, old_count);
+        for (degree_t i = 0; i < nebr_count; ++i) {
+            graph->next(delta_adjlist, dst);
+            sid = get_sid(dst);
+            for (j = 0;  j < part_count - 1; ++j) {
+                 if(sid < part[j+1].dst_offset) break;
+            }
+            part[j].delta_count += 1;
+        }
+
+        for (int j = 0; j < part_count; ++j) {
+            if (0 == part[j].delta_count) {
+                continue;
+            }
+            //XXX Check if we can process next vertex
+            if (total_size + this_size > part[j].buf_size) {
+            } else {
+                part[j].back_position = part[j].position;
+                buf_vertex(part + j, vid);
+            }
+        }
+    }
+    
+    for(vid_t v = v_start; v < v_end; ++v) {
+        nebr_count = graph->get_degree(v, snap_id);
+        old_count = degree[v];
+        if (old_count == nebr_count) continue;
+        degree_out[v] = nebr_count;
+        
+        vid = v - v_start;
+        nebr_count -= old_count; 
+        graph->start(v, delta_adjlist, old_count);
+        for (degree_t i = 0; i < nebr_count; ++i) {
+            graph->next(delta_adjlist, dst);
+            sid = get_sid(dst);
+            for (j = 0;  j < part_count - 1; ++j) {
+                 if(sid < part[j+1].dst_offset) break;
+            }
+            set_sid(dst, sid - part[j].dst_offset);
+            MPI_Pack(&dst, 1, pgraph->data_type, part[j].buf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            part[j].delta_count += 1;
+        }
+        
+    }
+}
+*/
+template <class T>
 void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
 {
     int tid = omp_get_thread_num();
@@ -215,11 +301,9 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
             }
             //send and reset the data
             if (part[j].position  + sizeof(T)>= part[j].buf_size) {
-                part[j].changed_v++;
-                part[j].changed_e += part[j].delta_count;
-                MPI_Pack(&vid, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
-                MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
+                buf_vertex(part + j, vid);
                 send_buf_one(part, j, 2);
+                
                 part[j].back_position = part[j].position;
                 part[j].position += 2*sizeof(vid_t);
             }
@@ -234,13 +318,8 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
                 part[j].position -= 2*sizeof(vid_t);
                 continue;
             }
-            
-            part[j].changed_v++;
-            part[j].changed_e += part[j].delta_count;
-
-            MPI_Pack(&vid, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
-            MPI_Pack(&part[j].delta_count, 1, mpi_type_vid, part[j].buf, part[j].buf_size, &part[j].back_position, MPI_COMM_WORLD);
-            part[j].delta_count = 0;
+           
+            buf_vertex(part + j, vid);
         }
     }
 }
