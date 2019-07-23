@@ -11,7 +11,7 @@ extern index_t residue;
 extern vid_t _global_vcount;
 //Required for exiting from the streaming computation
 extern index_t _edge_count;
-extern int _dir, _persist;
+extern int _dir, _persist, _source;
     
 extern int _numtasks, _rank;
 extern int _part_count;

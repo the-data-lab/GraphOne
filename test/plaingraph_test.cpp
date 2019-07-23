@@ -773,14 +773,13 @@ void split_files(const string& idir, const string& odir)
 }
 
 template <class T>
-void llama_test(const string& idir, const string& odir,
-                typename callback<T>::parse_fn_t parsefile_fn)
+void llama_test(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn);
+    manager.prep_graph(idir, odir);
     manager.run_bfs();
     manager.run_bfs();
     manager.run_bfs();
@@ -790,28 +789,26 @@ void llama_test(const string& idir, const string& odir,
 }
 
 template <class T>
-void ingestion_full(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn_t parsefile_fn)
+void ingestion_full(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count); 
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
+    manager.prep_graph(idir, odir); 
     manager.run_bfs();    
     //g->store_graph_baseline();
     //cout << "stroing done" << endl;
 }
 
 template <class T>
-void test_ingestion_full(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn2_t parsebuf_fn)
+void test_ingestion_full(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
-    manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
+    manager.prep_graph2(idir, odir); 
     manager.run_bfs();    
     //g->store_graph_baseline();
     cout << "stroing done" << endl;
@@ -1003,23 +1000,7 @@ void test_logging(const string& idir, const string& odir)
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.prep_graph_edgelog(idir, odir);
-    
-    //Run BFS
-    for (int i = 0; i < 1; i++){
-        manager.run_bfs();
-    }
-}
-
-template <class T>
-void test_logging_fromtext(const string& idir, const string& odir,
-                    typename callback<T>::parse_fn2_t parsefile_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema(_dir);
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    manager.prep_graph_edgelog_fromtext(idir, odir, parsefile_fn);
+    manager.prep_graph_edgelog2(idir, odir);
     
     //Run BFS
     for (int i = 0; i < 1; i++){
@@ -1092,7 +1073,7 @@ void test_ingestion(const string& idir, const string& odir)
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.prep_graph(idir, odir);
+    manager.prep_graph2(idir, odir);
     manager.run_bfs();
     
     pgraph_t<T>* pgraph = manager.get_plaingraph();
@@ -1104,29 +1085,15 @@ void test_ingestion(const string& idir, const string& odir)
 }
 
 template <class T>
-void ingestion_fromtext(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn_t parsefile_fn)
+void ingestion(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
+    manager.prep_graph(idir, odir); 
     manager.run_bfs();
     //g->store_graph_baseline();    
-}
-
-template <class T>
-void test_ingestion_fromtext(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn2_t parsebuf_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema(_dir);
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);
-    manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
-    manager.run_bfs();
-    g->store_graph_baseline();    
 }
 
 void stream_wcc(const string& idir, const string& odir)
@@ -1180,7 +1147,7 @@ void multi_stream_bfs(const string& idir, const string& odir,
     }
     
     //CorePin(0);
-    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
+    manager.prep_graph(idir, odir);
     for (int i = 0; i < count; ++i) {
         void* ret;
         pthread_join(sstreamh[i]->thread, &ret);
@@ -1206,7 +1173,7 @@ void serial_scopy_bfs(const string& idir, const string& odir,
         scopy_server_t<T>* scopyh = reg_scopy_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
         //CorePin(0);
-        manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+        manager.prep_graph_edgelog(idir, odir);
         void* ret;
         pthread_join(scopyh->thread, &ret);
 
@@ -1255,7 +1222,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
         //create scopy_server
         scopy2d_server_t<T>* scopyh = reg_scopy2d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
-        manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+        manager.prep_graph_edgelog(idir, odir);
         void* ret;
         pthread_join(scopyh->thread, &ret);
 
@@ -1295,7 +1262,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         scopy1d_server_t<T>* scopyh = reg_scopy1d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
         //CorePin(0);
-        manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+        manager.prep_graph_edgelog(idir, odir);
         void* ret;
         pthread_join(scopyh->thread, &ret);
 
@@ -1328,7 +1295,7 @@ void test_serial_stream(const string& idir, const string& odir,
     
     sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
     
-    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
+    manager.prep_graph_edgelog(idir, odir);
     
     void* ret;
     pthread_join(sstreamh->thread, &ret);
@@ -1361,14 +1328,8 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             prior_snap_test<sid_t>(odir);
             break;
         //plain graph in text format with ID. 
-        case 7: 
-            test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
-            break;
-        case 8: 
-            test_logging_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
-            break;
         case 9: //Not for performance
-            ingestion_fromtext<sid_t>(idir, odir, parsefile_and_insert);
+            ingestion<sid_t>(idir, odir);
             break;
 
         //netflow graph testing
@@ -1390,11 +1351,11 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 15:
             prior_snap_test<netflow_dst_t>(odir);
             break;
-        case 16://text to our format, not for performance
-            ingestion_full<netflow_dst_t>(idir, odir, parsefile_and_insert);
+        case 16://text to our format
+            test_ingestion_full<netflow_dst_t>(idir, odir);
             break;
-        case 17://text to our format
-            test_ingestion_full<netflow_dst_t>(idir, odir, parsebuf_and_insert);
+        case 17://text to our format, not for performance
+            ingestion_full<netflow_dst_t>(idir, odir);
             break;
         
         case 20: 
@@ -1407,7 +1368,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_archive<weight_sid_t>(idir, odir);
             break;
         case 23://llama
-            llama_test<weight_sid_t>(idir, odir, parsefile_and_insert);
+            llama_test<weight_sid_t>(idir, odir);
             break;
         case 24:
             //stinger test
@@ -1420,7 +1381,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             gen_kickstarter_files<sid_t>(idir, odir);
             break;
         case 27://text to binary file not for performance
-            ingestion_full<netflow_dst_t>(idir, odir, parsefile_to_bin);
+            //ingestion_full<netflow_dst_t>(idir, odir, parsefile_to_bin);
             break;
         
         case 30:

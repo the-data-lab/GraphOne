@@ -51,19 +51,17 @@ class plaingraph_manager_t {
     
     void recover_graph_adj(const string& idirname, const string& odirname);
 
-    void prep_log_fromtext(const string& idirname, const string& odirname, 
-                             typename callback<T>::parse_fn_t);
-    void prep_graph_fromtext(const string& idirname, const string& odirname, 
-                             typename callback<T>::parse_fn_t);
+   /* 
     void prep_graph_fromtext2(const string& idirname, const string& odirname, 
                               typename callback<T>::parse_fn2_t parsebuf_fn);
-    void prep_graph_edgelog_fromtext(const string& idirname, 
-        const string& odirname, typename callback<T>::parse_fn2_t parsefile_fn);
-
+    */
+    void prep_graph_edgelog2(const string& idirname, const string& odirname);
     void prep_graph_edgelog(const string& idirname, const string& odirname);
+    void prep_graph2(const string& idirname, const string& odirname);
+    void prep_graph(const string& idirname, const string& odirname);
+    
     void prep_graph_adj(const string& idirname, const string& odirname);
     void prep_graph_mix(const string& idirname, const string& odirname);
-    void prep_graph(const string& idirname, const string& odirname);
     
     void prep_graph_serial_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
     void prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
@@ -396,115 +394,44 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
 }
 
 template <class T>
-void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname, const string& odirname)
-{
-    edgeT_t<T>* edges = 0;
-    index_t total_edge_count = read_idir(idirname, &edges, true); 
-    
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    //We need to increase the size of edge log to test logging functionalities
-    ugraph->alloc_edgelog(total_edge_count);
-    blog_t<T>*     blog = ugraph->blog;
-    index_t new_count = upper_power_of_two(total_edge_count);
-    blog->blog_mask = new_count -1;
-
-    //Batch and Make Graph
-    double start = mywtime();
-    for (index_t i = 0; i < total_edge_count; ++i) {
-        ugraph->batch_edge(edges[i]);
-    }
-    double end = mywtime ();
-    cout << "Batch Update Time = " << end - start << endl;
-}
-
-template <class T>
-void plaingraph_manager_t<T>::prep_graph_edgelog_fromtext(const string& idirname, 
-        const string& odirname, typename callback<T>::parse_fn2_t parsefile_fn)
+void plaingraph_manager_t<T>::prep_graph_edgelog2(const string& idirname, 
+        const string& odirname) 
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
     
     //Batch and Make Graph
     double start = mywtime();
-    read_idir_text2(idirname, odirname, pgraph, parsefile_fn);    
+    if (0 == _source) {//text
+        read_idir_text2(idirname, odirname, pgraph, parsebuf_and_insert);
+    } else {//binary
+        read_idir_text2(idirname, odirname, pgraph, buf_and_insert);
+    }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
 }
 
 template <class T>
-void plaingraph_manager_t<T>::prep_graph_fromtext(const string& idirname, 
-        const string& odirname, typename callback<T>::parse_fn_t parsefile_fn)
+void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname, 
+        const string& odirname)
 {
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    if (_persist) {
-        g->file_open(true);
-        g->create_threads(true, true);
-    } else {
-        g->create_threads(true, false);
-    }
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
     
     //Batch and Make Graph
     double start = mywtime();
-    read_idir_text(idirname, odirname, ugraph, parsefile_fn);    
+    if (0 == _source) {//text
+        read_idir_text(idirname, odirname, pgraph, parsefile_and_insert);
+    } else {//binary
+        read_idir_text(idirname, odirname, pgraph, file_and_insert);
+    }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
-    
-    if (_persist) {
-        //Wait for make and durable graph
-        waitfor_archive_durable(start);
-    } else {
-        g->waitfor_archive();
-        end = mywtime();
-        cout << "Make graph time = " << end - start << endl;
-    }
-}
-
-template <class T>
-void plaingraph_manager_t<T>::prep_log_fromtext(const string& idirname, 
-        const string& odirname, typename callback<T>::parse_fn_t parsefile_fn)
-{
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    //Batch and Make Graph
-    double start = mywtime();
-    read_idir_text(idirname, odirname, ugraph, parsefile_fn);    
-    double end = mywtime();
-    cout << "Batch Update Time = " << end - start << endl;
-}
-
-template <class T>
-void plaingraph_manager_t<T>::prep_graph_fromtext2(const string& idirname, 
-        const string& odirname, typename callback<T>::parse_fn2_t parsebuf_fn)
-{
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    if (_persist) {
-        g->file_open(true);
-        g->create_threads(true, true);
-    } else {
-        g->create_threads(true, false);
-    }
-    
-    //Batch and Make Graph
-    double start = mywtime();
-    read_idir_text2(idirname, odirname, ugraph, parsebuf_fn);    
-    double end = mywtime();
-    cout << "Batch Update Time = " << end - start << endl;
-    
-    if (_persist) {
-        //Wait for make and durable graph
-        waitfor_archive_durable(start);
-    } else {
-        g->waitfor_archive();
-        end = mywtime();
-        cout << "Make graph time = " << end - start << endl;
-    }
 }
 
 template <class T>
 void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& odirname)
 {
+    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
+    
     if (_persist) {
         g->file_open(true);
         g->create_threads(true, true);
@@ -512,20 +439,48 @@ void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& o
         g->create_threads(true, false);
     }
     
-    edgeT_t<T>* edges = 0;
-    index_t total_edge_count = read_idir(idirname, &edges, true); 
+    //Batch and Make Graph
+    double start = mywtime();
+    if(0==_source) {//text
+        read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);
+    } else {//binary
+        read_idir_text(idirname, odirname, ugraph, file_and_insert);
+    } 
+    double end = mywtime();
+    cout << "Batch Update Time = " << end - start << endl;
     
+    if (_persist) {
+        //Wait for make and durable graph
+        waitfor_archive_durable(start);
+    } else {
+        g->waitfor_archive();
+        end = mywtime();
+        cout << "Make graph time = " << end - start << endl;
+    }
+}
+
+template <class T>
+void plaingraph_manager_t<T>::prep_graph2(const string& idirname, const string& odirname)
+{
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
+    
+    if (_persist) {
+        g->file_open(true);
+        g->create_threads(true, true);
+    } else {
+        g->create_threads(true, false);
+    }
     
     //Batch and Make Graph
     double start = mywtime();
-    for (index_t i = 0; i < total_edge_count; ++i) {
-        ugraph->batch_edge(edges[i]);
+    if (0 == _source) {//text
+        read_idir_text2(idirname, odirname, ugraph, parsebuf_and_insert);
+    } else {//binary
+        read_idir_text2(idirname, odirname, ugraph, buf_and_insert);
     }
-    
-    double end = mywtime ();
+    double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
-
+    
     if (_persist) {
         //Wait for make and durable graph
         waitfor_archive_durable(start);

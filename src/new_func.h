@@ -1,8 +1,12 @@
 #include "type.h"
 
 //-----Two high level functions can be used by many single stream graph ----
+//----- The generic versions are for binary files/buffers.------
+//----- Specialized versions are for text files/buffers.------
+
+//uses buffered read, one binary edge at a time, and then insert
 template <class T>
-index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
+index_t file_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
@@ -25,10 +29,29 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
 }
 
 template <class T>
-index_t parsebuf_and_insert(const char* buf , pgraph_t<T>* pgraph) 
+index_t buf_and_insert(const char* buf , pgraph_t<T>* pgraph, index_t count) 
+{
+    index_t edge_count = count/sizeof(edgeT_t<T>);
+    edgeT_t<T>* edges = (edgeT_t<T>*)buf;
+    for (index_t i = 0; i < edge_count; ++i) {
+        pgraph->batch_edge(edges[i]);
+    }
+    return edge_count;
+}
+
+template <class T>
+index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
 {
     cout << "No plugin found for reading and parsing the buffers" << endl;
-    assert(0); 
+    assert(0);
+    return 0;
+}
+
+template <class T>
+index_t parsebuf_and_insert(const char* buf , pgraph_t<T>* pgraph, index_t count) 
+{
+    cout << "No plugin found for reading and parsing the buffers" << endl;
+    assert(0);
     return 0;
 }
 
@@ -107,7 +130,7 @@ inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
 }
 
 template <>
-inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph) 
+inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph, index_t count) 
 {
     
     if (0 == buf) {
@@ -166,7 +189,7 @@ inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const
 //---------------netflow functions done---------
 
 template <>
-inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgraph) 
+inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgraph, index_t count) 
 {
     
     if (0 == buf) {
