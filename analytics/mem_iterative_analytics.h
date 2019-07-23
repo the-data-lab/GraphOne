@@ -74,7 +74,7 @@ mem_hop1(gview_t<T>* snaph)
         #pragma omp parallel for reduction(+:sum1) schedule(static)
         for (index_t j = 0; j < marker ; ++j) {
             src = edges[j].src_id;
-            dst = edges[j].dst_id;
+            dst = get_sid(edges[j].dst_id);
             if (src == v) {
                 sum1 += dst;
             }

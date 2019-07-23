@@ -96,7 +96,7 @@ struct estimate_t {
 template <class T>
 void estimate_chain(const string& idirname, const string& odirname)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     
@@ -184,7 +184,7 @@ void estimate_chain(const string& idirname, const string& odirname)
 template <class T>
 void estimate_chain_new(const string& idirname, const string& odirname)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
 
@@ -303,7 +303,7 @@ void estimate_chain_new(const string& idirname, const string& odirname)
 template <class T>
 void estimate_IO(const string& idirname, const string& odirname)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     
@@ -583,7 +583,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     //Create number of vertex
     v_count = nv;
     plaingraph_manager_t<lite_edge_t> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     manager.setup_graph(v_count);
     
     //Do ingestion
@@ -721,10 +721,10 @@ void weighted_dtest0(const string& idir, const string& odir)
 }
 
 template <class T>
-void prior_snap_testu(const string& odir)
+void prior_snap_test(const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     g->read_graph_baseline();
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     //manager.run_bfs();
@@ -737,52 +737,38 @@ void prior_snap_testu(const string& odir)
     return ;
 }
 
+//recover from durable adj list
 template <class T>
-void prior_snap_testuni(const string& odir)
+void recover_test(const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphuni();
+    manager.schema(_dir);
     g->read_graph_baseline();
-    //manager.run_bfs();
+    manager.run_bfs();
+    return ;
+}
+
+//recover from durable edge log
+template <class T>
+void recover_test0(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    manager.recover_graph_adj(idir, odir);
     
-    //Run using prior static view.
-    pgraph_t<T>* pgraph = manager.get_plaingraph();
-    prior_snap_t<T>* snaph = create_prior_static_view(pgraph, 0, 33554432);
-    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->get_vcount());
-    mem_bfs_simple(snaph, level_array, 1);
-
-    return ;
-}
-
-template <class T>
-void recover_testu(const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
-    g->read_graph_baseline();
-    manager.run_bfs();
-
-    return ;
-}
-
-template <class T>
-void recover_testuni(const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphuni();
-    g->read_graph_baseline();
-    manager.run_bfs();
-
-    return ;
+    //Run BFS
+    plaingraph_manager.run_bfs();
 }
 
 template <class T>
 void split_files(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph_memory(v_count);    
+    manager.setup_graph(v_count);    
     manager.split_files(idir, odir);    
 }
 
@@ -791,24 +777,9 @@ void llama_test(const string& idir, const string& odir,
                 typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);
-    g->create_threads(true, false);
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn);
-    manager.run_bfs();
-    manager.run_pr();    
-}
-
-template <class T>
-void llama_testd(const string& idir, const string& odir,
-                typename callback<T>::parse_fn_t parsefile_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);
-    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn);
     manager.run_bfs();
     manager.run_bfs();
@@ -819,37 +790,13 @@ void llama_testd(const string& idir, const string& odir,
 }
 
 template <class T>
-void ingestion_fulluni(const string& idir, const string& odir,
+void ingestion_full(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphuni();
-    //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);
-    g->create_threads(true, false);
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    //manager.run_bfsd();    
-    //g->store_graph_baseline();
-    cout << "stroing done" << endl;
-    
-    /*
-    //Run using prior static view.
-    prior_snap_t<T>* snaph;
-    manager.create_prior_static_view(&snaph, 0, 33554432);
-    uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->v_count);
-    mem_bfs_simple(snaph, level_array, 1);
-    */
-}
-
-template <class T>
-void ingestion_fulld(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn_t parsefile_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count); 
-    g->create_threads(true, false);   
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();    
     //g->store_graph_baseline();
@@ -857,14 +804,13 @@ void ingestion_fulld(const string& idir, const string& odir,
 }
 
 template <class T>
-void test_ingestion_fulld(const string& idir, const string& odir,
+void test_ingestion_full(const string& idir, const string& odir,
                      typename callback<T>::parse_fn2_t parsebuf_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
-    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfs();    
     //g->store_graph_baseline();
@@ -874,7 +820,7 @@ void test_ingestion_fulld(const string& idir, const string& odir,
 /*
 void plain_test6(const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     
@@ -894,7 +840,7 @@ void plain_test6(const string& odir)
 
 void paper_test_chain_bfs(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -905,7 +851,7 @@ void paper_test_chain_bfs(const string& idir, const string& odir)
 }
 void paper_test_pr_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -917,7 +863,7 @@ void paper_test_pr_chain(const string& idir, const string& odir)
 
 void paper_test_pr(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -927,7 +873,7 @@ void paper_test_pr(const string& idir, const string& odir)
 
 void paper_test_hop1_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -937,7 +883,7 @@ void paper_test_hop1_chain(const string& idir, const string& odir)
 
 void paper_test_hop1(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -947,7 +893,7 @@ void paper_test_hop1(const string& idir, const string& odir)
 
 void paper_test_hop2_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -957,7 +903,7 @@ void paper_test_hop2_chain(const string& idir, const string& odir)
 
 void paper_test_hop2(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     plaingraph_manager.prep_graph_adj(idir, odir);
@@ -965,39 +911,11 @@ void paper_test_hop2(const string& idir, const string& odir)
     plaingraph_manager.run_2hop();
 }
 
-
-template <class T>
-void test_archived(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    manager.prep_graph_adj(idir, odir);    
-    
-    //Run BFS
-    for (int i = 0; i < 1; i++){
-        manager.run_bfs();
-    }
-    /*
-    //Run PageRank
-    for (int i = 0; i < 1; i++){
-        manager.run_pr();
-        manager.run_pr_simple();
-    }
-    
-    //Run 1-HOP query
-    for (int i = 0; i < 1; i++){
-        manager.run_1hop();
-    }
-    */
-}
-
 template <class T>
 void gen_kickstarter_files(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     manager.setup_graph(v_count);    
     manager.prep_graph_mix(idir, odir);    
     //manager.prep_graph_adj(idir, odir);    
@@ -1067,7 +985,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
 void stream_netflow_aggregation(const string& idir, const string& odir)
 {
     plaingraph_manager_t<netflow_dst_t> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);
     pgraph_t<netflow_dst_t>* pgraph = manager.get_plaingraph();
@@ -1082,22 +1000,7 @@ template <class T>
 void test_logging(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    manager.prep_graph_edgelog(idir, odir);
-    
-    //Run BFS
-    for (int i = 0; i < 1; i++){
-        manager.run_bfs();
-    }
-}
-
-template <class T>
-void test_loggingd(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     manager.prep_graph_edgelog(idir, odir);
@@ -1113,7 +1016,7 @@ void test_logging_fromtext(const string& idir, const string& odir,
                     typename callback<T>::parse_fn2_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     manager.prep_graph_edgelog_fromtext(idir, odir, parsefile_fn);
@@ -1128,7 +1031,7 @@ template <class T>
 void test_mix(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     
@@ -1157,19 +1060,18 @@ template <class T>
 void test_archive(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     
     manager.prep_graph_adj(idir, odir);
+    //g->store_graph_baseline();
     
     //Run BFS
     for (int i = 0; i < 1; i++){
         manager.run_bfs();
     }
 
-    //g->store_graph_baseline();
-    
     //Run PageRank
     for (int i = 0; i < 1; i++){
         manager.run_pr();
@@ -1183,76 +1085,17 @@ void test_archive(const string& idir, const string& odir)
 }
 
 template <class T>
-void recover_test0(const string& idir, const string& odir)
+void test_ingestion(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    manager.recover_graph_adj(idir, odir);
-    
-    //Run BFS
-    plaingraph_manager.run_bfs();
-}
-
-template <class T>
-void recover_test0d(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    manager.recover_graph_adj(idir, odir);    
-    
-    //Run BFS
+    manager.prep_graph(idir, odir);
     manager.run_bfs();
-}
-
-template <class T>
-void test_ingestiond(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, true);   
-    manager.prep_graph_durable(idir, odir); 
-    manager.run_bfs();    
-    g->store_graph_baseline();
-}
-
-template <class T>
-void test_ingestionuni(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphuni();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, true);   
-    manager.prep_graph_durable(idir, odir); 
-    manager.run_bfs();    
-    g->store_graph_baseline();
-}
-
-template <class T>
-void test_ingestion_memory(const string& idir, const string& odir)
-{
-    if ( 0 != residue) {
-        LOCAL_DELTA_SIZE = residue;
-        cout << "local delta size  << " << residue << endl; 
-    }
-    plaingraph_manager_t<T> manager;
+    
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    
-    manager.schema_plaingraph();
-    //do some setup for plain graphs
-    manager.setup_graph_memory(v_count);    
-    
-    //g->create_threads(true, false);   
-    //manager.prep_graph(idir, odir);
-
-   
-    manager.run_bfs();
     double start = mywtime();
     pgraph->compress_graph_baseline();
     double end = mywtime();
@@ -1260,52 +1103,17 @@ void test_ingestion_memory(const string& idir, const string& odir)
     manager.run_bfs();
 }
 
-template<class T>
-void test_ingestion_memoryd(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, false);   
-    manager.prep_graph(idir, odir); 
-    manager.run_bfs();    
-    
-    pgraph_t<T>* graph = manager.get_plaingraph();
-    double start = mywtime();
-    graph->compress_graph_baseline();
-    double end = mywtime();
-    cout << "Compress time = " << end - start << endl;
-    manager.run_bfs();
-}
-
-
 template <class T>
 void ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
-    g->store_graph_baseline();    
-}
-
-template <class T>
-void ingestion_fromtextd(const string& idir, const string& odir,
-                     typename callback<T>::parse_fn_t parsefile_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, false);
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    manager.run_bfs();
-    g->store_graph_baseline();    
+    //g->store_graph_baseline();    
 }
 
 template <class T>
@@ -1313,31 +1121,17 @@ void test_ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn2_t parsebuf_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);
-    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
 }
 
-template <class T>
-void test_ingestion(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, true);   
-    manager.prep_graph_durable(idir, odir); 
-    manager.run_bfs();    
-    g->store_graph_baseline();
-}
-
 void stream_wcc(const string& idir, const string& odir)
 {
-    plaingraph_manager.schema_plaingraph();
+    plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(v_count);    
     pgraph_t<sid_t>* pgraph = plaingraph_manager.get_plaingraph();
@@ -1353,7 +1147,7 @@ void test_stream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     g->create_threads(true, false);   
@@ -1369,40 +1163,15 @@ void test_stream(const string& idir, const string& odir,
 }
 
 template <class T>
-void multi_stream_bfsd(const string& idir, const string& odir,
-                     typename callback<T>::sfunc stream_fn, int count)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    g->create_threads(true, false);   
-    pgraph_t<T>* pgraph = manager.get_plaingraph();
-    
-    sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
-    
-    for (int i = 0; i < count; ++i) {   
-        sstreamh[i] = reg_sstream_view(pgraph, stream_fn,               
-                        STALE_MASK|V_CENTRIC|C_THREAD, (void*)i);
-    }
-    manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
-    for (int i = 0; i < count; ++i) { 
-        void* ret;
-        pthread_join(sstreamh[i]->thread, &ret);
-    } 
-}
-
-template <class T>
 void multi_stream_bfs(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn, int count)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
-    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph_memory(v_count);    
-    g->create_threads(true, false);   
+    manager.setup_graph(v_count);    
     
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
     sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
     
     for (int i = 0; i < count; ++i) {
@@ -1412,12 +1181,10 @@ void multi_stream_bfs(const string& idir, const string& odir,
     
     //CorePin(0);
     manager.prep_graph_fromtext(idir, odir, parsefile_and_insert);
-
     for (int i = 0; i < count; ++i) {
         void* ret;
         pthread_join(sstreamh[i]->thread, &ret);
     }
-    
 }
 
 template <class T>
@@ -1426,10 +1193,10 @@ void serial_scopy_bfs(const string& idir, const string& odir,
                typename callback<T>::sfunc scopy_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     //do some setup for plain graphs
-    manager.setup_graph_memory(v_count);    
+    manager.setup_graph(v_count);    
     
 #ifdef _MPI
 
@@ -1482,7 +1249,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     create_2d_comm1();
     if (_rank == 0) {
         //do some setup for plain graphs
-        manager.setup_graph_memory(v_count);    
+        manager.setup_graph(v_count);    
         //g->create_threads(true, false);   
         
         //create scopy_server
@@ -1495,7 +1262,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     } else {
         //do some setup for plain graphs
         vid_t local_vcount = v_count/_part_count;
-        manager.setup_graph_memory(local_vcount);    
+        manager.setup_graph(local_vcount);    
         //create scopy_client
         scopy2d_client_t<T>* sclienth = reg_scopy2d_client(pgraph, stream_fn, 
                                                 STALE_MASK|V_CENTRIC|C_THREAD);
@@ -1511,7 +1278,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
                typename callback<T>::sfunc scopy_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
+    manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     _global_vcount = v_count;
     
@@ -1521,7 +1288,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     
     if (_rank == 0) {
         //do some setup for plain graphs
-        manager.setup_graph_memory(v_count);    
+        manager.setup_graph(v_count);    
         //g->create_threads(true, false);   
         
         //create scopy_server
@@ -1539,7 +1306,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         if (_rank == _numtasks - 1) {//last rank
             local_vcount = v_count - v_offset;
         }
-        manager.setup_graph_memory(local_vcount);    
+        manager.setup_graph(local_vcount);    
         //create scopy_client
         scopy1d_client_t<T>* sclienth = reg_scopy1d_client(pgraph, stream_fn, 
                                                 STALE_MASK|V_CENTRIC|C_THREAD);
@@ -1555,211 +1322,158 @@ void test_serial_stream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraph();
-    //do some setup for plain graphs
+    manager.schema(_dir);
     manager.setup_graph(v_count);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
     sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
     
     manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
     
     void* ret;
     pthread_join(sstreamh->thread, &ret);
-    //--------
-    
-    //manager.prep_graph_serial_scompute(idir, odir, sstreamh);
-}
-
-template <class T>
-void test_serial_streamd(const string& idir, const string& odir,
-                     typename callback<T>::sfunc stream_fn)
-{
-    plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd();
-    //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    pgraph_t<T>* graph = manager.get_plaingraph();
-    
-    //sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, STALE_MASK|V_CENTRIC);
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
-    
-    manager.prep_log_fromtext(idir, odir, parsefile_and_insert);
-    
-    void* ret;
-    pthread_join(sstreamh->thread, &ret);
-    //--------
-    
-    //manager.prep_graph_serial_scompute(idir, odir, sstreamh);
 }
 
 void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
 {
     v_count = v_count1; 
     switch (job) {
-        case 1:
-            test_mix<sid_t>(idir, odir);
-            break;
-        case 2:
-            recover_testu<sid_t>(odir);
-            break;
-        case 3:
-            prior_snap_testu<sid_t>(odir);
-            break;
-        case 6:
-            recover_testuni<netflow_dst_t>(odir);
-            break;
-        case 7:
-            recover_test0<sid_t>(idir, odir);
-            break;
-        case 8:
-            recover_test0d<sid_t>(idir, odir);
-            break;
-        
-        case 9:
-            //stinger test
-            weighted_dtest0(idir, odir);
-            break;
-        case 10:
-            stream_wcc(idir, odir);
-            break;
-        
-        case 11:
-            paper_test_pr(idir, odir);
-            break;
-        case 12:
-            paper_test_hop1(idir, odir);
-            break;
-        case 13:
-            paper_test_hop2(idir, odir);
-            break;
-        case 14:
-            paper_test_chain_bfs(idir, odir);
-            break;
-        case 15:
-            paper_test_pr_chain(idir, odir);
-            break;
-        case 16:
-            paper_test_hop1_chain(idir, odir);
-            break;
-        case 17:
-            paper_test_hop2_chain(idir, odir);
-            break;
-        //plain graph in text format with ID. Not for performance
-        case 18: 
-            ingestion_fromtext<sid_t>(idir, odir, parsefile_and_insert);
-            break;
-        case 19: 
-            test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
-            break;
-        case 20: 
-            test_logging_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
-            break;
-
         //plaingrah benchmark testing    
-        case 21: 
-            test_archive<sid_t>(idir, odir);
-            break;
-        case 22: 
+        case 0: 
             test_ingestion<sid_t>(idir, odir);
             break;
-        case 23: 
-            test_archived<sid_t>(idir, odir);
-            break;
-        case 24: 
-            test_ingestiond<sid_t>(idir, odir);
-            break;
-        case 25:
-            test_ingestion_memory<sid_t>(idir, odir);
-            break;
-        case 26:
-            test_ingestion_memoryd<sid_t>(idir, odir);
-            break;
-        case 27:
+        case 1:
             test_logging<sid_t>(idir, odir);
             break;
-        case 28:
-            test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
-            //test_stream<sid_t>(idir, odir, stream_bfs);
+        case 2: 
+            test_archive<sid_t>(idir, odir);
             break;
-        case 29:
-            test_serial_streamd<sid_t>(idir, odir, stream_serial_bfs);
+        case 3://leave some in the edge format
+            test_mix<sid_t>(idir, odir);
+            break;
+        case 4://recover from durable edge log
+            recover_test0<sid_t>(idir, odir);
+            break;
+        case 5:
+            recover_test<sid_t>(odir);
+            break;
+        case 6:
+            prior_snap_test<sid_t>(odir);
+            break;
+        //plain graph in text format with ID. 
+        case 7: 
+            test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
+            break;
+        case 8: 
+            test_logging_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
+            break;
+        case 9: //Not for performance
+            ingestion_fromtext<sid_t>(idir, odir, parsefile_and_insert);
             break;
 
         //netflow graph testing
+        case 10:
+            test_ingestion<netflow_dst_t>(idir, odir);
+            break;
+        case 11:
+            test_logging<netflow_dst_t>(idir, odir);
+            break;
+        case 12: 
+            test_archive<netflow_dst_t>(idir, odir);
+            break;
+        case 13:
+            recover_test0<netflow_dst_t>(idir, odir);
+            break;
+        case 14:
+            recover_test<netflow_dst_t>(odir);
+            break;
+        case 15:
+            prior_snap_test<netflow_dst_t>(odir);
+            break;
+        case 16://text to our format, not for performance
+            ingestion_full<netflow_dst_t>(idir, odir, parsefile_and_insert);
+            break;
+        case 17://text to our format
+            test_ingestion_full<netflow_dst_t>(idir, odir, parsebuf_and_insert);
+            break;
+        
+        case 20: 
+            test_ingestion<weight_sid_t>(idir, odir);
+            break;
+        case 21: 
+            test_logging<weight_sid_t>(idir, odir);
+            break;
+        case 22: 
+            test_archive<weight_sid_t>(idir, odir);
+            break;
+        case 23://llama
+            llama_test<weight_sid_t>(idir, odir, parsefile_and_insert);
+            break;
+        case 24:
+            //stinger test
+            weighted_dtest0(idir, odir);
+            break;
+        case 25:
+            split_files<weight_sid_t>(idir, odir);
+            break;
+        case 26://generate kickstarter files
+            gen_kickstarter_files<sid_t>(idir, odir);
+            break;
+        case 27://text to binary file not for performance
+            ingestion_full<netflow_dst_t>(idir, odir, parsefile_to_bin);
+            break;
+        
         case 30:
-            test_ingestion_memoryd<netflow_dst_t>(idir, odir);
+            stream_netflow_aggregation(idir, odir);
             break;
         case 31:
-            test_ingestiond<netflow_dst_t>(idir, odir);
+            stream_wcc(idir, odir);
             break;
-        case 32: 
-            test_archived<netflow_dst_t>(idir, odir);
+        case 32:
+            serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_serial_bfs, scopy2d_server);
             break;
         case 33:
-            test_loggingd<netflow_dst_t>(idir, odir);
+            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_serial_bfs, scopy1d_server);
             break;
         case 34:
-            recover_test0d<netflow_dst_t>(idir, odir);
+            serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);
             break;
-        //These are not for performance.    
-        case 35://text to our format
-            ingestion_fulld<netflow_dst_t>(idir, odir, parsefile_and_insert);
+        case 35:
+            multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
             break;
-        case 36://text to binary file
-            ingestion_fulld<netflow_dst_t>(idir, odir, parsefile_to_bin);
-            break;
-        case 37://text to our format
-            ingestion_fulluni<netflow_dst_t>(idir, odir, parsefile_and_insert);
-            break;
-        case 38:
-            prior_snap_testuni<netflow_dst_t>(odir);
-            break;
-        case 39://text to our format
-            test_ingestion_fulld<netflow_dst_t>(idir, odir, parsebuf_and_insert);
+        case 36:
+            test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
+            //test_stream<sid_t>(idir, odir, stream_bfs);
             break;
         
         case 40:
-            split_files<weight_sid_t>(idir, odir);
+            paper_test_pr(idir, odir);
             break;
-        case 41://llama
-            llama_test<weight_sid_t>(idir, odir, parsefile_and_insert);
+        case 41:
+            paper_test_hop1(idir, odir);
             break;
-        case 42://llama
-            llama_testd<weight_sid_t>(idir, odir, parsefile_and_insert);
+        case 42:
+            paper_test_hop2(idir, odir);
             break;
-        case 43: 
-            test_archived<weight_sid_t>(idir, odir);
+        case 43:
+            paper_test_chain_bfs(idir, odir);
             break;
-        case 44://generate kickstarter files
-            gen_kickstarter_files<sid_t>(idir, odir);
+        case 44:
+            paper_test_pr_chain(idir, odir);
             break;
         case 45:
-            stream_netflow_aggregation(idir, odir);
+            paper_test_hop1_chain(idir, odir);
             break;
-        case 92:
-            serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_serial_bfs, scopy2d_server);
+        case 46:
+            paper_test_hop2_chain(idir, odir);
             break;
-        case 93:
-            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_serial_bfs, scopy1d_server);
-            break;
-        case 94:
-            serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);
-            break;
-        case 95:
-            multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
-            break;
-        case 96:
-            multi_stream_bfsd<sid_t>(idir, odir, stream_bfs, residue);
-            break;
-        case 97:
+        case 47:
             estimate_chain_new<sid_t>(idir, odir);
             break; 
-        case 98:
+        case 48:
             estimate_chain<sid_t>(idir, odir);
             break; 
-        case 99:
+        case 49:
             estimate_IO<sid_t>(idir, odir);
             break; 
         default:

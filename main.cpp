@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
         {"threadcount",  required_argument,  0, 't'},
         {"edgecount",  required_argument,  0, 'e'},
         {"direction",  required_argument,  0, 'd'},
+        {"persist",  required_argument,  0, 'p'},
 		{0,			  0,				  0,  0},
 	};
 
@@ -67,7 +68,7 @@ int main(int argc, char* argv[])
 	THD_COUNT = omp_get_max_threads()-1;// - 3;
 
     g = new graph; 
-	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:d:h", longopts, &index)) != -1) {
+	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:d:p:h", longopts, &index)) != -1) {
 		switch(o) {
 			case 'v':
 				#ifdef B64
@@ -109,6 +110,9 @@ int main(int argc, char* argv[])
                 break;
             case 'd':
                 sscanf(optarg, "%d", &_dir);
+                break;
+            case 'p':
+                sscanf(optarg, "%d", &_persist);
                 break;
             case 'r':
                 sscanf(optarg, "%ld", &residue);
