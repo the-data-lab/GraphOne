@@ -10,7 +10,7 @@
     MPI_Datatype mpi_type_vid = MPI_UINT32_T;
 #endif
 
-#define BUF_TX_SZ (1<<20)
+#define BUF_TX_SZ (1<<22)
 
 template <class T>
 struct part_t {
@@ -164,9 +164,9 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
               part[j].changed_v, part[j].changed_e);
     assert(t_pos == header_size);
     t_pos = part[j].vposition;
-    MPI_Pack(part[j].ebuf, part[j].position, pgraph->data_type, part[j].buf, (part[j].buf_size<<1), &part[j].vposition, MPI_COMM_WORLD); 
-    
-    assert(part[j].position == part[j].changed_e);
+    MPI_Pack(part[j].ebuf, part[j].position, MPI_PACKED, part[j].buf, (part[j].buf_size<<1), &part[j].vposition, MPI_COMM_WORLD); 
+    //memcpy(part[j].buf + part[j].vposition, part[j].ebuf, part[j].position);
+    //part[j].vposition += part[j].position; 
     
     cout << " sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
          << " size "<< part[j].vposition 
@@ -185,7 +185,6 @@ void scopy2d_server_t<T>::buf_vertex(part_t<T>* part, vid_t vid)
     MPI_Pack(&vid, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
     MPI_Pack(&part->changed_e, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
     part->changed_e += part->delta_count;
-    assert(part->position == part->changed_e);
     part->delta_count = 0;
 }
 
@@ -226,15 +225,15 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
                  if(sid < part[j+1].dst_offset) break;
             }
             //send and reset the data, if required
-            if ((part[j].position  + 8)* sizeof(T)>= part[j].buf_size) {
+            if ((part[j].position  + 16*sizeof(T)) >= part[j].buf_size) {
                 buf_vertex(part + j, vid);
                 send_buf_one(part, j, 2);
             }
             
             set_sid(dst, sid - part[j].dst_offset);
-            part[j].ebuf[part[j].position] = dst;
-            part[j].position += 1;
-            //MPI_Pack(&dst, 1, pgraph->data_type, part[j].ebuf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            MPI_Pack(&dst, 1, pgraph->data_type, part[j].ebuf, part[j].buf_size, &part[j].position, MPI_COMM_WORLD);
+            //part[j].ebuf[part[j].position] = dst;
+            //part[j].position += 1;
             part[j].delta_count += 1;
         }
 
@@ -458,8 +457,8 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
         eoffset = 2*changed_v*sizeof(vid_t);
         ebuf = buf + eoffset;
 
-        cout << "Rank " << _rank << ":" << v_offset
-             << " Archive Marker = " << archive_marker 
+        cout << "Rank " << _rank  
+             << " : Archive Marker = " << archive_marker 
              << " size "<< buf_size 
              << " changed_v " << changed_v
              << " changed_e " << changed_e
@@ -493,6 +492,7 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
                 delta_count -= icount;
             }
         }
+        free(local_adjlist);
         }
     } while(2 == partial);
     //cout << "Rank " << _rank << " done" << endl;
