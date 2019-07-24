@@ -158,7 +158,7 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
         meta_flag = partial;
     }
     int t_pos = 0;
-    
+    buf_vertex(part + j, 0); 
      
     pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, archive_marker, 
               part[j].changed_v, part[j].changed_e);
@@ -182,9 +182,9 @@ template <class T>
 void scopy2d_server_t<T>::buf_vertex(part_t<T>* part, vid_t vid)
 {
     part->changed_v++;
-    part->changed_e += part->delta_count;
     MPI_Pack(&vid, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
-    MPI_Pack(&part->delta_count, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    MPI_Pack(&part->changed_e, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    part->changed_e += part->delta_count;
     assert(part->position == part->changed_e);
     part->delta_count = 0;
 }
@@ -211,11 +211,11 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
     int j = 0;
     
     for (vid_t v = v_start; v < v_end; ++v) { 
+        vid = v - v_start;
         nebr_count = graph->get_degree(v, snap_id);
         old_count = degree[v];
         if (old_count == nebr_count) continue;
 
-        vid = v - v_start;
         degree[v] = nebr_count;
         nebr_count -= old_count; 
         graph->start(v, delta_adjlist, old_count);
@@ -226,7 +226,7 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
                  if(sid < part[j+1].dst_offset) break;
             }
             //send and reset the data, if required
-            if ((part[j].position  + 1)* sizeof(T)>= part[j].buf_size) {
+            if ((part[j].position  + 8)* sizeof(T)>= part[j].buf_size) {
                 buf_vertex(part + j, vid);
                 send_buf_one(part, j, 2);
             }
@@ -442,7 +442,6 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
     int eoffset = 0;
     degree_t      icount = 0;
     degree_t    prior_sz = 16384;
-    T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
     do {
         MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
@@ -455,7 +454,8 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
 
         unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
         partial = flag;
-        eoffset = position + 2*changed_v*sizeof(vid_t);
+        buf += position;
+        eoffset = 2*changed_v*sizeof(vid_t);
         ebuf = buf + eoffset;
 
         cout << "Rank " << _rank << ":" << v_offset
@@ -464,26 +464,35 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
              << " changed_v " << changed_v
              << " changed_e " << changed_e
              << endl;
-
-        vid_t            vid = 0;
+        #pragma omp parallel num_threads(THD_COUNT)
+        {
+        vid_t    vid, next_vid, curr, next;
         degree_t delta_count = 0;
-        icount = 0;
-
-        for (vid_t v = 0; v < changed_v; ++v) {
+        degree_t icount = 0;
+        int position = 0;
+        int eposition = 0;
+        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+        #pragma omp for 
+        for (vid_t v = 0; v < changed_v - 1; ++v) {
+            position = v*(sizeof(vid_t)<<1);
             MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
-            MPI_Unpack(buf, buf_size, &position, &delta_count, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &curr, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &next_vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &next, 1, mpi_type_vid, MPI_COMM_WORLD);
             
+            delta_count = next-curr; 
             graph->increment_count_noatomic(vid, delta_count);
             //Update the degree of the view
             degree[vid] += delta_count;
             bitmap->set_bit(vid);
-            
+            eposition = curr*sizeof(T); 
             while (delta_count > 0) {
                 icount = delta_count > prior_sz ? prior_sz : delta_count;
                 MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
                 graph->add_nebr_bulk(vid, local_adjlist, icount);
                 delta_count -= icount;
             }
+        }
         }
     } while(2 == partial);
     //cout << "Rank " << _rank << " done" << endl;
