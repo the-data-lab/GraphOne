@@ -13,6 +13,8 @@
 
 
 index_t residue = 0;
+int THD_COUNT = 0;
+vid_t _global_vcount = 0;
 index_t _edge_count = 0;
 int _dir = 0;//undirected
 int _persist = 0;//yes

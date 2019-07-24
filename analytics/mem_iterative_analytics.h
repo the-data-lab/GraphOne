@@ -16,6 +16,7 @@ mem_hop1(gview_t<T>* snaph)
 {
     srand(0);
     int query_count = 2048;
+    vid_t  v_count  = snaph->get_vcount();
     vid_t* query = (vid_t*)calloc(sizeof(vid_t), query_count);
     int i1 = 0;
     while (i1 < query_count) {
@@ -382,6 +383,7 @@ void mem_hop2(gview_t<T>* snaph)
 {
     srand(0);
     int query_count = 512;
+    vid_t v_count = snaph->get_vcount();
     hop2_t* query = (hop2_t*)calloc(sizeof(hop2_t), query_count); 
     int i1 = 0;
     while (i1 < query_count) {
@@ -671,6 +673,7 @@ void mem_bfs(gview_t<T>* snaph,
     int				level      = 1;
 	int				top_down   = 1;
 	sid_t			frontier   = 0;
+    sid_t           v_count    = snaph->get_vcount();
     
 	double start1 = mywtime();
     if (snaph->get_degree_out(root) == 0) { root = 0;}

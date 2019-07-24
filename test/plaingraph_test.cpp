@@ -19,8 +19,6 @@
 
 using namespace std;
 
-extern index_t residue;
-
 // Credits to :
 // http://www.memoryhole.net/kyle/2012/06/a_use_for_volatile_in_multithr.html
 float qthread_dincr(float *operand, float incr)
@@ -67,9 +65,6 @@ double qthread_doubleincr(double *operand, double incr)
     return oldval.d;
 }
 
-vid_t v_count = 0;
-plaingraph_manager_t<sid_t> plaingraph_manager; 
-
 struct estimate_t {
     degree_t durable_degree;
     degree_t delta_degree;
@@ -96,9 +91,10 @@ struct estimate_t {
 template <class T>
 void estimate_chain(const string& idirname, const string& odirname)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     
     propid_t          cf_id = g->get_cfid("friend");
     pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
@@ -114,7 +110,7 @@ void estimate_chain(const string& idirname, const string& odirname)
     if (marker == 0) return;
     
     edge_t* edge = blog->blog_beg;
-    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), v_count);
+    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), _global_vcount);
     index_t last = 0;
     vid_t src = 0;
     vid_t dst = 0;
@@ -142,7 +138,7 @@ void estimate_chain(const string& idirname, const string& odirname)
         {
         index_t  local_memory = 0;
         #pragma omp for  
-        for (vid_t vid = 0; vid < v_count; ++vid) {
+        for (vid_t vid = 0; vid < _global_vcount; ++vid) {
             if (est[vid].degree == 0) continue;
             
             local_memory = est[vid].degree*sizeof(T) + 16;
@@ -165,15 +161,15 @@ void estimate_chain(const string& idirname, const string& odirname)
     cout << "max_chain =" << max_chain << endl;
 
     /*
-    degree_t* degree = (degree_t*)calloc(sizeof(degree),v_count);
+    degree_t* degree = (degree_t*)calloc(sizeof(degree),_global_vcount);
     
     #pragma omp parallel for
-    for (vid_t vid = 0; vid < v_count; ++vid) {
+    for (vid_t vid = 0; vid < _global_vcount; ++vid) {
         degree[vid] = est[vid].delta_degree;
     }
-    sort(degree, degree + v_count);
+    sort(degree, degree + _global_vcount);
     
-    for (vid_t vid = 0; vid < v_count; ++vid) {
+    for (vid_t vid = 0; vid < _global_vcount; ++vid) {
         cerr << vid <<"  " << degree[vid] << endl;
     }
     */
@@ -184,9 +180,10 @@ void estimate_chain(const string& idirname, const string& odirname)
 template <class T>
 void estimate_chain_new(const string& idirname, const string& odirname)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
 
     propid_t          cf_id = g->get_cfid("friend");
     pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
@@ -202,7 +199,7 @@ void estimate_chain_new(const string& idirname, const string& odirname)
     if (marker == 0) return;
     
     edge_t* edge = blog->blog_beg;
-    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), v_count);
+    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), _global_vcount);
     index_t last = 0;
     vid_t src = 0;
     vid_t dst = 0;
@@ -232,7 +229,7 @@ void estimate_chain_new(const string& idirname, const string& odirname)
         degree_t total_degree = 0;
         degree_t new_count = 0;
         #pragma omp for  
-        for (vid_t vid = 0; vid < v_count; ++vid) {
+        for (vid_t vid = 0; vid < _global_vcount; ++vid) {
             if (est[vid].degree == 0) continue;
             
             //---------------
@@ -303,9 +300,10 @@ void estimate_chain_new(const string& idirname, const string& odirname)
 template <class T>
 void estimate_IO(const string& idirname, const string& odirname)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     
     propid_t          cf_id = g->get_cfid("friend");
     pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
@@ -322,7 +320,7 @@ void estimate_IO(const string& idirname, const string& odirname)
     if (marker == 0) return;
     
     edge_t* edge = blog->blog_beg;
-    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), v_count);
+    estimate_t* est = (estimate_t*)calloc(sizeof(estimate_t), _global_vcount);
     index_t last = 0;
     vid_t src = 0;
     vid_t dst = 0;
@@ -362,7 +360,7 @@ void estimate_IO(const string& idirname, const string& odirname)
         degree_t total_degree = 0;
         //degree_t new_count = 0;
         #pragma omp for  
-        for (vid_t vid = 0; vid < v_count; ++vid) {
+        for (vid_t vid = 0; vid < _global_vcount; ++vid) {
             if (est[vid].degree == 0) continue;
             total_degree = est[vid].delta_degree + est[vid].degree;
             //---------------
@@ -448,7 +446,7 @@ void estimate_IO(const string& idirname, const string& odirname)
             memset(free_i, 0, sizeof(index_t)*chain);
 
             #pragma omp for reduction(+:total_chain_count) reduction(max:max_chain)
-            for (vid_t vid = 0; vid < v_count; ++vid) {
+            for (vid_t vid = 0; vid < _global_vcount; ++vid) {
                 chain_count = est[vid].chain_count;
                 max_chain = std::max(chain_count, max_chain);
                 total_chain_count += chain_count; 
@@ -499,7 +497,7 @@ void estimate_IO(const string& idirname, const string& odirname)
         vid_t hub_vertex = 0;
 
         #pragma omp parallel for reduction(+:io_read,io_read_count,io_write,hub_vertex)
-        for (vid_t vid = 0; vid < v_count; ++vid) {
+        for (vid_t vid = 0; vid < _global_vcount; ++vid) {
             if (est[vid].chain_count < freed_chain) continue;
             
             if (est[vid].durable_degree !=0 && est[vid].type != HUB_TYPE) {
@@ -581,10 +579,10 @@ void weighted_dtest0(const string& idir, const string& odir)
     }
 
     //Create number of vertex
-    v_count = nv;
+    _global_vcount = nv;
     plaingraph_manager_t<lite_edge_t> manager;
     manager.schema(_dir);
-    manager.setup_graph(v_count);
+    manager.setup_graph(_global_vcount);
     
     //Do ingestion
     /*
@@ -644,7 +642,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     //-------Run bfs and PR------
     snap_t<lite_edge_t>* snaph = create_static_view(graph, STALE_MASK|V_CENTRIC);
     
-    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    uint8_t* level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     mem_pagerank_epsilon<lite_edge_t>(snaph, 1e-8);
@@ -704,7 +702,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     //-------Run bfs and PR------
     snaph->update_view();
     
-    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
     mem_bfs_simple<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     
@@ -713,7 +711,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     end = mywtime();
     cout << "Compress time = " << end - start << endl;
     
-    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     //manager.run_bfs(0);
@@ -755,11 +753,11 @@ void recover_test0(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.recover_graph_adj(idir, odir);
     
     //Run BFS
-    plaingraph_manager.run_bfs();
+    manager.run_bfs();
 }
 
 template <class T>
@@ -768,7 +766,7 @@ void split_files(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.split_files(idir, odir);    
 }
 
@@ -778,7 +776,7 @@ void llama_test(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);
+    manager.setup_graph(_global_vcount);
     manager.prep_graph(idir, odir);
     manager.run_bfs();
     manager.run_bfs();
@@ -794,7 +792,7 @@ void ingestion_full(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count); 
+    manager.setup_graph_vert_nocreate(_global_vcount); 
     manager.prep_graph(idir, odir); 
     manager.run_bfs();    
     //g->store_graph_baseline();
@@ -807,7 +805,7 @@ void test_ingestion_full(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);    
+    manager.setup_graph_vert_nocreate(_global_vcount);    
     manager.prep_graph2(idir, odir); 
     manager.run_bfs();    
     //g->store_graph_baseline();
@@ -819,7 +817,7 @@ void plain_test6(const string& odir)
 {
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     
     g->read_graph_baseline();
     
@@ -827,19 +825,20 @@ void plain_test6(const string& odir)
     propid_t cf_id = g->get_cfid("friend");
     ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
     vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
-    index_t edge_count = (v_count << 5);
-    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    index_t edge_count = (_global_vcount << 5);
+    uint8_t* level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
     
-    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, 1, 1);
+    snap_bfs<sid_t>(graph, graph, _global_vcount, edge_count, level_array, 1, 1);
     return ;
 }
 */
 
 void paper_test_chain_bfs(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     for (int i = 0; i < 10; i++) {
@@ -848,9 +847,10 @@ void paper_test_chain_bfs(const string& idir, const string& odir)
 }
 void paper_test_pr_chain(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     for (int i = 0; i < 10; i++) {
@@ -860,9 +860,10 @@ void paper_test_pr_chain(const string& idir, const string& odir)
 
 void paper_test_pr(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     plaingraph_manager.run_pr();
@@ -870,9 +871,10 @@ void paper_test_pr(const string& idir, const string& odir)
 
 void paper_test_hop1_chain(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     plaingraph_manager.run_1hop();
@@ -880,9 +882,10 @@ void paper_test_hop1_chain(const string& idir, const string& odir)
 
 void paper_test_hop1(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     plaingraph_manager.run_1hop();
@@ -890,9 +893,10 @@ void paper_test_hop1(const string& idir, const string& odir)
 
 void paper_test_hop2_chain(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     plaingraph_manager.run_2hop();
@@ -900,9 +904,10 @@ void paper_test_hop2_chain(const string& idir, const string& odir)
 
 void paper_test_hop2(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     plaingraph_manager.prep_graph_adj(idir, odir);
     
     plaingraph_manager.run_2hop();
@@ -913,7 +918,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.prep_graph_mix(idir, odir);    
     //manager.prep_graph_adj(idir, odir);    
     manager.run_bfs(1); 
@@ -926,7 +931,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     index_t  offset = 0;
     sid_t sid = 0;
     
-    assert(v_count == snaph->get_vcount());
+    assert(_global_vcount == snaph->get_vcount());
     
     string vtfile = odir + "inputGraph.adj"; 
 	FILE* vtf = fopen(vtfile.c_str(), "w");
@@ -934,10 +939,10 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     char text[256];
     
     index_t edge_count = (2L << residue);
-    sprintf(text,"AdjacencyGraph\n%u\n%lu\n", v_count, edge_count);
+    sprintf(text,"AdjacencyGraph\n%u\n%lu\n", _global_vcount, edge_count);
     fwrite(text, sizeof(char), strlen(text), vtf);
 	
-    for (vid_t v = 0; v < v_count; v++) {
+    for (vid_t v = 0; v < _global_vcount; v++) {
         nebr_count = snaph->get_degree_out(v);
         sprintf(text,"%lu\n", offset);
         fwrite(text, sizeof(char), strlen(text), vtf);
@@ -945,7 +950,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
         offset += nebr_count;
     }
 
-	for (vid_t v = 0; v < v_count; v++) {
+	for (vid_t v = 0; v < _global_vcount; v++) {
         nebr_count = snaph->get_degree_out(v);
         if (nebr_count == 0) {
             continue;
@@ -984,11 +989,11 @@ void stream_netflow_aggregation(const string& idir, const string& odir)
     plaingraph_manager_t<netflow_dst_t> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);
+    manager.setup_graph(_global_vcount);
     pgraph_t<netflow_dst_t>* pgraph = manager.get_plaingraph();
     
     stream_t<netflow_dst_t>* streamh = reg_stream_view(pgraph, do_stream_netflow_aggr);
-    netflow_post_reg(streamh, v_count); 
+    netflow_post_reg(streamh, _global_vcount); 
     manager.prep_graph_and_compute(idir, odir, streamh); 
     //netflow_finalize(streamh); 
 }
@@ -999,7 +1004,7 @@ void test_logging(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.prep_graph_edgelog2(idir, odir);
     
     //Run BFS
@@ -1014,7 +1019,7 @@ void test_mix(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     
     manager.prep_graph_mix(idir, odir);
     
@@ -1043,7 +1048,7 @@ void test_archive(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     
     manager.prep_graph_adj(idir, odir);
     //g->store_graph_baseline();
@@ -1072,7 +1077,7 @@ void test_ingestion(const string& idir, const string& odir)
     
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.prep_graph2(idir, odir);
     manager.run_bfs();
     
@@ -1090,7 +1095,7 @@ void ingestion(const string& idir, const string& odir)
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     manager.prep_graph(idir, odir); 
     manager.run_bfs();
     //g->store_graph_baseline();    
@@ -1098,13 +1103,14 @@ void ingestion(const string& idir, const string& odir)
 
 void stream_wcc(const string& idir, const string& odir)
 {
+    plaingraph_manager_t<sid_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
+    plaingraph_manager.setup_graph(_global_vcount);    
     pgraph_t<sid_t>* pgraph = plaingraph_manager.get_plaingraph();
     
     stream_t<sid_t>* streamh = reg_stream_view(pgraph, do_stream_wcc);
-    wcc_post_reg(streamh, v_count); 
+    wcc_post_reg(streamh, _global_vcount); 
     plaingraph_manager.prep_graph_and_compute(idir, odir, streamh); 
     wcc_finalize(streamh); 
 }
@@ -1116,7 +1122,7 @@ void test_stream(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     g->create_threads(true, false);   
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     
@@ -1136,7 +1142,7 @@ void multi_stream_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
@@ -1163,7 +1169,7 @@ void serial_scopy_bfs(const string& idir, const string& odir,
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     
 #ifdef _MPI
 
@@ -1196,8 +1202,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    _global_vcount = v_count;
-    
+    //_global_vcount = upper_power_of_two(_global_vcount);
 #ifdef _MPI
     switch (_numtasks - 1) {
     case 4:
@@ -1210,13 +1215,15 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
         _part_count = 1;
         break;
     }
+    _global_vcount = _global_vcount + (_part_count - _global_vcount%_part_count);
+   //cout << "global " <<  _global_vcount << endl; 
 
     // extract the original group handle
     create_2d_comm();
     create_2d_comm1();
     if (_rank == 0) {
         //do some setup for plain graphs
-        manager.setup_graph(v_count);    
+        manager.setup_graph(_global_vcount);    
         //g->create_threads(true, false);   
         
         //create scopy_server
@@ -1228,7 +1235,7 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
 
     } else {
         //do some setup for plain graphs
-        vid_t local_vcount = v_count/_part_count;
+        vid_t local_vcount = _global_vcount/_part_count;
         manager.setup_graph(local_vcount);    
         //create scopy_client
         scopy2d_client_t<T>* sclienth = reg_scopy2d_client(pgraph, stream_fn, 
@@ -1247,7 +1254,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    _global_vcount = v_count;
+    _global_vcount = _global_vcount;
     
 #ifdef _MPI
     // extract the original group handle
@@ -1255,7 +1262,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     
     if (_rank == 0) {
         //do some setup for plain graphs
-        manager.setup_graph(v_count);    
+        manager.setup_graph(_global_vcount);    
         //g->create_threads(true, false);   
         
         //create scopy_server
@@ -1268,10 +1275,10 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
 
     } else {
         //do some setup for plain graphs
-        vid_t local_vcount = (v_count/(_numtasks - 1));
+        vid_t local_vcount = (_global_vcount/(_numtasks - 1));
         vid_t v_offset = (_rank - 1)*local_vcount;
         if (_rank == _numtasks - 1) {//last rank
-            local_vcount = v_count - v_offset;
+            local_vcount = _global_vcount - v_offset;
         }
         manager.setup_graph(local_vcount);    
         //create scopy_client
@@ -1290,7 +1297,7 @@ void test_serial_stream(const string& idir, const string& odir,
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
-    manager.setup_graph(v_count);    
+    manager.setup_graph(_global_vcount);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
     sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
@@ -1303,7 +1310,6 @@ void test_serial_stream(const string& idir, const string& odir,
 
 void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
 {
-    v_count = v_count1; 
     switch (job) {
         //plaingrah benchmark testing    
         case 0: 
@@ -1385,26 +1391,26 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         
         case 30:
-            stream_netflow_aggregation(idir, odir);
-            break;
-        case 31:
-            stream_wcc(idir, odir);
-            break;
-        case 32:
             serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_serial_bfs, scopy2d_server);
             break;
-        case 33:
+        case 31:
             serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_serial_bfs, scopy1d_server);
             break;
-        case 34:
+        case 32:
             serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);
             break;
-        case 35:
+        case 33:
             multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
             break;
-        case 36:
+        case 34:
             test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
             //test_stream<sid_t>(idir, odir, stream_bfs);
+            break;
+        case 35:
+            stream_netflow_aggregation(idir, odir);
+            break;
+        case 36:
+            stream_wcc(idir, odir);
             break;
         
         case 40:

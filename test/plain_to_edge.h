@@ -200,8 +200,6 @@ void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count)
     g->prep_graph_baseline();
 }
 
-extern vid_t v_count;
-
 struct arg_t {
     string file;
     void* manager;

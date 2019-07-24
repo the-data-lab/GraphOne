@@ -17,8 +17,6 @@ void darshan_test0(const string& conf_file, const string& idir, const string& od
 //using namespace std;
 
 graph* g;
-int THD_COUNT = 0;
-vid_t _global_vcount = 0;
 int _numtasks = 0, _rank = 0;
 int _part_count;
 #ifdef _MPI
@@ -30,33 +28,51 @@ void ontology_lubm();
 void fill_lubm_inference_type();
 
 
+void print_usage() 
+{
+    string help = "./exe options.\n";
+    help += "--help -h: This message.\n";
+    help += "--vcount -v: Vertex count\n";
+    help += "--edgecount -e: Edge count, required only for streaming analytics as exit criteria.\n";
+    help += "--idir -i: input directory\n";
+    help += "--odir -o: output directory\n";
+    help += "--category -c: 0 for single stream graphs. Default: 0\n";
+    help += "--job -j: job number. Default: 0\n";
+    help += "--threadcount --t: Thread count. Default: Cores in your system - 1\n";
+    help += "--direction -d: Direction, 0 for undirected, 1 for directed, 2 for unidirected. Default: 0(undirected)\n";
+    help += "--source  -s: Data source. 0 for text files, 1 for binary files. Default: text files\n";
+    help += "--persist -p: Persist the edge log data. 0 for persistence 1 for no persistency. Default: persist.\n";
+    help += "--residue or -r: Various meanings.\n";
+
+    cout << help << endl;
+}
+
 int main(int argc, char* argv[])
 {
-	const struct option longopts[] =
-	{
-		{"vcount",    required_argument,  0, 'v'},
-		{"help",      no_argument,        0, 'h'},
-		{"idir",      required_argument,  0, 'i'},
-		{"odir",      required_argument,  0, 'o'},
-		{"category",   required_argument,  0, 'c'},
-		{"job",       required_argument,  0, 'j'},
-		{"residue",   required_argument,  0, 'r'},
-		{"qfile",     required_argument,  0, 'q'},
+    const struct option longopts[] =
+    {
+        {"vcount",    required_argument,  0, 'v'},
+        {"help",      no_argument,        0, 'h'},
+        {"idir",      required_argument,  0, 'i'},
+        {"odir",      required_argument,  0, 'o'},
+        {"category",   required_argument,  0, 'c'},
+        {"job",       required_argument,  0, 'j'},
+        {"residue",   required_argument,  0, 'r'},
+        {"qfile",     required_argument,  0, 'q'},
         {"fileconf",  required_argument,  0, 'f'},
         {"threadcount",  required_argument,  0, 't'},
         {"edgecount",  required_argument,  0, 'e'},
         {"direction",  required_argument,  0, 'd'},
         {"persist",  required_argument,  0, 'p'},
         {"source",  required_argument,  0, 's'},
-		{0,			  0,				  0,  0},
-	};
+        {0,			  0,				  0,  0},
+    };
 
 	int o;
 	int index = 0;
 	string typefile, idir, odir;
     string queryfile;
-    int convert = -1;
-	vid_t v_count = 0;
+    int category = 0;
     int job = 0;
 
 #ifdef _MPI    
@@ -73,21 +89,22 @@ int main(int argc, char* argv[])
 		switch(o) {
 			case 'v':
 				#ifdef B64
-                sscanf(optarg, "%ld", &v_count);
+                sscanf(optarg, "%ld", &_global_vcount);
 				#elif B32
-                sscanf(optarg, "%d", &v_count);
+                sscanf(optarg, "%d", &_global_vcount);
 				#endif
-				//cout << "v_count = " << v_count << endl;
+				//cout << "_global_vcount = " << _global_vcount << endl;
 				break;
 			case 'h':
-				cout << "Help coming soon" << endl;
-				break;
+				print_usage();
+                return 0;
+                break;
 			case 'i':
 				idir = optarg;
 				//cout << "input dir = " << idir << endl;
 				break;
             case 'c':
-                convert = atoi(optarg);
+                category = atoi(optarg);
 				break;
             case 'j':
                 job = atoi(optarg);
@@ -129,12 +146,12 @@ int main(int argc, char* argv[])
 	}
 	//cout << "Total thds = " << THD_COUNT << endl;
     g->set_odir(odir);
-    switch (convert) {
+    switch (category) {
         case 0:
-        plain_test(v_count, idir, odir, job);
+        plain_test(_global_vcount, idir, odir, job);
             break;
         case 1:
-        multigraph_test(v_count, idir, odir, job);
+        multigraph_test(_global_vcount, idir, odir, job);
             break;
 #ifdef B64
         case 2:

@@ -10,7 +10,7 @@
     MPI_Datatype mpi_type_vid = MPI_UINT32_T;
 #endif
 
-#define BUF_TX_SZ (1<<22)
+#define BUF_TX_SZ (1<<24)
 
 template <class T>
 struct part_t {
@@ -158,9 +158,15 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
         meta_flag = partial;
     }
     int t_pos = 0;
-    buf_vertex(part + j, 0); 
+    buf_vertex(part + j, 0);
+
+    if (part[j].vposition + part[j].position > 2*part[j].buf_size) {
+        cout << part[j].vposition << " " << part[j].position 
+         << " changed_v " << part[j].changed_v
+         << " changed_e " << part[j].changed_e << endl;
+    }
      
-    pack_meta(part[j].buf, part[j].buf_size, t_pos, meta_flag, archive_marker, 
+    pack_meta(part[j].buf, 2*part[j].buf_size, t_pos, meta_flag, archive_marker, 
               part[j].changed_v, part[j].changed_e);
     assert(t_pos == header_size);
     t_pos = part[j].vposition;
@@ -182,8 +188,8 @@ template <class T>
 void scopy2d_server_t<T>::buf_vertex(part_t<T>* part, vid_t vid)
 {
     part->changed_v++;
-    MPI_Pack(&vid, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
-    MPI_Pack(&part->changed_e, 1, mpi_type_vid, part->buf, part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    MPI_Pack(&vid, 1, mpi_type_vid, part->buf, 2*part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    MPI_Pack(&part->changed_e, 1, mpi_type_vid, part->buf, 2*part->buf_size, &part->vposition, MPI_COMM_WORLD);
     part->changed_e += part->delta_count;
     part->delta_count = 0;
 }
@@ -225,7 +231,8 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
                  if(sid < part[j+1].dst_offset) break;
             }
             //send and reset the data, if required
-            if ((part[j].position  + 16*sizeof(T)) >= part[j].buf_size) {
+            if ((part[j].position + part[j].vposition + 6*sizeof(vid_t)>= (2*part[j].buf_size)) 
+              ||(part[j].position  >= part[j].buf_size)) {
                 buf_vertex(part + j, vid);
                 send_buf_one(part, j, 2);
             }
@@ -444,7 +451,7 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
 
     do {
         MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
-        MPI_Get_count(&status, MPI_CHAR, &buf_size);
+        MPI_Get_count(&status, MPI_PACKED, &buf_size);
         //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
 
         MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
