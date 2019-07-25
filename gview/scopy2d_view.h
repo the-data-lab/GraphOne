@@ -10,7 +10,7 @@
     MPI_Datatype mpi_type_vid = MPI_UINT32_T;
 #endif
 
-#define BUF_TX_SZ (1<<24)
+#define BUF_TX_SZ (1<<21)
 
 template <class T>
 struct part_t {
@@ -81,7 +81,7 @@ class scopy2d_server_t : public sstream_t<T> {
  
  private:   
     void  init_buf();
-    void  prep_buf(degree_t* degree, onegraph_t<T>* graph);
+    void  prep_buf(degree_t* degree, onegraph_t<T>* graph, int tid);
     void  buf_vertex(part_t<T>* part, vid_t vid);
     void  send_buf(part_t<T>* part);
     void  send_buf_one(part_t<T>* part, int j, int partial = 1);
@@ -164,6 +164,7 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
         cout << part[j].vposition << " " << part[j].position 
          << " changed_v " << part[j].changed_v
          << " changed_e " << part[j].changed_e << endl;
+        assert(0);
     }
      
     pack_meta(part[j].buf, 2*part[j].buf_size, t_pos, meta_flag, archive_marker, 
@@ -174,7 +175,7 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
     //memcpy(part[j].buf + part[j].vposition, part[j].ebuf, part[j].position);
     //part[j].vposition += part[j].position; 
     
-    cout << " sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
+    cout << " Sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
          << " size "<< part[j].vposition 
          << " changed_v " << part[j].changed_v
          << " changed_e " << part[j].changed_e
@@ -195,9 +196,9 @@ void scopy2d_server_t<T>::buf_vertex(part_t<T>* part, vid_t vid)
 }
 
 template <class T>
-void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
+void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph, int tid)
 {
-    int tid = omp_get_thread_num();
+  //  int tid = omp_get_thread_num();
     part_t<T>* part = _part + tid*part_count;
     
     vid_t v_local = v_count/part_count;
@@ -397,15 +398,16 @@ status_t scopy2d_server_t<T>::update_view()
     
     snapshot = new_snapshot;
     
-#pragma omp parallel num_threads(part_count)
+#pragma omp parallel for num_threads(part_count)
+for (int tid = 0; tid < part_count; ++tid)
 {
     if (graph_in == graph_out) {
-        prep_buf(degree_out, graph_out);
+        prep_buf(degree_out, graph_out, tid);
         send_buf(_part);    
     } else {
-        prep_buf(degree_out, graph_out);
+        prep_buf(degree_out, graph_out, tid);
         send_buf(_part);    
-        prep_buf(degree_in, graph_in);
+        prep_buf(degree_in, graph_in, tid);
         send_buf(_part);    
     }
 }

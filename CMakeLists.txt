@@ -33,9 +33,9 @@ set(graphone_source_files main.cpp)
 add_executable(graphone32 ${graphone_source_files})
 set_target_properties(graphone32 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS32}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(graphone32 src32 onedata32 test32 ${MPI_C_LIBRARIES})
+target_link_libraries(graphone32 src32 onedata32 test32 ${MPI_CXX_LIBRARIES})
 
 add_executable(graphone64 ${graphone_source_files})
 set_target_properties(graphone64 PROPERTIES  COMPILE_FLAGS ${COMPILE_FLAGS64}
                       LINK_FLAGS ${LINK_FLAGS_COMMON})
-target_link_libraries(graphone64 src64 onedata64 test64 ${MPI_C_LIBRARIES})
+target_link_libraries(graphone64 src64 onedata64 test64 ${MPI_CXX_LIBRARIES})

@@ -76,7 +76,13 @@ int main(int argc, char* argv[])
     int job = 0;
 
 #ifdef _MPI    
-    MPI_Init(&argc,&argv);
+    //MPI_Init(&argc,&argv);
+    int required = MPI_THREAD_MULTIPLE;
+    int provided;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+
+    if (provided != required) assert(0);
+
     MPI_Comm_size(MPI_COMM_WORLD, &_numtasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
 #endif
