@@ -72,25 +72,47 @@ If need to install intel tbb on your machine. Then, Just run following command t
   {"help",        no_argument,        0, 'h'},
   {"idir",        required_argument,  0, 'i'},
   {"odir",        required_argument,  0, 'o'},
-  {"category",    required_argument,  0, 'c'},
   {"job",         required_argument,  0, 'j'},
   {"residue",     required_argument,  0, 'r'},
-  {"qfile",       required_argument,  0, 'q'},
-  {"fileconf",    required_argument,  0, 'f'},
   {"threadcount", required_argument,  0, 't'},
+  {"edgecount",  required_argument,  0, 'e'},
+  {"direction",  required_argument,  0, 'd'},
+  {"source",  required_argument,  0, 's'},
+  {"partition-count",  required_argument,  0, 'p'},
   ```
-       
-`Example1 (Can be used as Benchmark):`
-   `./graphone32 -i ./kron21_16/edge_file/ -o ./del2/ -c 0 -j 25 -v 2097152`
+    
+ Here is explantion:
+ ```
+ --help -h: This message.
+ --vcount -v: Vertex count
+ --edgecount -e: Edge count, required only for streaming analytics as exit criteria.
+ --idir -i: input directory
+ --odir -o: output directory. This option will also persist the edge log.
+ --job -j: job number. Default: 0
+ --threadcount --t: Thread count. Default: Cores in your system - 1
+ --direction -d: Direction, 0 for undirected, 1 for directed, 2 for unidirected. Default: 0(undirected)
+ --source  -s: Data source. 0 for text files, 1 for binary files. Default: text files
+ --partitions -p: Will create p*p 2-D partitions.
+ --residue or -r: Various meanings.
+ ```   
 
-This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data.  The files inside kron21_16/edge_file/ directory have graph data in binary edge list format.
+`Example1 (Single Machine execution):`
+   `./graphone32 -i ./kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152`
+   `./graphone32 -i ./kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152 -d 1`
+   `./graphone32 -i ./kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1
+   `./graphone32 -i ./kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1 -d 1
+
+This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data.   The files inside kron21_16/text_file/ directory have graph data in text edge list format. The files inside kron21_16/edge_file/ directory have graph data in binary edge list format. This job (0) runs bfs from a fixed root treating the graph as undirected and directed(if -d1 is supplied).
 
 You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
 
-`Example 2 (No Benchmarking):`
-   `./graphone32 -i kron_21_16/text_file/ -o ./del2/ -c 0 -j 18 -v 2097152`
+`Example 2 (MPI version, In progress):`
+   `mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2`
+   `mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -d 1`
+   `mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -s 1`
+   `mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -s 1 -d 1`
 
-This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
+This will create 2x2 2-D partition, while the master rank (0) will handle the data ingestion from source (text file here). It will keep executing streaming bfs for 8 (-r8) incremental time.  This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
 
 `Example 3 (No Benchmarking):`
    `./graphone32 -i lanl_2017/text_file/ -o ./del2/ -c 0 -j 35 -v 162315`
