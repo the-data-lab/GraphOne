@@ -31,18 +31,18 @@ void fill_lubm_inference_type();
 void print_usage() 
 {
     string help = "./exe options.\n";
-    help += "--help -h: This message.\n";
-    help += "--vcount -v: Vertex count\n";
-    help += "--edgecount -e: Edge count, required only for streaming analytics as exit criteria.\n";
-    help += "--idir -i: input directory\n";
-    help += "--odir -o: output directory\n";
-    help += "--category -c: 0 for single stream graphs. Default: 0\n";
-    help += "--job -j: job number. Default: 0\n";
-    help += "--threadcount --t: Thread count. Default: Cores in your system - 1\n";
-    help += "--direction -d: Direction, 0 for undirected, 1 for directed, 2 for unidirected. Default: 0(undirected)\n";
-    help += "--source  -s: Data source. 0 for text files, 1 for binary files. Default: text files\n";
-    help += "--persist -p: Persist the edge log data. 0 for persistence 1 for no persistency. Default: persist.\n";
-    help += "--residue or -r: Various meanings.\n";
+    help += " --help -h: This message.\n";
+    help += " --vcount -v: Vertex count\n";
+    help += " --edgecount -e: Edge count, required only for streaming analytics as exit criteria.\n";
+    help += " --idir -i: input directory\n";
+    help += " --odir -o: output directory. This option will also persist the edge log.\n";
+    //help += " --category -c: 0 for single stream graphs. Default: 0\n";
+    help += " --job -j: job number. Default: 0\n";
+    help += " --threadcount --t: Thread count. Default: Cores in your system - 1\n";
+    help += " --direction -d: Direction, 0 for undirected, 1 for directed, 2 for unidirected. Default: 0(undirected)\n";
+    help += " --source  -s: Data source. 0 for text files, 1 for binary files. Default: text files\n";
+    help += " --partitions -p: Will create p*p 2-D partitions.\n";
+    help += " --residue or -r: Various meanings.\n";
 
     cout << help << endl;
 }
@@ -63,8 +63,8 @@ int main(int argc, char* argv[])
         {"threadcount",  required_argument,  0, 't'},
         {"edgecount",  required_argument,  0, 'e'},
         {"direction",  required_argument,  0, 'd'},
-        {"persist",  required_argument,  0, 'p'},
         {"source",  required_argument,  0, 's'},
+        {"partition-count",  required_argument,  0, 'p'},
         {0,			  0,				  0,  0},
     };
 
@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
     string queryfile;
     int category = 0;
     int job = 0;
+    _part_count = 1;
 
 #ifdef _MPI    
     //MPI_Init(&argc,&argv);
@@ -117,6 +118,7 @@ int main(int argc, char* argv[])
 				break;
 			case 'o':
 				odir = optarg;
+                _persist = 1;
 				//cout << "output dir = " << odir << endl;
 				break;
             case 'q':
@@ -135,11 +137,11 @@ int main(int argc, char* argv[])
             case 'd':
                 sscanf(optarg, "%d", &_dir);
                 break;
-            case 'p':
-                sscanf(optarg, "%d", &_persist);
-                break;
             case 's':
                 sscanf(optarg, "%d", &_source);
+                break;
+            case 'p':
+                sscanf(optarg, "%d", &_part_count);
                 break;
             case 'r':
                 sscanf(optarg, "%ld", &residue);

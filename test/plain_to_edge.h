@@ -396,6 +396,12 @@ void plaingraph_manager_t<T>::prep_graph_edgelog2(const string& idirname,
         const string& odirname) 
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    if (_persist) {
+        g->file_open(true);
+        g->create_threads(false, true);
+    } else {
+        g->create_threads(false, false);
+    }
     
     //Batch and Make Graph
     double start = mywtime();
@@ -406,6 +412,7 @@ void plaingraph_manager_t<T>::prep_graph_edgelog2(const string& idirname,
     }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
+    if (_persist) g->type_store(odirname);
 }
 
 template <class T>
@@ -413,6 +420,13 @@ void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname,
         const string& odirname)
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    
+    if (_persist) {
+        g->file_open(true);
+        g->create_threads(false, true);
+    } else {
+        g->create_threads(false, false);
+    }
     
     //Batch and Make Graph
     double start = mywtime();
@@ -423,6 +437,7 @@ void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname,
     }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
+    if (_persist) g->type_store(odirname);
 }
 
 template <class T>
@@ -455,6 +470,7 @@ void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& o
         end = mywtime();
         cout << "Make graph time = " << end - start << endl;
     }
+    if (_persist) g->type_store(odirname);
 }
 
 template <class T>
@@ -487,6 +503,8 @@ void plaingraph_manager_t<T>::prep_graph2(const string& idirname, const string& 
         end = mywtime();
         cout << "Make graph time = " << end - start << endl;
     }
+    
+    if (_persist) g->type_store(odirname);
 }
 
 template <class T>

@@ -17,7 +17,7 @@ int THD_COUNT = 0;
 vid_t _global_vcount = 0;
 index_t _edge_count = 0;
 int _dir = 0;//undirected
-int _persist = 0;//yes
+int _persist = 0;//no
 int _source = 0;//text
 typedef cfinfo_t* (*get_graph_instance)();
 map<string, get_graph_instance>  graph_instance;

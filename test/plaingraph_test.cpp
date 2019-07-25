@@ -1202,21 +1202,11 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    //_global_vcount = upper_power_of_two(_global_vcount);
 #ifdef _MPI
-    switch (_numtasks - 1) {
-    case 4:
-        _part_count = 2;
-        break;
-    case 9:
-        _part_count = 3;
-        break;
-    default:
-        _part_count = 1;
-        break;
-    }
-    _global_vcount = _global_vcount + (_part_count - _global_vcount%_part_count);
-   //cout << "global " <<  _global_vcount << endl; 
+    assert(_part_count*_part_count + 1 == _numtasks);
+    vid_t rem = _global_vcount%_part_count;
+    _global_vcount = rem? _global_vcount + _part_count - rem :_global_vcount;
+    //cout << "global " <<  _global_vcount << endl; 
 
     // extract the original group handle
     create_2d_comm();
