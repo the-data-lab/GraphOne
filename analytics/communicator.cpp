@@ -33,6 +33,10 @@ void create_2d_comm1()
 
     MPI_Comm_split(MPI_COMM_WORLD, row_id, _rank, &_row_comm);
     MPI_Comm_split(MPI_COMM_WORLD, col_id, _rank, &_col_comm);
+    if (_rank !=0) {
+        MPI_Comm_rank(_row_comm, &_row_rank);
+        MPI_Comm_rank(_col_comm, &_col_rank);
+    }
 }
 
 void create_1d_comm()

@@ -1174,7 +1174,6 @@ void serial_scopy_bfs(const string& idir, const string& odir,
 #ifdef _MPI
 
     if (_rank == 0) {
-        //g->create_threads(true, false);   
         //create scopy_server
         scopy_server_t<T>* scopyh = reg_scopy_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
@@ -1214,12 +1213,11 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph(_global_vcount);    
-        //g->create_threads(true, false);   
         
         //create scopy_server
         scopy2d_server_t<T>* scopyh = reg_scopy2d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
-        manager.prep_graph_edgelog(idir, odir);
+        manager.prep_graph(idir, odir);
         void* ret;
         pthread_join(scopyh->thread, &ret);
 
@@ -1229,9 +1227,9 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
         manager.setup_graph(local_vcount);    
         //create scopy_client
         scopy2d_client_t<T>* sclienth = reg_scopy2d_client(pgraph, stream_fn, 
-                                                STALE_MASK|V_CENTRIC|C_THREAD);
-        void* ret;
-        pthread_join(sclienth->thread, &ret);
+                                                STALE_MASK|V_CENTRIC);
+        
+        stream_fn(sclienth);
     }
 #endif
 }
@@ -1253,7 +1251,6 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph(_global_vcount);    
-        //g->create_threads(true, false);   
         
         //create scopy_server
         scopy1d_server_t<T>* scopyh = reg_scopy1d_server(pgraph, scopy_fn, 

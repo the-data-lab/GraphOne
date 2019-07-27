@@ -22,6 +22,7 @@ int _part_count;
 #ifdef _MPI
 MPI_Comm   _analytics_comm;
 MPI_Comm  _row_comm, _col_comm;
+int _col_rank, _row_rank;
 #endif
 
 void ontology_lubm();

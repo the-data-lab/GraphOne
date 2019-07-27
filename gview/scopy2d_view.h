@@ -104,14 +104,11 @@ class scopy2d_client_t : public sstream_t<T> {
     using sstream_t<T>::bitmap_out;
 
  public:
-    vid_t    global_vcount;
-    vid_t    v_offset;
-    vid_t    dst_offset;
     int      buf_size;
     char*    buf;
 
  public:
-    inline    scopy2d_client_t():sstream_t<T>() {dst_offset = 0;}
+    inline    scopy2d_client_t():sstream_t<T>() {}
     inline    ~scopy2d_client_t() {}
    
     void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
@@ -174,12 +171,13 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
     MPI_Pack(part[j].ebuf, part[j].position, MPI_PACKED, part[j].buf, (part[j].buf_size<<1), &part[j].vposition, MPI_COMM_WORLD); 
     //memcpy(part[j].buf + part[j].vposition, part[j].ebuf, part[j].position);
     //part[j].vposition += part[j].position; 
-    
+    /*
     cout << " Sending to rank " << part[j].rank //<< " = "<< v_start << ":"<< v_end 
          << " size "<< part[j].vposition 
          << " changed_v " << part[j].changed_v
          << " changed_e " << part[j].changed_e
          << endl;
+    */
 
     MPI_Send(part[j].buf, part[j].vposition, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
     part[j].reset();
@@ -253,6 +251,150 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph, int t
             buf_vertex(part + j, vid);
         }
     }
+}
+
+
+template <class T>
+void scopy2d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag) 
+{
+    sstream_t<T>::init_view(pgraph, a_flag);
+    part_count = _part_count;
+    init_buf();
+}
+
+template <class T>
+status_t scopy2d_server_t<T>::update_view()
+{
+    blog_t<T>* blog = pgraph->blog;
+    index_t  marker = blog->blog_head;
+    
+    snapshot_t* new_snapshot = pgraph->get_snapshot();
+    
+    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
+    index_t old_marker = snapshot? snapshot->marker: 0;
+    index_t new_marker = new_snapshot->marker;
+    
+    snapshot = new_snapshot;
+    
+#pragma omp parallel for num_threads(part_count)
+for (int tid = 0; tid < part_count; ++tid)
+{
+    if (graph_in == graph_out) {
+        prep_buf(degree_out, graph_out, tid);
+        send_buf(_part);    
+    } else {
+        prep_buf(degree_out, graph_out, tid);
+        send_buf(_part);    
+        prep_buf(degree_in, graph_in, tid);
+        send_buf(_part);    
+    }
+}
+
+return eOK;
+}
+
+template <class T>
+status_t scopy2d_client_t<T>::update_view()
+{
+    index_t archive_marker;
+    if (graph_in == graph_out) {
+        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
+    } else {
+        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
+        archive_marker = apply_view(degree_in, graph_in, bitmap_in);
+    }
+    
+    pgraph->new_snapshot(archive_marker);
+    snapshot = pgraph->get_snapshot();
+    return eOK;
+}
+
+template <class T>
+index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap)
+{
+    //Lets copy the data
+    MPI_Status status;
+    int  partial = 0;
+    uint64_t  archive_marker = 0;
+    uint64_t flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
+    int position = 0;
+    int eposition = 0;
+    index_t changed_v = 0;
+    index_t changed_e = 0;
+    //int buf_size = 0;
+    char*    ebuf = 0;
+    int eoffset = 0;
+
+    //bitmap->reset();
+
+    do {
+        MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_PACKED, &buf_size);
+        //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+
+        MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
+        position = 0;
+        eposition = 0;
+
+        unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
+        partial = flag;
+        buf += position;
+        eoffset = 2*changed_v*sizeof(vid_t);
+        ebuf = buf + eoffset;
+
+        /*
+        cout << "Rank " << _rank  
+             << " : Archive Marker = " << archive_marker 
+             << " size "<< buf_size 
+             << " changed_v " << changed_v
+             << " changed_e " << changed_e
+             << endl;
+        */
+        #pragma omp parallel num_threads(THD_COUNT)
+        {
+        vid_t    vid, next_vid, curr, next;
+        degree_t delta_count = 0;
+        degree_t icount = 0;
+        int position = 0;
+        int eposition = 0;
+        degree_t    prior_sz = 1024;
+        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+        #pragma omp for 
+        for (vid_t v = 0; v < changed_v - 1; ++v) {
+            position = v*(sizeof(vid_t)<<1);
+            MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &curr, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &next_vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+            MPI_Unpack(buf, buf_size, &position, &next, 1, mpi_type_vid, MPI_COMM_WORLD);
+            
+            delta_count = next-curr; 
+            graph->increment_count_noatomic(vid, delta_count);
+            //XXX Update the degree of the view
+            //degree[vid] += delta_count;
+            //bitmap->set_bit(vid);
+            eposition = curr*sizeof(T); 
+            while (delta_count > 0) {
+                icount = delta_count > prior_sz ? prior_sz : delta_count;
+                MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
+                graph->add_nebr_bulk(vid, local_adjlist, icount);
+                delta_count -= icount;
+            }
+        }
+        free(local_adjlist);
+        }
+    } while(2 == partial);
+    //cout << "Rank " << _rank << " done" << endl;
+    return archive_marker;
+}
+
+
+template <class T>
+void scopy2d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
+{
+    sstream_t<T>::init_view(ugraph, a_flag);
+    
+    buf_size = BUF_TX_SZ; 
+    buf = (char*) malloc(sizeof(char)*(buf_size<<1));
 }
 
 /*
@@ -375,139 +517,6 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph)
     }
 }
 */
-
-template <class T>
-void scopy2d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag) 
-{
-    sstream_t<T>::init_view(pgraph, a_flag);
-    part_count = _part_count;
-    init_buf();
-}
-
-template <class T>
-status_t scopy2d_server_t<T>::update_view()
-{
-    blog_t<T>* blog = pgraph->blog;
-    index_t  marker = blog->blog_head;
-    
-    snapshot_t* new_snapshot = pgraph->get_snapshot();
-    
-    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
-    index_t old_marker = snapshot? snapshot->marker: 0;
-    index_t new_marker = new_snapshot->marker;
-    
-    snapshot = new_snapshot;
-    
-#pragma omp parallel for num_threads(part_count)
-for (int tid = 0; tid < part_count; ++tid)
-{
-    if (graph_in == graph_out) {
-        prep_buf(degree_out, graph_out, tid);
-        send_buf(_part);    
-    } else {
-        prep_buf(degree_out, graph_out, tid);
-        send_buf(_part);    
-        prep_buf(degree_in, graph_in, tid);
-        send_buf(_part);    
-    }
-}
-
-return eOK;
-}
-
-template <class T>
-status_t scopy2d_client_t<T>::update_view()
-{
-    index_t archive_marker;
-    if (graph_in == graph_out) {
-        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
-    } else {
-        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
-        archive_marker = apply_view(degree_in, graph_in, bitmap_in);
-    }
-    
-    pgraph->new_snapshot(archive_marker);
-    snapshot = pgraph->get_snapshot();
-    return eOK;
-}
-
-template <class T>
-index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap)
-{
-    bitmap->reset();
-
-    //Lets copy the data
-    MPI_Status status;
-    int  partial = 0;
-    uint64_t  archive_marker = 0;
-    uint64_t flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
-    int position = 0;
-    int eposition = 0;
-    index_t changed_v = 0;
-    index_t changed_e = 0;
-    //int buf_size = 0;
-    char*    ebuf = 0;
-    int eoffset = 0;
-    degree_t      icount = 0;
-    degree_t    prior_sz = 16384;
-
-    do {
-        MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
-        MPI_Get_count(&status, MPI_PACKED, &buf_size);
-        //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
-
-        MPI_Recv(buf, buf_size, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &status);
-        position = 0;
-        eposition = 0;
-
-        unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
-        partial = flag;
-        buf += position;
-        eoffset = 2*changed_v*sizeof(vid_t);
-        ebuf = buf + eoffset;
-
-        cout << "Rank " << _rank  
-             << " : Archive Marker = " << archive_marker 
-             << " size "<< buf_size 
-             << " changed_v " << changed_v
-             << " changed_e " << changed_e
-             << endl;
-        #pragma omp parallel num_threads(THD_COUNT)
-        {
-        vid_t    vid, next_vid, curr, next;
-        degree_t delta_count = 0;
-        degree_t icount = 0;
-        int position = 0;
-        int eposition = 0;
-        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-        #pragma omp for 
-        for (vid_t v = 0; v < changed_v - 1; ++v) {
-            position = v*(sizeof(vid_t)<<1);
-            MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
-            MPI_Unpack(buf, buf_size, &position, &curr, 1, mpi_type_vid, MPI_COMM_WORLD);
-            MPI_Unpack(buf, buf_size, &position, &next_vid, 1, mpi_type_vid, MPI_COMM_WORLD);
-            MPI_Unpack(buf, buf_size, &position, &next, 1, mpi_type_vid, MPI_COMM_WORLD);
-            
-            delta_count = next-curr; 
-            graph->increment_count_noatomic(vid, delta_count);
-            //Update the degree of the view
-            degree[vid] += delta_count;
-            bitmap->set_bit(vid);
-            eposition = curr*sizeof(T); 
-            while (delta_count > 0) {
-                icount = delta_count > prior_sz ? prior_sz : delta_count;
-                MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, icount, pgraph->data_type, MPI_COMM_WORLD);
-                graph->add_nebr_bulk(vid, local_adjlist, icount);
-                delta_count -= icount;
-            }
-        }
-        free(local_adjlist);
-        }
-    } while(2 == partial);
-    //cout << "Rank " << _rank << " done" << endl;
-    return archive_marker;
-}
-
 /*
 template <class T>
 index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap)
@@ -570,25 +579,4 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
     //cout << "Rank " << _rank << " done" << endl;
     return archive_marker;
 }*/
-
-template <class T>
-void scopy2d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
-{
-    snap_t<T>::init_view(ugraph, a_flag);
-    global_vcount = _global_vcount;
-    
-    bitmap_out = new Bitmap(v_count);
-    if (graph_out == graph_in) {
-        bitmap_in = bitmap_out;
-    } else {
-        bitmap_in = new Bitmap(v_count);
-    }
-    
-    int row_id = (_rank - 1)/_part_count;
-    int col_id = (_rank - 1)%_part_count;
-    v_offset = row_id*(global_vcount/_part_count);
-    dst_offset = col_id*(global_vcount/_part_count);
-    buf_size = BUF_TX_SZ; 
-    buf = (char*) malloc(sizeof(char)*(buf_size<<1));
-}
 #endif

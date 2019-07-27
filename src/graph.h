@@ -18,6 +18,7 @@ extern int _part_count;
 #ifdef _MPI
 extern MPI_Comm   _analytics_comm;
 extern MPI_Comm  _row_comm, _col_comm;
+extern int _col_rank, _row_rank;
 #endif
 
 ////////////main class/////////////////////
