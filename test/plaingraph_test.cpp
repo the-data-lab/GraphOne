@@ -984,20 +984,6 @@ void gen_kickstarter_files(const string& idir, const string& odir)
     fclose(etf);
 }
 
-void stream_netflow_aggregation(const string& idir, const string& odir)
-{
-    plaingraph_manager_t<netflow_dst_t> manager;
-    manager.schema(_dir);
-    //do some setup for plain graphs
-    manager.setup_graph(_global_vcount);
-    pgraph_t<netflow_dst_t>* pgraph = manager.get_plaingraph();
-    
-    stream_t<netflow_dst_t>* streamh = reg_stream_view(pgraph, do_stream_netflow_aggr);
-    netflow_post_reg(streamh, _global_vcount); 
-    manager.prep_graph_and_compute(idir, odir, streamh); 
-    //netflow_finalize(streamh); 
-}
-
 template <class T>
 void test_logging(const string& idir, const string& odir)
 {
@@ -1101,38 +1087,40 @@ void ingestion(const string& idir, const string& odir)
     //g->store_graph_baseline();    
 }
 
-void stream_wcc(const string& idir, const string& odir)
+void stream_netflow_aggregation(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
-    plaingraph_manager.schema(_dir);
+    plaingraph_manager_t<netflow_dst_t> manager;
+    manager.schema(_dir);
     //do some setup for plain graphs
-    plaingraph_manager.setup_graph(_global_vcount);    
-    pgraph_t<sid_t>* pgraph = plaingraph_manager.get_plaingraph();
+    manager.setup_graph(_global_vcount);
+    pgraph_t<netflow_dst_t>* pgraph = manager.get_plaingraph();
     
-    stream_t<sid_t>* streamh = reg_stream_view(pgraph, do_stream_wcc);
-    wcc_post_reg(streamh, _global_vcount); 
-    plaingraph_manager.prep_graph_and_compute(idir, odir, streamh); 
-    wcc_finalize(streamh); 
+    stream_t<netflow_dst_t>* streamh = reg_stream_view(pgraph, do_stream_netflow_aggr,
+                                                       E_CENTRIC|C_THREAD);
+    netflow_post_reg(streamh); 
+    manager.prep_graph_and_compute(idir, odir, streamh); 
+    //netflow_finalize(streamh); 
 }
 
-template <class T>
-void test_stream(const string& idir, const string& odir,
-                     typename callback<T>::sfunc stream_fn)
+void test_stream_wcc(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<T> manager;
+    plaingraph_manager_t<sid_t> manager; 
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(_global_vcount);    
-    g->create_threads(true, false);   
-    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    pgraph_t<sid_t>* pgraph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
-    //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, &stream_pagerank_epsilon<T>, STALE_MASK|V_CENTRIC);
+    /*
+    stream_t<sid_t>* streamh = reg_stream_view(pgraph, stream_wcc, E_CENTRIC);
+    wcc_post_reg(streamh); 
+    manager.prep_graph_and_compute(idir, odir, streamh); 
+    print_wcc_summary(streamh);
+    */
     
+    stream_t<sid_t>* streamh = reg_stream_view(pgraph, do_stream_wcc, E_CENTRIC|C_THREAD);
+    manager.prep_graph_edgelog(idir, odir);
     void* ret;
-    pthread_join(sstreamh->thread, &ret);
-    //--------
-    //manager.prep_graph_and_scompute(idir, odir, sstreamh);
+    pthread_join(streamh->thread, &ret);
 }
 
 template <class T>
@@ -1391,13 +1379,12 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 34:
             test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
-            //test_stream<sid_t>(idir, odir, stream_bfs);
             break;
         case 35:
             stream_netflow_aggregation(idir, odir);
             break;
         case 36:
-            stream_wcc(idir, odir);
+            test_stream_wcc(idir, odir);
             break;
         
         case 40:

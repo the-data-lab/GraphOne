@@ -30,35 +30,6 @@ using namespace std;
 template <class T>
 class vert_table_t;
 
-status_t pack_meta(char* buf, int buf_size, int& position,  uint64_t flag, 
-                   uint64_t archive_marker, uint64_t changed_v, uint64_t changed_e)
-{
-    //Header of the package
-    uint64_t endian = 0x0123456789ABCDEF;//endian
-    
-    MPI_Pack(&endian, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&archive_marker, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&flag, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&changed_v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    MPI_Pack(&changed_e, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-    return eOK;
-}
-
-status_t unpack_meta(char* buf, int buf_size, int& position, uint64_t& flag, 
-                   uint64_t& archive_marker, uint64_t& changed_v, uint64_t& changed_e)
-{
-    //Header of the package
-    uint64_t endian; 
-    MPI_Unpack(buf, buf_size, &position, &endian, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    assert(endian == 0x0123456789ABCDEF);
-    MPI_Unpack(buf, buf_size, &position, &archive_marker, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &flag, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    
-    MPI_Unpack(buf, buf_size, &position, &changed_v, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    MPI_Unpack(buf, buf_size, &position, &changed_e, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-    
-    return eOK;
-}
 
 #include "static_view.h"
 #include "sstream_view.h"
@@ -112,7 +83,7 @@ sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc 
         if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
             assert(0);
         }
-        cout << "created stream thread" << endl;
+        cout << "created sstream thread" << endl;
     }
     
     return sstreamh;
@@ -122,6 +93,31 @@ template <class T>
 void unreg_sstream_view(sstream_t<T>* sstreamh)
 {
     delete sstreamh;
+}
+
+template <class T>
+stream_t<T>* reg_stream_view(pgraph_t<T>* pgraph, typename callback<T>::sfunc func1, 
+                               index_t flag, void* algo_meta = 0)
+{
+    stream_t<T>* streamh = new stream_t<T>;
+    streamh->init_view(pgraph, flag);
+    streamh->sstream_func = func1;
+    streamh->algo_meta = 0;
+
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&streamh->thread, 0, &sstream_func<T>, streamh)) {
+            assert(0);
+        }
+        cout << "created sstream thread" << endl;
+    }
+    return streamh;
+}
+
+template <class T>
+void unreg_stream_view(stream_t<T>* a_streamh)
+{
+    //XXX may need to delete the edge log
+    delete a_streamh;
 }
 
 template <class T>
@@ -243,31 +239,6 @@ template <class T>
 void unreg_wsstream_view(wsstream_t<T>* wsstreamh)
 {
     delete wsstreamh;
-}
-
-template <class T>
-stream_t<T>* reg_stream_view(pgraph_t<T>* ugraph, typename callback<T>::func func1) 
-{
-    stream_t<T>* streamh = new stream_t<T>;
-    blog_t<T>* blog = ugraph->blog;
-    index_t  marker = blog->blog_head;
-
-    streamh->edge_offset = marker;
-    streamh->edges      = 0;
-    streamh->edge_count = 0;
-    
-    streamh->pgraph = ugraph;
-    streamh->stream_func = func1;
-    streamh->algo_meta = 0;
-
-    return streamh;
-}
-
-template <class T>
-void unreg_stream_view(stream_t<T>* a_streamh)
-{
-    //XXX may need to delete the edge log
-    delete a_streamh;
 }
 
 template <class T>

@@ -63,8 +63,6 @@ class plaingraph_manager_t {
     void prep_graph_adj(const string& idirname, const string& odirname);
     void prep_graph_mix(const string& idirname, const string& odirname);
     
-    void prep_graph_serial_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
-    void prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh);
     void prep_graph_and_compute(const string& idirname, const string& odirname, stream_t<T>* streamh);
     void waitfor_archive_durable(double start);
     
@@ -534,68 +532,6 @@ void plaingraph_manager_t<T>::waitfor_archive_durable(double start)
     }
 }
 
-template <class T>
-void plaingraph_manager_t<T>::prep_graph_and_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh)
-{
-    g->create_threads(true, false);   
-    
-    edgeT_t<T>* edges = 0;
-    index_t total_edge_count = read_idir(idirname, &edges, true); 
-    
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    //Create a thread for stream pagerank
-    pthread_t sstream_thread;
-    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
-        assert(0);
-    }
-    
-    //Batch and Make Graph
-    double start = mywtime();
-    for (index_t i = 0; i < total_edge_count; ++i) {
-        ugraph->batch_edge(edges[i]);
-    }
-    //---------
-    double end = mywtime ();
-    cout << "Batch Update Time = " << end - start << endl;
-    g->waitfor_archive();
-    end = mywtime();
-    cout << " Make graph time = " << end - start << endl;
-    //---------
-    
-    void* ret;
-    pthread_join(sstream_thread, &ret);
-}
-
-template <class T>
-void plaingraph_manager_t<T>::prep_graph_serial_scompute(const string& idirname, const string& odirname, sstream_t<T>* sstreamh)
-{
-    edgeT_t<T>* edges = 0;
-    index_t total_edge_count = read_idir(idirname, &edges, true); 
-    
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    
-    //Create a thread for make graph and stream pagerank
-    pthread_t sstream_thread;
-    if (0 != pthread_create(&sstream_thread, 0, &sstream_func<T>, sstreamh)) {
-        assert(0);
-    }
-    cout << "created stream thread" << endl;
-    
-    //Batch and Make Graph
-    double start = mywtime();
-    for (index_t i = 0; i < total_edge_count; ++i) {
-        ugraph->batch_edge(edges[i]);
-    }
-    double end = mywtime ();
-    cout << "Batch Update Time = " << end - start << endl;
-    
-    void* ret;
-    pthread_join(sstream_thread, &ret);
-    //while (true) usleep(10);
-}
-
-
 #include "mem_iterative_analytics.h"
 
 template <class T>
@@ -691,8 +627,8 @@ void plaingraph_manager_t<T>::prep_graph_and_compute(const string& idirname, con
         //This is like a controlled update_stream_view() call
         streamh->set_edgecount(marker - prior_marker);
         streamh->set_edges(blog->blog_beg + prior_marker);
-        streamh->edge_offset = prior_marker;
-        streamh->stream_func(streamh);
+        streamh->snap_marker = prior_marker;
+        streamh->sstream_func(streamh);
         prior_marker = marker;
     }
     double end = mywtime ();

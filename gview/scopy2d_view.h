@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sstream_view.h"
+#include "communicator.h"
 
 #ifdef _MPI
 
