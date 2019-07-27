@@ -61,14 +61,8 @@ class scopy2d_server_t : public sstream_t<T> {
     using sstream_t<T>::graph_out;
     using sstream_t<T>::graph_in;
     using sstream_t<T>::snapshot;
-    using sstream_t<T>::edges;
-    using sstream_t<T>::edge_count;
-    using sstream_t<T>::new_edges;
-    using sstream_t<T>::new_edge_count;
     using sstream_t<T>::v_count;
     using sstream_t<T>::flag;
-    using sstream_t<T>::bitmap_in;
-    using sstream_t<T>::bitmap_out;
 
  public:
     inline scopy2d_server_t():sstream_t<T>() {
@@ -91,21 +85,16 @@ template <class T>
 class scopy2d_client_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
-    using sstream_t<T>::snapshot;
     using sstream_t<T>::sstream_func; 
-    using sstream_t<T>::thread;
-    using sstream_t<T>::v_count;
-    using sstream_t<T>::flag;
-    using sstream_t<T>::graph_in;
-    using sstream_t<T>::graph_out;
-    using sstream_t<T>::degree_in;
-    using sstream_t<T>::degree_out;
-    using sstream_t<T>::bitmap_in;
-    using sstream_t<T>::bitmap_out;
-
- public:
     int      buf_size;
     char*    buf;
+ protected:
+    using sstream_t<T>::graph_in;
+    using sstream_t<T>::graph_out;
+
+    using sstream_t<T>::snapshot;
+    using sstream_t<T>::v_count;
+    using sstream_t<T>::flag;
 
  public:
     inline    scopy2d_client_t():sstream_t<T>() {}
@@ -114,7 +103,7 @@ class scopy2d_client_t : public sstream_t<T> {
     void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
     status_t  update_view();
  private:
-    index_t  apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap);
+    index_t  apply_view(onegraph_t<T>* graph, degree_t* degree, Bitmap* bitmap);
 };
 
 template <class T>
@@ -298,10 +287,10 @@ status_t scopy2d_client_t<T>::update_view()
 {
     index_t archive_marker;
     if (graph_in == graph_out) {
-        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
+        archive_marker = apply_view(graph_out, 0, 0);
     } else {
-        archive_marker = apply_view(degree_out, graph_out, bitmap_out);
-        archive_marker = apply_view(degree_in, graph_in, bitmap_in);
+        archive_marker = apply_view(graph_out, 0, 0);
+        archive_marker = apply_view(graph_in, 0, 0);
     }
     
     pgraph->new_snapshot(archive_marker);
@@ -310,7 +299,7 @@ status_t scopy2d_client_t<T>::update_view()
 }
 
 template <class T>
-index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, Bitmap* bitmap)
+index_t scopy2d_client_t<T>::apply_view(onegraph_t<T>* graph, degree_t* degree, Bitmap* bitmap)
 {
     //Lets copy the data
     MPI_Status status;
@@ -321,7 +310,6 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
     int eposition = 0;
     index_t changed_v = 0;
     index_t changed_e = 0;
-    //int buf_size = 0;
     char*    ebuf = 0;
     int eoffset = 0;
 
