@@ -73,6 +73,7 @@ void copy2d_server_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
         _part[j].init();
         _part[j].position = header_size;
         _part[j].rank = 1 + j;
+        _part[j].v_offset = (j/part_count)*v_local;
         _part[j].dst_offset = (j%part_count)*v_local;
     }
 }
@@ -80,7 +81,9 @@ void copy2d_server_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 template <class T>
 status_t copy2d_server_t<T>::update_view()
 {
-    if(stream_t<T>::update_view()) return eNoWork;
+    vid_t local_vcount = v_count/_part_count;
+
+    if(eOK != stream_t<T>::update_view()) return eNoWork;
     
     vid_t src, dst;
     edgeT_t<T> edge;
@@ -90,25 +93,23 @@ status_t copy2d_server_t<T>::update_view()
         edge = edges[e];
         src = get_sid(edge.src_id);
         dst = get_sid(edge.dst_id);
-        i = src/v_count;
-        j = dst/v_count;
+        i = src/local_vcount;
+        j = dst/local_vcount;
         part = _part + i*part_count + j;
         set_sid(edge.dst_id, dst - part->dst_offset);
         set_sid(edge.src_id, src - part->v_offset);
         if (part->position + sizeof(edge) > part->buf_size) {
-            send_buf_one(part);
+            send_buf_one(part,2);
         }
         MPI_Pack(&edge, 1, pgraph->edge_type, part->buf, part->buf_size, 
                  &part->position, MPI_COMM_WORLD);
         part->changed_e +=1;
     }
 
-    for (int j = 0; j < part_count; ++j) {
-        if (0 == part[j].changed_e) {
-            continue;
-        }
+    for (int j = 0; j < part_count*part_count; ++j) {
+        //if (0 == _part[j].changed_e) continue;
        
-        send_buf_one(part + j);
+        send_buf_one(_part + j);
     }
 }
 
@@ -126,6 +127,14 @@ void copy2d_server_t<T>::send_buf_one(part2d_t* part, int partial /*= 1*/)
     pack_meta(part->buf, part->buf_size, t_pos, meta_flag, archive_marker, 
               0, part->changed_e);
     assert(t_pos == header_size);
+    
+    
+    cout << " Sending to rank " << part->rank //<< " = "<< v_start << ":"<< v_end 
+         << " archive marker " << archive_marker
+         << " size "<< part->position 
+         << " changed_e " << part->changed_e
+         << endl;
+    
 
     MPI_Send(part->buf, part->position, MPI_PACKED, part->rank, 0, MPI_COMM_WORLD);
     part->reset();
@@ -162,14 +171,22 @@ status_t copy2d_client_t<T>::update_view()
         
         unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
         partial = flag;
-        buf += position;
+        //buf += position;
+        
+        cout << "Rank " << _rank  
+             << " : Archive Marker = " << archive_marker 
+             << " size "<< buf_size 
+             << " changed_e " << changed_e
+             << endl;
 
         edgeT_t<T> edge;
         for (int e = 0; e < changed_e; ++e) {
-            position = e*sizeof(edge);
+            //position = e*sizeof(edge);
             MPI_Unpack(buf, buf_size, &position, &edge, 1, pgraph->edge_type, MPI_COMM_WORLD);
             pgraph->batch_edge(edge);
         }
     } while (partial == 2);
+
+    this->snap_marker = archive_marker;
     return eOK;
 }

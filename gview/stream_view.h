@@ -50,11 +50,11 @@ status_t stream_t<T>::update_view()
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
    
-    if (marker > get_snapmarker()) {
+    if (marker > snap_marker) {
         //XXX need to copy it
-        edges = blog->blog_beg + snap_marker + edge_count;
-        snap_marker += edge_count;
+        edges = blog->blog_beg + snap_marker;
         edge_count = marker - snap_marker;
+        snap_marker = marker;
         return eOK;
     } 
     return eNoWork;
