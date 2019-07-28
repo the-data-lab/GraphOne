@@ -4,20 +4,21 @@
 #include <mpi.h>
 
 template<class T>
-status_t create_MPI_datatype(T* type, MPI_Datatype& data_type)
+status_t create_MPI_datatype(T* type, MPI_Datatype& data_type, MPI_Datatype& edge_type)
 {
     assert(0);
     return eOK;
 }
 
-inline status_t free_MPI_datatype(MPI_Datatype& data_type)
+inline status_t free_MPI_datatype(MPI_Datatype& data_type, MPI_Datatype& edge_type)
 {
     MPI_Type_free(&data_type);
+    MPI_Type_free(&edge_type);
     return eOK;
 }
 
 template<>
-inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type)
+inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type, MPI_Datatype& edge_type)
 {
     //create contiguous derived data type
     //int SIZE = 1;
@@ -30,8 +31,9 @@ inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type)
 #else
     assert(0);
 #endif
+    MPI_Type_contiguous(2, data_type, &edge_type);
 
-    //MPI_Type_commit(&data_type);
+    MPI_Type_commit(&data_type);
     return eOK;
 }
 #endif

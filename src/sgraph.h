@@ -35,6 +35,7 @@ class pgraph_t: public cfinfo_t {
 
 #ifdef _MPI
         MPI_Datatype data_type;//For T
+        MPI_Datatype edge_type;//For edgeT_t<T>
 #endif
 
  public:    
@@ -46,7 +47,7 @@ class pgraph_t: public cfinfo_t {
         edge_shard = new edge_shard_t<T>(blog);
 #ifdef _MPI
         T* type = 0;
-        create_MPI_datatype(type, data_type);
+        create_MPI_datatype(type, data_type, edge_type);
 #endif
     }
 

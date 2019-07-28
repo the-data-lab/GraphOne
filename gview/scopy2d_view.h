@@ -53,7 +53,6 @@ template <class T>
 class scopy2d_server_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
-    using sstream_t<T>::sstream_func;
     int   part_count;
     part_t<T>* _part;
  protected:
@@ -79,14 +78,13 @@ class scopy2d_server_t : public sstream_t<T> {
     void  prep_buf(degree_t* degree, onegraph_t<T>* graph, int tid);
     void  buf_vertex(part_t<T>* part, vid_t vid);
     void  send_buf(part_t<T>* part);
-    void  send_buf_one(part_t<T>* part, int j, int partial = 1);
+    void  send_buf_one(part_t<T>* part, int partial = 1);
 };
 
 template <class T>
 class scopy2d_client_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
-    using sstream_t<T>::sstream_func; 
     int      buf_size;
     char*    buf;
  protected:
@@ -113,7 +111,7 @@ void scopy2d_server_t<T>::send_buf(part_t<T>* _part1)
     int tid = omp_get_thread_num();
     part_t<T>* part = _part + tid*part_count;
     for (int j = 0; j < part_count; ++j) {
-        send_buf_one(part, j);
+        send_buf_one(part + j);
     }
 }
 
@@ -122,7 +120,6 @@ void scopy2d_server_t<T>::init_buf()
 {
     part_t<T>* part = (part_t<T>*)malloc(sizeof(part_t<T>)*part_count*part_count);
     _part = part;
-    int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     int header_size = 5*sizeof(uint64_t);
 
@@ -135,7 +132,7 @@ void scopy2d_server_t<T>::init_buf()
 }
 
 template <class T>
-void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1*/)
+void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int partial /*= 1*/)
 {
     int header_size = 5*sizeof(uint64_t);
     uint64_t  archive_marker = snapshot->marker;
@@ -145,20 +142,20 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
         meta_flag = partial;
     }
     int t_pos = 0;
-    buf_vertex(part + j, 0);
+    buf_vertex(part, 0);
 
-    if (part[j].vposition + part[j].position > 2*part[j].buf_size) {
-        cout << part[j].vposition << " " << part[j].position 
-         << " changed_v " << part[j].changed_v
-         << " changed_e " << part[j].changed_e << endl;
+    if (part->vposition + part->position > 2*part->buf_size) {
+        cout << part->vposition << " " << part->position 
+         << " changed_v " << part->changed_v
+         << " changed_e " << part->changed_e << endl;
         assert(0);
     }
      
-    pack_meta(part[j].buf, 2*part[j].buf_size, t_pos, meta_flag, archive_marker, 
-              part[j].changed_v, part[j].changed_e);
+    pack_meta(part->buf, 2*part->buf_size, t_pos, meta_flag, archive_marker, 
+              part->changed_v, part->changed_e);
     assert(t_pos == header_size);
-    t_pos = part[j].vposition;
-    MPI_Pack(part[j].ebuf, part[j].position, MPI_PACKED, part[j].buf, (part[j].buf_size<<1), &part[j].vposition, MPI_COMM_WORLD); 
+    t_pos = part->vposition;
+    MPI_Pack(part->ebuf, part->position, MPI_PACKED, part->buf, (part->buf_size<<1), &part->vposition, MPI_COMM_WORLD); 
     //memcpy(part[j].buf + part[j].vposition, part[j].ebuf, part[j].position);
     //part[j].vposition += part[j].position; 
     /*
@@ -169,8 +166,8 @@ void scopy2d_server_t<T>::send_buf_one(part_t<T>* part, int j, int partial /*= 1
          << endl;
     */
 
-    MPI_Send(part[j].buf, part[j].vposition, MPI_PACKED, part[j].rank, 0, MPI_COMM_WORLD);
-    part[j].reset();
+    MPI_Send(part->buf, part->vposition, MPI_PACKED, part->rank, 0, MPI_COMM_WORLD);
+    part->reset();
 }
 
 template <class T>
@@ -223,7 +220,7 @@ void scopy2d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>* graph, int t
             if ((part[j].position + part[j].vposition + 6*sizeof(vid_t)>= (2*part[j].buf_size)) 
               ||(part[j].position  >= part[j].buf_size)) {
                 buf_vertex(part + j, vid);
-                send_buf_one(part, j, 2);
+                send_buf_one(part + j, 2);
             }
             
             set_sid(dst, sid - part[j].dst_offset);

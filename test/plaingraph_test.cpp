@@ -15,6 +15,7 @@
 #include "scopy_analytics.h"
 #include "scopy1d_analytics.h"
 #include "scopy2d_analytics.h"
+#include "copy2d_analytics.h"
 
 
 using namespace std;
@@ -1180,6 +1181,49 @@ void serial_scopy_bfs(const string& idir, const string& odir,
     }
 #endif
 }
+            
+template <class T>
+void serial_copy2d_bfs(const string& idir, const string& odir, 
+                              typename callback<T>::sfunc stream_fn, 
+                              typename callback<T>::sfunc copy_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+#ifdef _MPI
+    assert(_part_count*_part_count + 1 == _numtasks);
+    vid_t rem = _global_vcount%_part_count;
+    _global_vcount = rem? _global_vcount + _part_count - rem :_global_vcount;
+    //cout << "global " <<  _global_vcount << endl; 
+
+    // extract the original group handle
+    create_2d_comm();
+    create_2d_comm1();
+    if (_rank == 0) {
+        //do some setup for plain graphs
+        manager.setup_graph(_global_vcount);    
+        
+        //create scopy_server
+        copy2d_server_t<T>* copyh = reg_copy2d_server(pgraph, copy_fn, 
+                                            STALE_MASK|V_CENTRIC|C_THREAD);
+        manager.prep_graph_edgelog(idir, odir);
+        void* ret;
+        pthread_join(copyh->thread, &ret);
+
+    } else {
+        //do some setup for plain graphs
+        vid_t local_vcount = _global_vcount/_part_count;
+        manager.setup_graph(local_vcount);
+        g->create_threads(true, false);
+        //create scopy_client
+        copy2d_client_t<T>* clienth = reg_copy2d_client(pgraph, stream_fn, 
+                                                STALE_MASK|V_CENTRIC);
+        
+        stream_fn(clienth);
+    }
+#endif
+
+}
 
 template <class T>
 void serial_scopy2d_bfs(const string& idir, const string& odir,
@@ -1386,35 +1430,39 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 36:
             test_stream_wcc(idir, odir);
             break;
-        
+
         case 40:
+            serial_copy2d_bfs<sid_t>(idir, odir, copy2d_serial_bfs, copy2d_server);
+            break;
+        
+        case 50:
             paper_test_pr(idir, odir);
             break;
-        case 41:
+        case 51:
             paper_test_hop1(idir, odir);
             break;
-        case 42:
+        case 52:
             paper_test_hop2(idir, odir);
             break;
-        case 43:
+        case 53:
             paper_test_chain_bfs(idir, odir);
             break;
-        case 44:
+        case 54:
             paper_test_pr_chain(idir, odir);
             break;
-        case 45:
+        case 55:
             paper_test_hop1_chain(idir, odir);
             break;
-        case 46:
+        case 56:
             paper_test_hop2_chain(idir, odir);
             break;
-        case 47:
+        case 57:
             estimate_chain_new<sid_t>(idir, odir);
             break; 
-        case 48:
+        case 58:
             estimate_chain<sid_t>(idir, odir);
             break; 
-        case 49:
+        case 59:
             estimate_IO<sid_t>(idir, odir);
             break; 
         default:

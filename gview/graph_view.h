@@ -37,6 +37,7 @@ class vert_table_t;
 #include "scopy1d_view.h"
 #include "scopy2d_view.h"
 #include "stream_view.h"
+#include "copy2d_view.h"
 #include "wsstream_view.h"
 #include "historical_view.h"
 
@@ -296,6 +297,57 @@ scopy2d_client_t<T>* reg_scopy2d_client(pgraph_t<T>* ugraph,
 
 template <class T>
 void unreg_scopy2d_client(scopy2d_client_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
+copy2d_server_t<T>* reg_copy2d_server(pgraph_t<T>* ugraph, 
+                    typename callback<T>::sfunc func, index_t flag)
+{
+    copy2d_server_t<T>* sstreamh = new copy2d_server_t<T>;
+    
+    sstreamh->init_view(ugraph, flag);
+    sstreamh->sstream_func = func;
+    sstreamh->algo_meta = 0;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        //cout << "created scopy2d_server thread" << endl;
+    }
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_copy2d_server(copy2d_server_t<T>* sstreamh)
+{
+    delete sstreamh;
+}
+
+template <class T>
+copy2d_client_t<T>* reg_copy2d_client(pgraph_t<T>* ugraph, 
+                        typename callback<T>::sfunc func, index_t flag)
+{
+    copy2d_client_t<T>* sstreamh = new copy2d_client_t<T>;
+    
+    sstreamh->init_view(ugraph, flag);
+    sstreamh->sstream_func = func;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&sstreamh->thread, 0, &sstream_func<T>, sstreamh)) {
+            assert(0);
+        }
+        //cout << "created scopy2d_client thread" << endl;
+    }
+    
+    return sstreamh;
+}
+
+template <class T>
+void unreg_copy2d_client(copy2d_client_t<T>* sstreamh)
 {
     delete sstreamh;
 }
