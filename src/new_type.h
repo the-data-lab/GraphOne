@@ -31,9 +31,13 @@ inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type,
 #else
     assert(0);
 #endif
-    MPI_Type_contiguous(2, data_type, &edge_type);
+    if (MPI_SUCCESS != MPI_Type_contiguous(2, data_type, &edge_type)) {
+        assert(0);
+    }
 
-    MPI_Type_commit(&data_type);
+    if (MPI_SUCCESS != MPI_Type_commit(&edge_type)) {
+        assert(0);
+    }
     return eOK;
 }
 #endif
