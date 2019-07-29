@@ -31,6 +31,10 @@ class snap_t : public gview_t <T> {
     inline snap_t() {
         new_edges = 0;
         new_edge_count = 0;
+        graph_out = 0;
+        graph_in = 0;
+        degree_out = 0;
+        degree_in = 0;
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
@@ -56,67 +60,39 @@ class snap_t : public gview_t <T> {
 
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
-    void create_degreesnap();
-    void create_degreesnapd();
+    void create_degreesnap(onegraph_t<T>* graph, degree_t* degree);
 };
 
 template <class T>
-void snap_t<T>::create_degreesnap()
+void snap_t<T>::create_degreesnap(onegraph_t<T>* graph, degree_t* degree)
 {
-    #pragma omp parallel
     {
         snapid_t snap_id = 0;
         if (snapshot) {
             snap_id = snapshot->snap_id;
 
-            #pragma omp for 
+            #pragma omp for nowait 
             for (vid_t v = 0; v < v_count; ++v) {
-                degree_out[v] = graph_out->get_degree(v, snap_id);
+                degree[v] = graph->get_degree(v, snap_id);
                 //cout << v << " " << degree_out[v] << endl;
-            }
-        } 
-        if (false == IS_STALE(flag)) {
-            #pragma omp for
-            for (index_t i = 0; i < edge_count; ++i) {
-                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-                __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
             }
         }
     }
-}
-
-template <class T>
-void snap_t<T>::create_degreesnapd()
-{
-    #pragma omp parallel
-    {
-        snapid_t snap_id = 0;
-        if (snapshot) {
-            snap_id = snapshot->snap_id;
-        }
-
-        vid_t vcount_out = v_count;
-        vid_t vcount_in  = v_count;
-
-        #pragma omp for nowait 
-        for (vid_t v = 0; v < vcount_out; ++v) {
-            degree_out[v] = graph_out->get_degree(v, snap_id);;
-        }
-        
-        #pragma omp for nowait 
-        for (vid_t v = 0; v < vcount_in; ++v) {
-            degree_in[v] = graph_in->get_degree(v, snap_id);
-        }
-
-        if (false == IS_STALE(flag)) {
+    /*
+    if (false == IS_STALE(flag)) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
             __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-            __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
-        }
+            __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
         }
     }
-    return;
+    if (false == IS_STALE(flag)) {
+    #pragma omp for
+    for (index_t i = 0; i < edge_count; ++i) {
+        __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+        __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
+    }
+    }*/
 }
 
 template <class T>
@@ -159,11 +135,12 @@ status_t snap_t<T>::update_view()
     //if (stale)  edge_count = 0;
     
     //Degree and actual edge arrays
-    
-    if (pgraph->sgraph_in == pgraph->sgraph_out) {
-        create_degreesnap();
-    } else if (pgraph->sgraph_in != 0) {
-        create_degreesnapd();
+    #pragma omp parallel num_threads(THD_COUNT)
+    {
+    create_degreesnap(graph_out, degree_out);
+    if (graph_in != graph_out && graph_in != 0) {
+        create_degreesnap(graph_in, degree_in);
+    }
     }
     return eOK;
 }

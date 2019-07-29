@@ -1068,12 +1068,14 @@ void test_ingestion(const string& idir, const string& odir)
     manager.prep_graph2(idir, odir);
     manager.run_bfs();
     
+    /*
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     double start = mywtime();
     pgraph->compress_graph_baseline();
     double end = mywtime();
     cout << "Compress time = " << end - start << endl;
     manager.run_bfs();
+    */
 }
 
 template <class T>
@@ -1211,6 +1213,7 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
         pthread_join(copyh->thread, &ret);
 
     } else {
+        _edge_count += _edge_count; 
         //do some setup for plain graphs
         vid_t local_vcount = _global_vcount/_part_count;
         manager.setup_graph(local_vcount);

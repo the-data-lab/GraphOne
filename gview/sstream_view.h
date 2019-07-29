@@ -47,7 +47,7 @@ class sstream_t : public snap_t<T> {
         bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {
             bitmap_in = bitmap_out;
-        } else {
+        } else if (graph_in !=0){
             bitmap_in = new Bitmap(v_count);
         }
     }
@@ -174,7 +174,7 @@ status_t sstream_t<T>::update_view()
     edges = blog->blog_beg + (new_marker & blog->blog_mask);
     edge_count = marker - new_marker;
     
-    if (graph_in == graph_out) {
+    if (graph_in == graph_out || graph_in == 0) {
         update_degreesnap();
     } else {
         update_degreesnapd();

@@ -16,11 +16,14 @@ void copy2d_serial_bfs(gview_t<T>* viewh)
     
     while (snaph->get_snapmarker() < _edge_count) {
         //update the sstream view
-        while (eOK != snaph->update_view()) {
+        if (eOK != snaph->update_view()) {
             usleep(100);
+            continue;
         }
         ++update_count;
-    } 
+    }
+    snaph->pgraph->create_marker(0);
+    _edge_count = snaph->pgraph->blog->blog_head; 
     void* ret;
     pthread_join(sstreamh->thread, &ret);
 }
@@ -38,8 +41,9 @@ void copy2d_server(gview_t<T>* viewh)
     
     while (sstreamh->get_snapmarker() < _edge_count) {
         //update the sstream view
-        while (eOK != sstreamh->update_view()) {
+        if (eOK != sstreamh->update_view()) {
             usleep(100);
+            continue;
         }
         ++update_count;
     }

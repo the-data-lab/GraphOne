@@ -86,6 +86,13 @@ void print_bfs_summary(gview_t<T>* viewh, uint8_t* status)
         #pragma omp parallel for num_threads(THD_COUNT) reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) { 
             if (status[v] == l) ++vid_count;
+            /*{
+                ++vid_count;
+                if ((_rank == 1 || _rank == 3) && l < 2) {
+                    cout << _rank << ":" << v << endl;
+                }
+            }*/
+            
         }
         MPI_Allreduce(MPI_IN_PLACE, &vid_count, 1, MPI_UINT64_T, MPI_SUM, _col_comm);
             
@@ -132,8 +139,9 @@ void stream2d_bfs(gview_t<T>* viewh)
     
     while (snaph->get_snapmarker() < _edge_count) {
         //update the sstream view
-        while (eOK != snaph->update_view()) {
+        if (eOK != snaph->update_view()) {
             usleep(100);
+            continue;
         }
         ++update_count;
 	    do_stream_bfs(snaph, lstatus, rstatus, &bitmap);

@@ -95,15 +95,27 @@ status_t copy2d_server_t<T>::update_view()
         dst = get_sid(edge.dst_id);
         i = src/local_vcount;
         j = dst/local_vcount;
+        
         part = _part + i*part_count + j;
         set_sid(edge.dst_id, dst - part->dst_offset);
         set_sid(edge.src_id, src - part->v_offset);
         if (part->position + sizeof(edge) > part->buf_size) {
-            send_buf_one(part,2);
+            send_buf_one(part, 2);
         }
         MPI_Pack(&edge, 1, pgraph->edge_type, part->buf, part->buf_size, 
                  &part->position, MPI_COMM_WORLD);
         part->changed_e +=1;
+        
+        part = _part + j*part_count + i;
+        set_sid(edge.dst_id, src - part->dst_offset);
+        set_sid(edge.src_id, dst - part->v_offset);
+        if (part->position + sizeof(edge) > part->buf_size) {
+            send_buf_one(part, 2);
+        }
+        MPI_Pack(&edge, 1, pgraph->edge_type, part->buf, part->buf_size, 
+                 &part->position, MPI_COMM_WORLD);
+        part->changed_e +=1;
+        
     }
 
     for (int j = 0; j < part_count*part_count; ++j) {
@@ -111,13 +123,14 @@ status_t copy2d_server_t<T>::update_view()
        
         send_buf_one(_part + j);
     }
+    return eOK;
 }
 
 template <class T>
 void copy2d_server_t<T>::send_buf_one(part2d_t* part, int partial /*= 1*/)
 {
     int header_size = 5*sizeof(uint64_t);
-    uint64_t  archive_marker = this->get_snapmarker();
+    uint64_t  archive_marker = 2*this->get_snapmarker();
     //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
     uint64_t meta_flag = 1;
     if (partial) {
@@ -128,12 +141,12 @@ void copy2d_server_t<T>::send_buf_one(part2d_t* part, int partial /*= 1*/)
               0, part->changed_e);
     assert(t_pos == header_size);
     
-    
+    /*
     cout << " Sending to rank " << part->rank //<< " = "<< v_start << ":"<< v_end 
-         << " archive marker " << archive_marker
+         << " archive marker " << this->get_snapmarker()
          << " size "<< part->position 
          << " changed_e " << part->changed_e
-         << endl;
+         << endl;*/
     
 
     MPI_Send(part->buf, part->position, MPI_PACKED, part->rank, 0, MPI_COMM_WORLD);
@@ -172,12 +185,12 @@ status_t copy2d_client_t<T>::update_view()
         unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
         partial = flag;
         //buf += position;
-        
+        /*
         cout << "Rank " << _rank  
              << " : Archive Marker = " << archive_marker 
              << " size "<< buf_size 
              << " changed_e " << changed_e
-             << endl;
+             << endl;*/
 
         edgeT_t<T> edge;
         for (int e = 0; e < changed_e; ++e) {
