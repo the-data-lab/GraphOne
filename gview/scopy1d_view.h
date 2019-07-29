@@ -1,9 +1,19 @@
 #pragma once
 
+#ifdef _MPI
+
 #include "sstream_view.h"
 #include "communicator.h"
 
-#ifdef _MPI
+struct part1d_t {
+    char* buf;
+    int   buf_size;
+    vid_t v_offset;
+    void init() {
+        buf_size = (1<<29);
+        buf = (char*) malloc(sizeof(char)*buf_size);
+    }
+};
 
 template <class T>
 class scopy1d_server_t : public sstream_t<T> {
@@ -11,8 +21,7 @@ class scopy1d_server_t : public sstream_t<T> {
     using sstream_t<T>::pgraph;
     using sstream_t<T>::sstream_func;
     int   part_count;
-    int   buf_size;
-    char* buf;
+    part1d_t*  _part;
  protected:
     using sstream_t<T>::degree_in;
     using sstream_t<T>::degree_out;
@@ -75,32 +84,27 @@ class scopy1d_client_t : public sstream_t<T> {
 template <class T>
 void scopy1d_server_t<T>::update_degreesnap()
 {
-//#pragma omp parallel num_threads(part_count)
+#pragma omp parallel for num_threads(part_count)
 for (int tid = 0; tid < part_count; ++tid)
 {
-    index_t changed_v = 0;
-    index_t changed_e = 0;
-    degree_t nebr_count = 0;
-    degree_t  old_count = 0;
     snapid_t    snap_id = snapshot->snap_id;
 
     //int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
-    if (tid == part_count - 1) v_end = v_count;
-
+    part1d_t* part = _part + tid;
     //Header of the package
-    uint64_t endian = 0x0123456789ABCDEF;//endian
     uint64_t meta_flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = snapshot->marker;
-                
-    
+
     //Lets copy the data
     int position = 5*sizeof(uint64_t);
-    nebr_count  = 0;
-    old_count  = 0;
     degree_t delta_count = 0;
+    index_t changed_v = 0;
+    index_t changed_e = 0;
+    degree_t nebr_count = 0;
+    degree_t  old_count = 0;
     header_t<T> delta_adjlist;
     T dst;
 
@@ -109,35 +113,35 @@ for (int tid = 0; tid < part_count; ++tid)
         old_count = degree_out[v];
         degree_out[v] = nebr_count;
         delta_count = nebr_count - old_count;
+        if (delta_count == 0) continue;
+        ++changed_v;
 
         if (nebr_count < old_count) {
             cout << v << " " << nebr_count << " " << old_count << endl;
             assert(0);
         }
-        if (delta_count == 0) continue;
-        ++changed_v;
 
-        graph_out->start(v, delta_adjlist, old_count);
-        MPI_Pack(&v, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
-        MPI_Pack(&delta_count, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
+        MPI_Pack(&v, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
+        MPI_Pack(&delta_count, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
         
+        graph_out->start(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < delta_count; ++i) {
             graph_out->next(delta_adjlist, dst);
-            MPI_Pack(&dst, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
+            MPI_Pack(&dst, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
             ++changed_e;
         }
     }
     
-    cout << " sending to rank " << tid + 1 << " = "<< v_start << ":"<< v_end 
-         << " size "<< position 
+    cout << " sending to rank " << tid + 1
+         << " size "<< position
          << " changed v " << changed_v
          << " changed e " << changed_e
          << endl;
          
     int t_pos = 0;
-    pack_meta(buf, buf_size, t_pos, meta_flag, archive_marker, 
+    pack_meta(part->buf, part->buf_size, t_pos, meta_flag, archive_marker,
               changed_v, changed_e);
-    MPI_Send(buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
+    MPI_Send(part->buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
 }
 }
 
@@ -157,8 +161,11 @@ void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
 {
     sstream_t<T>::init_view(pgraph, a_flag);
     part_count = _numtasks - 1;
-    buf_size = (1<<29);
-    buf = (char*) malloc(sizeof(char)*buf_size);
+    _part = (part1d_t*)malloc(sizeof(part1d_t)*part_count);
+    for (int i =0; i < part_count; ++i) {
+        _part[i].init();
+        _part[i].v_offset = 0;
+    }
 }
 
 template <class T>
