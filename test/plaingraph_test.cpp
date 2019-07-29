@@ -1278,7 +1278,14 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     _global_vcount = _global_vcount;
-    
+   
+    /*
+    int  i = 0;
+    while (i < 15000) {
+        usleep(1000);
+        ++i;
+    }*/
+
 #ifdef _MPI
     // extract the original group handle
     create_1d_comm();
@@ -1291,7 +1298,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         scopy1d_server_t<T>* scopyh = reg_scopy1d_server(pgraph, scopy_fn, 
                                             STALE_MASK|V_CENTRIC|C_THREAD);
         //CorePin(0);
-        manager.prep_graph_edgelog(idir, odir);
+        manager.prep_graph(idir, odir);
         void* ret;
         pthread_join(scopyh->thread, &ret);
 
@@ -1305,9 +1312,8 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
         manager.setup_graph(local_vcount);    
         //create scopy_client
         scopy1d_client_t<T>* sclienth = reg_scopy1d_client(pgraph, stream_fn, 
-                                                STALE_MASK|V_CENTRIC|C_THREAD);
-        void* ret;
-        pthread_join(sclienth->thread, &ret);
+                                                STALE_MASK|V_CENTRIC);
+        stream_fn(sclienth);
     
     }
 #endif

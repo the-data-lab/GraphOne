@@ -26,6 +26,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
         //update the sstream view
         if (eOK != sstreamh->update_view()) {
             usleep(100);
+            continue;
         }
         ++update_count;
     
@@ -80,6 +81,7 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
 		
         end = mywtime();
         cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
+        
     } 
    
     if (_rank == 1) { 
@@ -102,16 +104,18 @@ void scopy1d_server(gview_t<T>* viewh)
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
     vid_t        v_count = sstreamh->get_vcount();
     
-    index_t beg_marker = 0;//(_edge_count >> 1);
+    /*index_t beg_marker = 0;//(_edge_count >> 1);
     index_t rest_edges = _edge_count - beg_marker;
     index_t do_count = residue;
     index_t batch_size = rest_edges/do_count;
     index_t marker = 0; 
+    */
     int update_count = 1;
     
     cout << " SCopy1d Server Started" << endl;
     
-    while (pgraph->get_archived_marker() < _edge_count) {
+    while (sstreamh->get_snapmarker() < _edge_count) {
+        /*
         marker = beg_marker + update_count*batch_size;
         if (update_count == do_count) marker = _edge_count;
 
@@ -119,10 +123,11 @@ void scopy1d_server(gview_t<T>* viewh)
         pgraph->create_snapshot();
 
         cout << " Created snapshot at " << marker << endl;
-        
+        */
         //update the sstream view
         if (eOK != sstreamh->update_view()) {
             usleep(100);
+            continue;
         }
         ++update_count;
     }

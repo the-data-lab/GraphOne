@@ -11,6 +11,8 @@ class scopy1d_server_t : public sstream_t<T> {
     using sstream_t<T>::pgraph;
     using sstream_t<T>::sstream_func;
     int   part_count;
+    int   buf_size;
+    char* buf;
  protected:
     using sstream_t<T>::degree_in;
     using sstream_t<T>::degree_out;
@@ -73,7 +75,8 @@ class scopy1d_client_t : public sstream_t<T> {
 template <class T>
 void scopy1d_server_t<T>::update_degreesnap()
 {
-#pragma omp parallel num_threads(part_count)
+//#pragma omp parallel num_threads(part_count)
+for (int tid = 0; tid < part_count; ++tid)
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
@@ -81,76 +84,59 @@ void scopy1d_server_t<T>::update_degreesnap()
     degree_t  old_count = 0;
     snapid_t    snap_id = snapshot->snap_id;
 
-    int tid = omp_get_thread_num();
+    //int tid = omp_get_thread_num();
     vid_t v_local = v_count/part_count;
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
     if (tid == part_count - 1) v_end = v_count;
-
-    for (vid_t v = v_start; v < v_end; ++v) {
-        nebr_count = graph_out->get_degree(v, snap_id);
-        old_count = degree_out[v];
-        if (degree_out[v] != nebr_count) {
-            ++changed_v;
-            changed_e += (nebr_count - old_count);
-            bitmap_out->set_bit(v);
-        } else {
-            bitmap_out->reset_bit(v);
-        }
-    }
-    
-    //Lets copy the data
-    int position = 0;
-    int buf_size = 0;
-    buf_size = 5*sizeof(uint64_t) + (changed_v<<1)*sizeof(vid_t) + changed_e*sizeof(T);
-    char* buf = (char*) malloc(sizeof(char)*buf_size);;
 
     //Header of the package
     uint64_t endian = 0x0123456789ABCDEF;//endian
     uint64_t meta_flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = snapshot->marker;
                 
-    pack_meta(buf, buf_size, position, meta_flag, archive_marker, 
-              changed_v, changed_e);
     
+    //Lets copy the data
+    int position = 5*sizeof(uint64_t);
     nebr_count  = 0;
     old_count  = 0;
     degree_t delta_count = 0;
-    degree_t    prior_sz = 16384;
-    T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+    header_t<T> delta_adjlist;
+    T dst;
 
     for (vid_t v = v_start; v < v_end; ++v) {
-        if (false == this->has_vertex_changed_out(v)) {
-            continue;
-        }
-
-        nebr_count = graph_out->get_degree(v);
+        nebr_count = graph_out->get_degree(v, snap_id);
         old_count = degree_out[v];
         degree_out[v] = nebr_count;
         delta_count = nebr_count - old_count;
-        if (delta_count > prior_sz) {
-            prior_sz = delta_count;
-            free(local_adjlist);
-            local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+
+        if (nebr_count < old_count) {
+            cout << v << " " << nebr_count << " " << old_count << endl;
+            assert(0);
         }
-        graph_out->get_wnebrs(v, local_adjlist, old_count, delta_count);
-#ifdef B32
+        if (delta_count == 0) continue;
+        ++changed_v;
+
+        graph_out->start(v, delta_adjlist, old_count);
         MPI_Pack(&v, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
         MPI_Pack(&delta_count, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
-#else
-        MPI_Pack(&v, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-        MPI_Pack(&delta_count, 1, MPI_UINT64_T, buf, buf_size, &position, MPI_COMM_WORLD);
-#endif
-        //cout << "V = " << v << endl;
-        MPI_Pack(local_adjlist, delta_count, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
+        
+        for (degree_t i = 0; i < delta_count; ++i) {
+            graph_out->next(delta_adjlist, dst);
+            MPI_Pack(&dst, 1, MPI_UINT32_T, buf, buf_size, &position, MPI_COMM_WORLD);
+            ++changed_e;
+        }
     }
-    /*
+    
     cout << " sending to rank " << tid + 1 << " = "<< v_start << ":"<< v_end 
          << " size "<< position 
          << " changed v " << changed_v
          << " changed e " << changed_e
          << endl;
-         */
+         
+    int t_pos = 0;
+    pack_meta(buf, buf_size, t_pos, meta_flag, archive_marker, 
+              changed_v, changed_e);
     MPI_Send(buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
 }
 }
@@ -171,32 +157,20 @@ void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
 {
     sstream_t<T>::init_view(pgraph, a_flag);
     part_count = _numtasks - 1;
+    buf_size = (1<<29);
+    buf = (char*) malloc(sizeof(char)*buf_size);
 }
 
 template <class T>
 status_t scopy1d_server_t<T>::update_view()
 {
-    blog_t<T>* blog = pgraph->blog;
-    index_t  marker = blog->blog_head;
-    
     snapshot_t* new_snapshot = pgraph->get_snapshot();
     
     if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
     index_t old_marker = snapshot? snapshot->marker: 0;
     index_t new_marker = new_snapshot->marker;
     
-    //Get the edge copies for edge centric computation
-    if (IS_E_CENTRIC(flag)) { 
-        new_edge_count = new_marker - old_marker;
-        if (new_edges!= 0) free(new_edges);
-        new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
-        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
-    }
     snapshot = new_snapshot;
-    
-    //for stale
-    edges = blog->blog_beg + (new_marker & blog->blog_mask);
-    edge_count = marker - new_marker;
     
     if (graph_in == graph_out) {
         update_degreesnap();
@@ -244,6 +218,19 @@ void scopy1d_client_t<T>::apply_view()
 
     unpack_meta(buf, buf_size, position, meta_flag, archive_marker, changed_v, changed_e);
     
+    cout << "Client Archive Marker = " << archive_marker 
+         << " size "<< position 
+         << " changed v " << changed_v
+         << " changed e " << changed_e
+         << endl;
+    
+    /*
+    int i = 0;
+    while (i < 20000) {
+        usleep(1000);
+        ++i;
+    }*/
+
     vid_t            vid = 0;
     degree_t  nebr_count = 0;
     degree_t delta_count = 0;
@@ -276,12 +263,6 @@ void scopy1d_client_t<T>::apply_view()
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
-    
-    cout << "Client Archive Marker = " << archive_marker 
-         << " size "<< position 
-         << " changed v " << changed_v
-         << " changed e " << changed_e
-         << endl;
          
 }
 
