@@ -266,12 +266,9 @@ status_t scopy2d_server_t<T>::update_view()
 #pragma omp parallel for num_threads(part_count)
 for (int tid = 0; tid < part_count; ++tid)
 {
-    if (graph_in == graph_out) {
-        prep_buf(degree_out, graph_out, tid);
-        send_buf(_part);    
-    } else {
-        prep_buf(degree_out, graph_out, tid);
-        send_buf(_part);    
+    prep_buf(degree_out, graph_out, tid);
+    send_buf(_part);    
+    if (graph_in != graph_out && graph_in != 0) {
         prep_buf(degree_in, graph_in, tid);
         send_buf(_part);    
     }
@@ -284,10 +281,8 @@ template <class T>
 status_t scopy2d_client_t<T>::update_view()
 {
     index_t archive_marker;
-    if (graph_in == graph_out) {
-        archive_marker = apply_view(graph_out, 0, 0);
-    } else {
-        archive_marker = apply_view(graph_out, 0, 0);
+    archive_marker = apply_view(graph_out, 0, 0);
+    if (graph_in != graph_out && graph_in !=0) {
         archive_marker = apply_view(graph_in, 0, 0);
     }
     
