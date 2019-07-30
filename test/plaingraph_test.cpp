@@ -1277,16 +1277,17 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    _global_vcount = _global_vcount;
-   
+    
     /*
     int  i = 0;
     while (i < 15000) {
         usleep(1000);
         ++i;
     }*/
-
 #ifdef _MPI
+    vid_t rem = _global_vcount%_part_count;
+    _global_vcount = rem? _global_vcount + _part_count - rem :_global_vcount;
+   
     // extract the original group handle
     create_1d_comm();
     

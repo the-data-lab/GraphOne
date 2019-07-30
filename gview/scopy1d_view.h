@@ -109,8 +109,7 @@ class scopy1d_server_t : public sstream_t<T> {
     status_t    update_view();
  
  private:   
-    void  update_degreesnap();
-    void update_degreesnapd();
+    void  prep_buf(degree_t* degree, onegraph_t<T>*graph, int tid);
 };
 
 template <class T>
@@ -139,15 +138,11 @@ class scopy1d_client_t : public sstream_t<T> {
     void      init_view(pgraph_t<T>* ugraph, index_t a_flag); 
     status_t  update_view();
  private:
-    void  apply_view();
-    void  apply_viewd();
+    index_t apply_view(onegraph_t<T>* graph, degree_t* degree, Bitmap* bitmap);
 };
 
 template <class T>
-void scopy1d_server_t<T>::update_degreesnap()
-{
-#pragma omp parallel for num_threads(part_count)
-for (int tid = 0; tid < part_count; ++tid)
+void scopy1d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>*graph, int tid)
 {
     snapid_t    snap_id = snapshot->snap_id;
 
@@ -168,9 +163,9 @@ for (int tid = 0; tid < part_count; ++tid)
     T dst;
 
     for (vid_t v = v_start; v < v_end; ++v) {
-        nebr_count = graph_out->get_degree(v, snap_id);
-        old_count = degree_out[v];
-        degree_out[v] = nebr_count;
+        nebr_count = graph->get_degree(v, snap_id);
+        old_count = degree[v];
+        degree[v] = nebr_count;
         delta_count = nebr_count - old_count;
         if (delta_count == 0) continue;
 
@@ -185,28 +180,15 @@ for (int tid = 0; tid < part_count; ++tid)
             send_buf_one(part, archive_marker, 2);
         }
 
-        graph_out->start(v, delta_adjlist, old_count);
+        graph->start(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < delta_count; ++i) {
-            graph_out->next(delta_adjlist, dst);
+            graph->next(delta_adjlist, dst);
             MPI_Pack(&dst, 1, pgraph->data_type, part->ebuf, part->buf_size, &part->position, MPI_COMM_WORLD);
-            ++part->delta_count;
         }
+        part->delta_count += delta_count;
         buf_vertex(part, v);
     }
     send_buf_one(part, archive_marker);
-    
-}
-}
-
-template <class T>
-void scopy1d_server_t<T>::update_degreesnapd()
-{
-    vid_t changed_v = 0;
-    index_t changed_e = 0;
-
-    //Lets copy the data
-
-    return;
 }
 
 template <class T>
@@ -232,11 +214,12 @@ status_t scopy1d_server_t<T>::update_view()
     index_t new_marker = new_snapshot->marker;
     
     snapshot = new_snapshot;
-    
-    if (graph_in == graph_out) {
-        update_degreesnap();
-    } else {
-        update_degreesnapd();
+    #pragma omp parallel for num_threads(part_count)
+    for (int i = 0; i < part_count; ++i) { 
+        prep_buf(degree_out, graph_out, i);
+        if (graph_in != graph_out && graph_in !=0) {
+            prep_buf(degree_in, graph_in, i);
+        }
     }
 
     return eOK;
@@ -245,21 +228,23 @@ status_t scopy1d_server_t<T>::update_view()
 template <class T>
 status_t scopy1d_client_t<T>::update_view()
 {
-    if (graph_in == graph_out) {
-        apply_view();
-    } else {
-        apply_viewd();
+    index_t archive_marker;
+     archive_marker = apply_view(graph_out, degree_out, bitmap_out);
+    if (graph_in != graph_out && graph_in !=0) {
+        archive_marker = apply_view(graph_in, degree_in, bitmap_in);
     }
+    pgraph->new_snapshot(archive_marker);
+    snapshot = pgraph->get_snapshot();
     return eOK;
 }
 
 template <class T>
-void scopy1d_client_t<T>::apply_view()
+index_t scopy1d_client_t<T>::apply_view(onegraph_t<T>* graph, degree_t* degree, Bitmap* bitmap)
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
     uint64_t  archive_marker = 0;
-    bitmap_out->reset();
+    bitmap->reset();
     uint64_t meta_flag = 0;
 
     //Lets copy the data
@@ -321,25 +306,18 @@ void scopy1d_client_t<T>::apply_view()
         eposition = curr*sizeof(T);
         MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, delta_count, pgraph->data_type, MPI_COMM_WORLD);
         
-        graph_out->increment_count_noatomic(vid - v_offset, delta_count);
-        graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
+        graph->increment_count_noatomic(vid - v_offset, delta_count);
+        graph->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
 
         //Update the degree of the view
-        degree_out[vid - v_offset] += delta_count;
-        bitmap_out->set_bit(vid);
-
+        degree[vid - v_offset] += delta_count;
+        bitmap->set_bit(vid);
     }
     }
     } while(2 == meta_flag);
-    pgraph->new_snapshot(archive_marker);
-    snapshot = pgraph->get_snapshot();
+    
+    return archive_marker;
          
-}
-
-template <class T>
-void scopy1d_client_t<T>::apply_viewd()
-{
-
 }
 
 template <class T>
