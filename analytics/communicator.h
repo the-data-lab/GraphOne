@@ -2,6 +2,11 @@
 
 #include "type.h"
 
+extern MPI_Datatype mpi_type_vid;
+
+#define BUF_TX_SZ (1<<21)
+
+
 void create_1d_comm();
 void create_2d_comm();
 void create_2d_comm1();

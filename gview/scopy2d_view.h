@@ -5,14 +5,6 @@
 
 #ifdef _MPI
 
-#ifdef B32    
-    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
-#elif B64 
-    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
-#endif
-
-#define BUF_TX_SZ (1<<21)
-
 template <class T>
 struct part_t {
     index_t changed_v;

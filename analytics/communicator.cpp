@@ -1,6 +1,12 @@
 #include "communicator.h"
 #include "graph.h"
 
+#ifdef B32    
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#elif B64 
+    MPI_Datatype mpi_type_vid = MPI_UINT32_T;
+#endif
+
 void create_2d_comm()
 {
     // extract the original group handle

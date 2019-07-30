@@ -7,13 +7,79 @@
 
 struct part1d_t {
     char* buf;
+    char* ebuf;
     int   buf_size;
+    int   position;
+    int   vposition;
+    int   rank;
+    int   changed_v;
+    int   changed_e;
+    int   delta_count;
     vid_t v_offset;
     void init() {
-        buf_size = (1<<29);
-        buf = (char*) malloc(sizeof(char)*buf_size);
+        buf_size = (1<<21);
+        buf = (char*) malloc(sizeof(char)*2*buf_size);
+        ebuf = (char*) malloc(sizeof(char)*buf_size);
+        changed_v = 0;
+        changed_e = 0;
+        vposition = 5*sizeof(uint64_t);
+        position = 0;
+        delta_count = 0;
+        rank = 0;
+    }
+    void reset() {
+        changed_v = 0;
+        changed_e = 0;
+        vposition = 5*sizeof(uint64_t);
+        position = 0;
+        delta_count = 0;
     }
 };
+
+void buf_vertex(part1d_t* part, vid_t vid)
+{
+    part->changed_v++;
+    MPI_Pack(&vid, 1, mpi_type_vid, part->buf, 2*part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    MPI_Pack(&part->changed_e, 1, mpi_type_vid, part->buf, 2*part->buf_size, &part->vposition, MPI_COMM_WORLD);
+    part->changed_e += part->delta_count;
+    part->delta_count = 0;
+}
+
+void send_buf_one(part1d_t* part, index_t archive_marker, int partial = 1)
+{
+    int header_size = 5*sizeof(uint64_t);
+    //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
+    uint64_t meta_flag = 1;
+    if (partial) {
+        meta_flag = partial;
+    }
+    int t_pos = 0;
+    buf_vertex(part, 0);
+
+    if (part->vposition + part->position > 2*part->buf_size) {
+        cout << part->vposition << " " << part->position 
+         << " changed_v " << part->changed_v
+         << " changed_e " << part->changed_e << endl;
+        assert(0);
+    }
+     
+    pack_meta(part->buf, 2*part->buf_size, t_pos, meta_flag, archive_marker, 
+              part->changed_v, part->changed_e);
+    assert(t_pos == header_size);
+    t_pos = part->vposition;
+    MPI_Pack(part->ebuf, part->position, MPI_PACKED, part->buf, (part->buf_size<<1), &part->vposition, MPI_COMM_WORLD); 
+    
+    /*
+    cout << " Sending to rank " << part->rank 
+         << " size "<< part->vposition 
+         << " changed_v " << part->changed_v
+         << " changed_e " << part->changed_e
+         << " partial " << partial
+         << endl;
+    */
+    MPI_Send(part->buf, part->vposition, MPI_PACKED, part->rank, 0, MPI_COMM_WORLD);
+    part->reset();
+}
 
 template <class T>
 class scopy1d_server_t : public sstream_t<T> {
@@ -28,10 +94,6 @@ class scopy1d_server_t : public sstream_t<T> {
     using sstream_t<T>::graph_out;
     using sstream_t<T>::graph_in;
     using sstream_t<T>::snapshot;
-    using sstream_t<T>::edges;
-    using sstream_t<T>::edge_count;
-    using sstream_t<T>::new_edges;
-    using sstream_t<T>::new_edge_count;
     using sstream_t<T>::v_count;
     using sstream_t<T>::flag;
     using sstream_t<T>::bitmap_in;
@@ -94,12 +156,9 @@ for (int tid = 0; tid < part_count; ++tid)
     vid_t v_start = tid*v_local;
     vid_t v_end =  v_start + v_local;
     part1d_t* part = _part + tid;
-    //Header of the package
-    uint64_t meta_flag = 1;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
     uint64_t  archive_marker = snapshot->marker;
 
     //Lets copy the data
-    int position = 5*sizeof(uint64_t);
     degree_t delta_count = 0;
     index_t changed_v = 0;
     index_t changed_e = 0;
@@ -114,34 +173,28 @@ for (int tid = 0; tid < part_count; ++tid)
         degree_out[v] = nebr_count;
         delta_count = nebr_count - old_count;
         if (delta_count == 0) continue;
-        ++changed_v;
 
         if (nebr_count < old_count) {
             cout << v << " " << nebr_count << " " << old_count << endl;
             assert(0);
         }
 
-        MPI_Pack(&v, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
-        MPI_Pack(&delta_count, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
-        
+        if ((part->position + delta_count*sizeof(vid_t) > part->buf_size)
+            ||(part->vposition + part->position + delta_count*sizeof(vid_t)
+               + 4*sizeof(vid_t) > 2*part->buf_size)) {
+            send_buf_one(part, archive_marker, 2);
+        }
+
         graph_out->start(v, delta_adjlist, old_count);
         for (degree_t i = 0; i < delta_count; ++i) {
             graph_out->next(delta_adjlist, dst);
-            MPI_Pack(&dst, 1, MPI_UINT32_T, part->buf, part->buf_size, &position, MPI_COMM_WORLD);
-            ++changed_e;
+            MPI_Pack(&dst, 1, pgraph->data_type, part->ebuf, part->buf_size, &part->position, MPI_COMM_WORLD);
+            ++part->delta_count;
         }
+        buf_vertex(part, v);
     }
+    send_buf_one(part, archive_marker);
     
-    cout << " sending to rank " << tid + 1
-         << " size "<< position
-         << " changed v " << changed_v
-         << " changed e " << changed_e
-         << endl;
-         
-    int t_pos = 0;
-    pack_meta(part->buf, part->buf_size, t_pos, meta_flag, archive_marker,
-              changed_v, changed_e);
-    MPI_Send(part->buf, position, MPI_PACKED, tid+1, 0, MPI_COMM_WORLD);
 }
 }
 
@@ -165,6 +218,7 @@ void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
     for (int i =0; i < part_count; ++i) {
         _part[i].init();
         _part[i].v_offset = 0;
+        _part[i].rank = 1 + i;
     }
 }
 
@@ -204,15 +258,19 @@ void scopy1d_client_t<T>::apply_view()
 {
     index_t changed_v = 0;
     index_t changed_e = 0;
+    uint64_t  archive_marker = 0;
     bitmap_out->reset();
+    uint64_t meta_flag = 0;
 
     //Lets copy the data
     MPI_Status status;
     int buf_size = 0;
     char*    buf = 0;
+    
+    do {
     MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
     MPI_Get_count(&status, MPI_CHAR, &buf_size);
-    cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
+    //cout << " Rank " << _rank << " MPI_get count = " << buf_size << endl;
     buf = (char*)malloc(buf_size*sizeof(char));
 
     int position = 0;
@@ -220,45 +278,48 @@ void scopy1d_client_t<T>::apply_view()
 
     //Header of the package
     uint64_t endian = 0;//endian
-    uint64_t meta_flag = 0;//directions, prop_id, tid, snap_id, vertex size, edge size (dst vertex +  properties)
-    uint64_t  archive_marker = 0;
 
     unpack_meta(buf, buf_size, position, meta_flag, archive_marker, changed_v, changed_e);
     
+    /*
     cout << "Client Archive Marker = " << archive_marker 
-         << " size "<< position 
+         << " size "<< buf_size 
          << " changed v " << changed_v
          << " changed e " << changed_e
          << endl;
-    
-    /*
-    int i = 0;
-    while (i < 20000) {
-        usleep(1000);
-        ++i;
-    }*/
-
+    */
+    #pragma omp parallel num_threads(THD_COUNT)
+    { 
     vid_t            vid = 0;
     degree_t  nebr_count = 0;
     degree_t delta_count = 0;
     degree_t   old_count = 0;
+    int         position = 5*sizeof(uint64_t);
+    int        eposition = 0;
+    char*           ebuf = 0;
+    int          eoffset = 0;
+    int   curr, next;
+    vid_t next_vid;
+    eoffset = position + 2*changed_v*sizeof(vid_t);
+    ebuf = buf + eoffset;
     degree_t    prior_sz = 16384;
     T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-
-    for (vid_t v = 0; v < changed_v; ++v) {
-#ifdef B32
-        MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT32_T, MPI_COMM_WORLD);
-        MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT32_T, MPI_COMM_WORLD);
-#else
-        MPI_Unpack(buf, buf_size, &position, &vid, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-        MPI_Unpack(buf, buf_size, &position, &delta_count, 1, MPI_UINT64_T, MPI_COMM_WORLD);
-#endif
+    #pragma omp for
+    for (vid_t v = 0; v < changed_v - 1; ++v) {
+        position = 5*sizeof(uint64_t) + v*(sizeof(vid_t) << 1);
+        MPI_Unpack(buf, buf_size, &position, &vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+        MPI_Unpack(buf, buf_size, &position, &curr, 1, mpi_type_vid, MPI_COMM_WORLD);
+        MPI_Unpack(buf, buf_size, &position, &next_vid, 1, mpi_type_vid, MPI_COMM_WORLD);
+        MPI_Unpack(buf, buf_size, &position, &next, 1, mpi_type_vid, MPI_COMM_WORLD);
+        
+        delta_count = next - curr;
         if (delta_count > prior_sz) {
             prior_sz = delta_count;
             free(local_adjlist);
             local_adjlist = (T*)malloc(prior_sz*sizeof(T));
         }
-        MPI_Unpack(buf, buf_size, &position, local_adjlist, delta_count, MPI_UINT32_T, MPI_COMM_WORLD);
+        eposition = curr*sizeof(T);
+        MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, delta_count, pgraph->data_type, MPI_COMM_WORLD);
         
         graph_out->increment_count_noatomic(vid - v_offset, delta_count);
         graph_out->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
@@ -268,6 +329,8 @@ void scopy1d_client_t<T>::apply_view()
         bitmap_out->set_bit(vid);
 
     }
+    }
+    } while(2 == meta_flag);
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
          
