@@ -22,8 +22,7 @@ void copy2d_client(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    snaph->pgraph->create_marker(0);
-    _edge_count = snaph->pgraph->blog->blog_head; 
+    _edge_count = snaph->pgraph->global_snapmarker; 
     void* ret;
     pthread_join(sstreamh->thread, &ret);
 }

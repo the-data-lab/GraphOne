@@ -71,7 +71,6 @@ void copy2d_server_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     
     for (int j = 0; j < part_count*part_count; ++j) {
         _part[j].init();
-        _part[j].position = header_size;
         _part[j].rank = j + _numlogs;
         _part[j].v_offset = (j/part_count)*v_local;
         _part[j].dst_offset = (j%part_count)*v_local;
@@ -184,13 +183,15 @@ status_t copy2d_client_t<T>::update_view()
         
         unpack_meta(buf, buf_size, position, flag, archive_marker, changed_v, changed_e);
         partial = flag;
-        //buf += position;
         /*
+        if (partial != 2) {
         cout << "Rank " << _rank  
              << " : Archive Marker = " << archive_marker 
-             << " size "<< buf_size 
-             << " changed_e " << changed_e
-             << endl;*/
+          //   << " size "<< buf_size 
+          //   << " changed_e " << changed_e
+             << endl;
+        }
+        */
 
         edgeT_t<T> edge;
         for (int e = 0; e < changed_e; ++e) {
@@ -199,6 +200,10 @@ status_t copy2d_client_t<T>::update_view()
             pgraph->batch_edge(edge);
         }
     } while (partial == 2);
+    pgraph->global_snapmarker = pgraph->blog->blog_head; 
+    pgraph->create_marker(0);
+
+    
 
     this->snap_marker = archive_marker;
     return eOK;

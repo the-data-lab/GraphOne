@@ -78,6 +78,7 @@ void cfinfo_t::add_edge_property(const char* longname, prop_encoder_t* a_prop_en
 
 cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
+    global_snapmarker = -1L;
     snap_id = 0;
     gtype = type;
     flag1 = 0;
@@ -186,17 +187,19 @@ status_t cfinfo_t::create_snapshot()
     index_t snap_marker = 0;
     int work_done = 0;
     //index_t last_durable_marker = 0;
-        //create_marker(0);
-        if (eOK == move_marker(snap_marker)) {
-            make_graph_baseline();
-            update_marker();
+    //create_marker(0);
+    if (eOK == move_marker(snap_marker)) {
+        make_graph_baseline();
+        update_marker();
+        if (global_snapmarker == snap_marker || global_snapmarker == -1L) {
             new_snapshot(snap_marker);
-            ++work_done;
-		}
-        if (work_done != 0) {
-            return eOK;
         }
-        return eNoWork;
+        ++work_done;
+    }
+    if (work_done != 0) {
+        return eOK;
+    }
+    return eNoWork;
 }
 
 void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 */)

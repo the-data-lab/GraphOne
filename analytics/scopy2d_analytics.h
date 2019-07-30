@@ -136,6 +136,7 @@ void stream2d_bfs(gview_t<T>* viewh)
             usleep(100);
             continue;
         }
+        //cout << _rank << ": update count =" << update_count << endl;
         ++update_count;
 	    do_stream_bfs(snaph, lstatus, rstatus, &bitmap);
     } 
