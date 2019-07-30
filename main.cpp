@@ -20,7 +20,9 @@ graph* g;
 int _numtasks = 0, _rank = 0;
 int _part_count;
 #ifdef _MPI
+int _numlogs = 1;
 MPI_Comm   _analytics_comm;
+int _analytics_rank;
 MPI_Comm  _row_comm, _col_comm;
 int _col_rank, _row_rank;
 #endif

@@ -3,7 +3,7 @@
 #include "communicator.h"
 
 template<class T>
-void copy2d_serial_bfs(gview_t<T>* viewh)
+void copy2d_client(gview_t<T>* viewh)
 {
     cout << " Rank " << _rank <<" Copy2d Client Started" << endl;
     copy2d_client_t<T>* snaph = dynamic_cast<copy2d_client_t<T>*>(viewh);

@@ -86,17 +86,10 @@ void print_bfs_summary(gview_t<T>* viewh, uint8_t* status)
         #pragma omp parallel for num_threads(THD_COUNT) reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) { 
             if (status[v] == l) ++vid_count;
-            /*{
-                ++vid_count;
-                if ((_rank == 1 || _rank == 3) && l < 2) {
-                    cout << _rank << ":" << v << endl;
-                }
-            }*/
-            
         }
         MPI_Allreduce(MPI_IN_PLACE, &vid_count, 1, MPI_UINT64_T, MPI_SUM, _col_comm);
             
-        if (_rank == 1 && vid_count > 0) { 
+        if (_analytics_rank == 0 && vid_count > 0) { 
             cout << " Level = " << l << " count = " << vid_count << endl;
         }
     }
@@ -113,8 +106,8 @@ void stream2d_bfs(gview_t<T>* viewh)
     Bitmap bitmap(v_count);
     int update_count = 0;
     
-    int row_id = (_rank - 1)/_part_count;
-    int col_id = (_rank - 1)%_part_count;
+    int row_id = (_analytics_rank)/_part_count;
+    int col_id = (_analytics_rank)%_part_count;
     vid_t v_offset = row_id*(_global_vcount/_part_count);
     vid_t dst_offset = col_id*(_global_vcount/_part_count);
     
@@ -156,7 +149,7 @@ void stream2d_bfs(gview_t<T>* viewh)
 
 
 template<class T>
-void scopy2d_serial_bfs(gview_t<T>* viewh)
+void scopy2d_client(gview_t<T>* viewh)
 {
     cout << " Rank " << _rank <<" SCopy2d Client Started" << endl;
     scopy2d_client_t<T>* snaph = dynamic_cast<scopy2d_client_t<T>*>(viewh);

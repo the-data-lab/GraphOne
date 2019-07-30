@@ -2,7 +2,7 @@
 #include "graph_view.h"
 
 template<class T>
-void scopy1d_serial_bfs(gview_t<T>* viewh)
+void scopy1d_client(gview_t<T>* viewh)
 {
     cout << " Rank " << _rank <<" SCopy1D Client Started" << endl;
     scopy1d_client_t<T>* sstreamh = dynamic_cast<scopy1d_client_t<T>*>(viewh);
@@ -80,11 +80,11 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
         } while (frontier);
 		
         end = mywtime();
-        cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
+        //cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
         
     } 
    
-    if (_rank == 1) { 
+    if (_analytics_rank == 0) { 
         for (int l = 0; l < 10; ++l) {
             vid_t vid_count = 0;
             #pragma omp parallel for reduction (+:vid_count) 
@@ -131,8 +131,7 @@ void scopy1d_server(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    cout << " RANK" << _rank 
-         << " update_count = " << update_count << endl;
+    cout << "RANK" << _rank << " update_count=" << update_count << endl;
 }
 /*
 template<class T>

@@ -72,7 +72,7 @@ void copy2d_server_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     for (int j = 0; j < part_count*part_count; ++j) {
         _part[j].init();
         _part[j].position = header_size;
-        _part[j].rank = 1 + j;
+        _part[j].rank = j + _numlogs;
         _part[j].v_offset = (j/part_count)*v_local;
         _part[j].dst_offset = (j%part_count)*v_local;
     }

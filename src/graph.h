@@ -16,7 +16,9 @@ extern int _dir, _persist, _source;
 extern int _numtasks, _rank;
 extern int _part_count;
 #ifdef _MPI
+extern int _numlogs;
 extern MPI_Comm   _analytics_comm;
+extern int _analytics_rank;
 extern MPI_Comm  _row_comm, _col_comm;
 extern int _col_rank, _row_rank;
 #endif

@@ -7,14 +7,14 @@
     MPI_Datatype mpi_type_vid = MPI_UINT32_T;
 #endif
 
-void create_2d_comm()
+void create_analytics_comm()
 {
     // extract the original group handle
-    int group_count = _numtasks - 1;
+    int group_count = _numtasks - _numlogs;
     int *ranks1 = (int*)malloc(sizeof(int)*group_count);
 
     for (int i = 0; i < group_count; ++i) {
-        ranks1[i] = i+1;
+        ranks1[i] = i + _numlogs;
     }
     MPI_Group  orig_group, analytics_group;
     
@@ -23,45 +23,29 @@ void create_2d_comm()
 
     //create new communicator 
     MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
+    if (_rank >= _numlogs) {
+        MPI_Comm_rank(_analytics_comm, &_analytics_rank);
+    }
 }
 
-void create_2d_comm1()
+void create_2d_comm()
 {
     int row_id, col_id;
     // extract the original group handle
-    if (0 == _rank) {
+    if (_rank < _numlogs) {
         row_id = MPI_UNDEFINED;
         col_id = MPI_UNDEFINED;
     } else {
-        row_id = (_rank - 1) / _part_count;
-        col_id = (_rank - 1) % _part_count;
+        row_id = (_rank - _numlogs) / _part_count;
+        col_id = (_rank - _numlogs) % _part_count;
     }
 
     MPI_Comm_split(MPI_COMM_WORLD, row_id, _rank, &_row_comm);
     MPI_Comm_split(MPI_COMM_WORLD, col_id, _rank, &_col_comm);
-    if (_rank !=0) {
+    if (_rank >= _numlogs) {
         MPI_Comm_rank(_row_comm, &_row_rank);
         MPI_Comm_rank(_col_comm, &_col_rank);
     }
-}
-
-void create_1d_comm()
-{
-    // extract the original group handle
-    int group_count = _numtasks - 1;
-    int *ranks1 = (int*)malloc(sizeof(int)*group_count);
-
-    for (int i = 0; i < group_count; ++i) {
-        ranks1[i] = i+1;
-    }
-    MPI_Group  orig_group, analytics_group;
-    
-    MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-    //if (_rank > 0) { }
-    MPI_Group_incl(orig_group, group_count, ranks1, &analytics_group);
-
-    //create new communicator 
-    MPI_Comm_create(MPI_COMM_WORLD, analytics_group, &_analytics_comm);
 }
 
 status_t pack_meta(char* buf, int buf_size, int& position,  uint64_t flag, 

@@ -1199,8 +1199,8 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
     //cout << "global " <<  _global_vcount << endl; 
 
     // extract the original group handle
+    create_analytics_comm();
     create_2d_comm();
-    create_2d_comm1();
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph(_global_vcount);    
@@ -1243,8 +1243,8 @@ void serial_scopy2d_bfs(const string& idir, const string& odir,
     //cout << "global " <<  _global_vcount << endl; 
 
     // extract the original group handle
+    create_analytics_comm();
     create_2d_comm();
-    create_2d_comm1();
     if (_rank == 0) {
         //do some setup for plain graphs
         manager.setup_graph(_global_vcount);    
@@ -1289,7 +1289,7 @@ void serial_scopy1d_bfs(const string& idir, const string& odir,
     _global_vcount = rem? _global_vcount + _part_count - rem :_global_vcount;
    
     // extract the original group handle
-    create_1d_comm();
+    create_analytics_comm();
     
     if (_rank == 0) {
         //do some setup for plain graphs
@@ -1420,13 +1420,13 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         
         case 30:
-            serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_serial_bfs, scopy2d_server);
+            serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_client, scopy2d_server);
             break;
         case 31:
-            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_serial_bfs, scopy1d_server);
+            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_client, scopy1d_server);
             break;
         case 32:
-            serial_scopy_bfs<sid_t>(idir, odir, scopy_serial_bfs, scopy_server);
+            serial_scopy_bfs<sid_t>(idir, odir, scopy_client, scopy_server);
             break;
         case 33:
             multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
@@ -1441,8 +1441,8 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_stream_wcc(idir, odir);
             break;
 
-        case 40:
-            serial_copy2d_bfs<sid_t>(idir, odir, copy2d_serial_bfs, copy2d_server);
+        case 40://edge centric
+            serial_copy2d_bfs<sid_t>(idir, odir, copy2d_client, copy2d_server);
             break;
         
         case 50:

@@ -2,7 +2,7 @@
 #include "graph_view.h"
 
 template<class T>
-void scopy_serial_bfs(gview_t<T>* viewh)
+void scopy_client(gview_t<T>* viewh)
 {
     cout << "Client Started" << endl;
     scopy_client_t<T>* sstreamh = dynamic_cast<scopy_client_t<T>*>(viewh);

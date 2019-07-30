@@ -17,7 +17,7 @@ struct part1d_t {
     int   delta_count;
     vid_t v_offset;
     void init() {
-        buf_size = (1<<21);
+        buf_size = BUF_TX_SZ;
         buf = (char*) malloc(sizeof(char)*2*buf_size);
         ebuf = (char*) malloc(sizeof(char)*buf_size);
         changed_v = 0;
@@ -200,7 +200,7 @@ void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
     for (int i =0; i < part_count; ++i) {
         _part[i].init();
         _part[i].v_offset = 0;
-        _part[i].rank = 1 + i;
+        _part[i].rank = i + _numlogs;
     }
 }
 
@@ -326,7 +326,7 @@ void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     snap_t<T>::init_view(ugraph, a_flag);
     global_vcount = _global_vcount;
     vid_t local_vcount = (global_vcount/(_numtasks - 1));
-    v_offset = (_rank - 1)*local_vcount;
+    v_offset = (_analytics_rank)*local_vcount;
     
     bitmap_out = new Bitmap(global_vcount);
     if (graph_out == graph_in) {
