@@ -105,16 +105,17 @@ status_t copy2d_server_t<T>::update_view()
                  &part->position, MPI_COMM_WORLD);
         part->changed_e +=1;
         
-        part = _part + j*part_count + i;
-        set_sid(edge.dst_id, src - part->dst_offset);
-        set_sid(edge.src_id, dst - part->v_offset);
-        if (part->position + sizeof(edge) > part->buf_size) {
-            send_buf_one(part, 2);
+        if (pgraph->sgraph_in == pgraph->sgraph_out) {//XXX
+            part = _part + j*part_count + i;
+            set_sid(edge.dst_id, src - part->dst_offset);
+            set_sid(edge.src_id, dst - part->v_offset);
+            if (part->position + sizeof(edge) > part->buf_size) {
+                send_buf_one(part, 2);
+            }
+            MPI_Pack(&edge, 1, pgraph->edge_type, part->buf, part->buf_size, 
+                     &part->position, MPI_COMM_WORLD);
+            part->changed_e +=1;
         }
-        MPI_Pack(&edge, 1, pgraph->edge_type, part->buf, part->buf_size, 
-                 &part->position, MPI_COMM_WORLD);
-        part->changed_e +=1;
-        
     }
 
     for (int j = 0; j < part_count*part_count; ++j) {
@@ -129,7 +130,12 @@ template <class T>
 void copy2d_server_t<T>::send_buf_one(part2d_t* part, int partial /*= 1*/)
 {
     int header_size = 5*sizeof(uint64_t);
-    uint64_t  archive_marker = 2*this->get_snapmarker();
+    uint64_t archive_marker = 0;
+    if (pgraph->sgraph_in == pgraph->sgraph_out) {
+        archive_marker = 2*this->get_snapmarker();//XXX
+    } else {
+        archive_marker = this->get_snapmarker();
+    }
     //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
     uint64_t meta_flag = 1;
     if (partial) {

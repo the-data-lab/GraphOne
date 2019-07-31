@@ -1189,9 +1189,8 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
                               typename callback<T>::sfunc stream_fn, 
                               typename callback<T>::sfunc copy_fn)
 {
+    //int i = 0 ; while (i < 100000) { usleep(100); ++i;}
     plaingraph_manager_t<T> manager;
-    manager.schema(_dir);
-    pgraph_t<T>* pgraph = manager.get_plaingraph();
 #ifdef _MPI
     assert(_part_count*_part_count + 1 == _numtasks);
     vid_t rem = _global_vcount%_part_count;
@@ -1202,6 +1201,8 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
     create_analytics_comm();
     create_2d_comm();
     if (_rank == 0) {
+        manager.schema(_dir);
+        pgraph_t<T>* pgraph = manager.get_plaingraph();
         //do some setup for plain graphs
         manager.setup_graph(_global_vcount);    
         
@@ -1213,7 +1214,14 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
         pthread_join(copyh->thread, &ret);
 
     } else {
-        _edge_count += _edge_count; 
+        if (_dir == 0) {
+            manager.schema(2);
+            _edge_count += _edge_count;
+        } else {
+            manager.schema(_dir);
+        }
+        pgraph_t<T>* pgraph = manager.get_plaingraph();
+
         //do some setup for plain graphs
         vid_t local_vcount = _global_vcount/_part_count;
         manager.setup_graph(local_vcount);
