@@ -83,9 +83,10 @@ void print_bfs1d_summary(vid_t v_count, uint8_t* status)
 template<class T>
 void do_stream_bfs1d(gview_t<T>* viewh, uint8_t* status)
 {
-    //sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
-    scopy1d_client_t<T>* snaph = dynamic_cast<scopy1d_client_t<T>*>(viewh);
-    vid_t        v_count = snaph->global_vcount;
+    sstream_t<T>* snaph = dynamic_cast<sstream_t<T>*>(viewh);
+    vid_t        global_vcount = _global_vcount;
+    vid_t        v_count = snaph->get_vcount();
+    vid_t        v_offset = (_analytics_rank)*v_count;
     index_t frontier = 0;
     
     do {
@@ -100,9 +101,9 @@ void do_stream_bfs1d(gview_t<T>* viewh, uint8_t* status)
         T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
         #pragma omp for nowait
-        for (vid_t v = 0; v < snaph->v_count; v++) 
+        for (vid_t v = 0; v < v_count; v++) 
         {
-            vid = v + snaph->v_offset;
+            vid = v + v_offset;
             if(false == snaph->has_vertex_changed_out(vid) || status[vid] == 255) continue;
             snaph->reset_vertex_changed_out(vid);
 
@@ -130,7 +131,7 @@ void do_stream_bfs1d(gview_t<T>* viewh, uint8_t* status)
         }
         }
         //Finalize the iteration
-        bfs1d_finalize(snaph->bitmap_out, status, frontier, v_count);
+        bfs1d_finalize(snaph->bitmap_out, status, frontier, global_vcount);
     } while (frontier);
 }
 
@@ -239,10 +240,10 @@ void stream_bfs1d(gview_t<T>* viewh)
 {
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
-    vid_t        v_count = sstreamh->global_vcount;
+    vid_t        global_vcount = _global_vcount;
 
-    uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
-    memset(status, 255, v_count);
+    uint8_t* status = (uint8_t*)malloc(global_vcount*sizeof(uint8_t));
+    memset(status, 255, global_vcount);
 
     sid_t    root   = 1;
     index_t  frontier = 0;
@@ -264,6 +265,6 @@ void stream_bfs1d(gview_t<T>* viewh)
         end = mywtime();
         //cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
     } 
-    print_bfs1d_summary(v_count, status);
+    print_bfs1d_summary(global_vcount, status);
     cout << " update_count = " << update_count << endl;
 }

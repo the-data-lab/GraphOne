@@ -94,7 +94,6 @@ class scopy1d_server_t : public sstream_t<T> {
     using sstream_t<T>::graph_in;
     using sstream_t<T>::snapshot;
     using sstream_t<T>::v_count;
-    using sstream_t<T>::flag;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::bitmap_out;
 
@@ -116,16 +115,9 @@ class scopy1d_client_t : public sstream_t<T> {
  public:
     using sstream_t<T>::pgraph;
     using sstream_t<T>::snapshot;
-    using sstream_t<T>::sstream_func; 
-    using sstream_t<T>::thread;
     using sstream_t<T>::v_count;
-    using sstream_t<T>::flag;
     using sstream_t<T>::graph_in;
     using sstream_t<T>::graph_out;
-    using sstream_t<T>::degree_in;
-    using sstream_t<T>::degree_out;
-    using sstream_t<T>::bitmap_in;
-    using sstream_t<T>::bitmap_out;
     vid_t    v_offset;
     vid_t    global_vcount;
 
@@ -227,9 +219,9 @@ template <class T>
 status_t scopy1d_client_t<T>::update_view()
 {
     index_t archive_marker;
-     archive_marker = apply_view(graph_out, degree_out, bitmap_out);
+     archive_marker = apply_view(graph_out, 0, 0);
     if (graph_in != graph_out && graph_in !=0) {
-        archive_marker = apply_view(graph_in, degree_in, bitmap_in);
+        archive_marker = apply_view(graph_in, 0, 0);
     }
     pgraph->new_snapshot(archive_marker);
     snapshot = pgraph->get_snapshot();
@@ -242,7 +234,10 @@ index_t scopy1d_client_t<T>::apply_view(onegraph_t<T>* graph, degree_t* degree, 
     index_t changed_v = 0;
     index_t changed_e = 0;
     uint64_t  archive_marker = 0;
-    bitmap->reset();
+    
+    if (bitmap) {
+        bitmap->reset();
+    }
     uint64_t meta_flag = 0;
 
     //Lets copy the data
@@ -308,8 +303,10 @@ index_t scopy1d_client_t<T>::apply_view(onegraph_t<T>* graph, degree_t* degree, 
         graph->add_nebr_bulk(vid, local_adjlist, delta_count);
 
         //Update the degree of the view
-        degree[vid] += delta_count;
-        bitmap->set_bit(vid + v_offset);
+        if (degree != 0) {
+            degree[vid] += delta_count;
+            bitmap->set_bit(vid + v_offset);
+        }
     }
     }
     } while(2 == meta_flag);
@@ -326,11 +323,12 @@ void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     vid_t local_vcount = (global_vcount/(_numtasks - 1));
     v_offset = (_analytics_rank)*local_vcount;
     
-    bitmap_out = new Bitmap(global_vcount);
+    /*
+    this->bitmap_out = new Bitmap(global_vcount);
     if (graph_out == graph_in) {
-        bitmap_in = bitmap_out;
+        this->bitmap_in = bitmap_out;
     } else {
-        bitmap_in = new Bitmap(global_vcount);
-    }
+        this->bitmap_in = new Bitmap(global_vcount);
+    }*/
 }
 #endif

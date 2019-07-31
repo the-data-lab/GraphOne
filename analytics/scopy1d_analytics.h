@@ -8,22 +8,23 @@ void scopy1d_client(gview_t<T>* viewh)
     cout << " Rank " << _rank <<" SCopy1D Client Started" << endl;
     scopy1d_client_t<T>* sstreamh = dynamic_cast<scopy1d_client_t<T>*>(viewh);
     pgraph_t<T>* pgraph  = sstreamh->pgraph;
-    vid_t        v_count = sstreamh->global_vcount;
-
-    scopy1d_client_t<T>* snaph = sstreamh;
     
+    /*
+    vid_t        v_count = sstreamh->global_vcount;
     uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
     memset(status, 255, v_count);
-
     sid_t    root   = 1;
-    index_t  frontier = 0;
     status[root] = 0;
+    */
+    sstream_t<T>* snaph = reg_sstream_view(pgraph, stream_bfs1d, 
+                                  STALE_MASK|V_CENTRIC|C_THREAD);
+    
     int update_count = 0;
     
     double start = mywtime();
     double end = 0;
     
-    while (pgraph->get_snapshot_marker() < _edge_count) {
+    while (sstreamh->get_snapmarker() < _edge_count) {
         //update the sstream view
         if (eOK != sstreamh->update_view()) {
             usleep(100);
@@ -31,12 +32,14 @@ void scopy1d_client(gview_t<T>* viewh)
         }
         ++update_count;
     
-        start = mywtime();
-        do_stream_bfs1d(viewh, status);
-        end = mywtime();
-        //cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
+        //start = mywtime();
+        //do_stream_bfs1d(viewh, status);
     } 
-    print_bfs1d_summary(v_count, status);   
+    end = mywtime();
+    //print_bfs1d_summary(v_count, status);   
+    cout << " Clients " << update_count << " = " << end - start << endl;
+    void* ret;
+    pthread_join(snaph->thread, &ret);
 }
 
 template<class T>
@@ -52,7 +55,7 @@ void scopy1d_server(gview_t<T>* viewh)
     index_t batch_size = rest_edges/do_count;
     index_t marker = 0; 
     */
-    int update_count = 1;
+    int update_count = 0;
     
     cout << " SCopy1d Server Started" << endl;
     
@@ -73,7 +76,7 @@ void scopy1d_server(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    cout << "RANK" << _rank << " update_count=" << update_count << endl;
+    cout << "server update_count = " << update_count << endl;
 }
 /*
 template<class T>
