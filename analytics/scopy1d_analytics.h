@@ -1,5 +1,6 @@
 #pragma once
 #include "graph_view.h"
+#include "bfs.h"
 
 template<class T>
 void scopy1d_client(gview_t<T>* viewh)
@@ -31,70 +32,11 @@ void scopy1d_client(gview_t<T>* viewh)
         ++update_count;
     
         start = mywtime();
-	    do {
-		    frontier = 0;
-		    #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
-		    {
-            sid_t sid;
-            vid_t vid;
-            uint8_t level = 0;
-            degree_t nebr_count = 0;
-            degree_t prior_sz = 65536;
-            T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-
-            #pragma omp for nowait
-            for (vid_t v = 0; v < snaph->v_count; v++) 
-            {
-                vid = v + snaph->v_offset;
-                if(false == snaph->has_vertex_changed_out(vid) || status[vid] == 255) continue;
-                snaph->reset_vertex_changed_out(vid);
-
-                nebr_count = snaph->get_degree_out(v);
-                if (nebr_count == 0) {
-                    continue;
-                } else if (nebr_count > prior_sz) {
-                    prior_sz = nebr_count;
-                    free(local_adjlist);
-                    local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-                }
-
-                level = status[vid];
-                snaph->get_nebrs_out(v, local_adjlist);
-
-                for (degree_t i = 0; i < nebr_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
-                    if (status[sid] > level + 1) {
-                        status[sid] = level + 1;
-                        snaph->set_vertex_changed_out(sid);
-                        ++frontier;
-                        //cout << " " << sid << endl;
-                    }
-                }
-            }
-            }
-            //Finalize the iteration
-            MPI_Allreduce(MPI_IN_PLACE, status, v_count, MPI_UINT8_T, MPI_MIN, _analytics_comm);
-            MPI_Allreduce(MPI_IN_PLACE, snaph->bitmap_out->get_start(), snaph->bitmap_out->get_size(),
-                          MPI_UINT64_T, MPI_BOR, _analytics_comm);
-            MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
-        } while (frontier);
-		
+        do_stream_bfs1d(viewh, status);
         end = mywtime();
         //cout << " BFS Time at Batch " << update_count << " = " << end - start << endl;
-        
     } 
-   
-    if (_analytics_rank == 0) { 
-        for (int l = 0; l < 10; ++l) {
-            vid_t vid_count = 0;
-            #pragma omp parallel for reduction (+:vid_count) 
-            for (vid_t v = 0; v < v_count; ++v) {
-                if (status[v] == l) ++vid_count;
-            }
-            cout << " Level = " << l << " count = " << vid_count << endl;
-        }
-        cout << " update_count = " << update_count << endl;
-    }
+    print_bfs1d_summary(v_count, status);   
 }
 
 template<class T>
