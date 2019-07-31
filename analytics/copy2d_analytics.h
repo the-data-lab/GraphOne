@@ -11,7 +11,7 @@ void copy2d_client(gview_t<T>* viewh)
     vid_t v_count = snaph->get_vcount();
     int update_count = 0;
     
-    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream2d_bfs, 
+    sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_bfs2d, 
                                     STALE_MASK|V_CENTRIC|C_THREAD);
     
     while (snaph->get_snapmarker() < _edge_count) {
