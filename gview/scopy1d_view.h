@@ -15,7 +15,6 @@ struct part1d_t {
     int   changed_v;
     int   changed_e;
     int   delta_count;
-    vid_t v_offset;
     void init() {
         buf_size = BUF_TX_SZ;
         buf = (char*) malloc(sizeof(char)*2*buf_size);
@@ -186,7 +185,7 @@ void scopy1d_server_t<T>::prep_buf(degree_t* degree, onegraph_t<T>*graph, int ti
             MPI_Pack(&dst, 1, pgraph->data_type, part->ebuf, part->buf_size, &part->position, MPI_COMM_WORLD);
         }
         part->delta_count += delta_count;
-        buf_vertex(part, v);
+        buf_vertex(part, v - v_start);
     }
     send_buf_one(part, archive_marker);
 }
@@ -199,7 +198,6 @@ void scopy1d_server_t<T>::init_view(pgraph_t<T>* pgraph, index_t a_flag)
     _part = (part1d_t*)malloc(sizeof(part1d_t)*part_count);
     for (int i =0; i < part_count; ++i) {
         _part[i].init();
-        _part[i].v_offset = 0;
         _part[i].rank = i + _numlogs;
     }
 }
@@ -306,12 +304,12 @@ index_t scopy1d_client_t<T>::apply_view(onegraph_t<T>* graph, degree_t* degree, 
         eposition = curr*sizeof(T);
         MPI_Unpack(ebuf, buf_size, &eposition, local_adjlist, delta_count, pgraph->data_type, MPI_COMM_WORLD);
         
-        graph->increment_count_noatomic(vid - v_offset, delta_count);
-        graph->add_nebr_bulk(vid - v_offset, local_adjlist, delta_count);
+        graph->increment_count_noatomic(vid, delta_count);
+        graph->add_nebr_bulk(vid, local_adjlist, delta_count);
 
         //Update the degree of the view
-        degree[vid - v_offset] += delta_count;
-        bitmap->set_bit(vid);
+        degree[vid] += delta_count;
+        bitmap->set_bit(vid + v_offset);
     }
     }
     } while(2 == meta_flag);
