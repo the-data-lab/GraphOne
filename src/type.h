@@ -184,11 +184,20 @@ typedef union __univeral_type {
 #endif
 }univ_t;
 
+typedef uint16_t word_t;
+struct snb_t {
+    word_t src;
+    word_t dst;
+};
+
 //First can be nebr sid, while the second could be edge id/property
 template <class T>
 class dst_weight_t {
  public:
-    sid_t first;
+    union {
+        sid_t first;
+        snb_t snb; 
+    };
     T second;
 };
 
@@ -244,9 +253,21 @@ inline sid_t get_sid(T dst)
 }
 
 template <class T>
+inline snb_t get_snb(T dst)
+{
+    return dst.snb;
+}
+
+template <class T>
 inline void set_sid(T& edge, sid_t sid1)
 {
     edge.first = sid1;
+}
+
+template <class T>
+inline void set_snb(T& edge, snb_t snb1)
+{
+    edge.snb = snb1;
 }
 
 template <class T>
@@ -262,9 +283,14 @@ inline sid_t get_nebr(T* adj, vid_t k) {
 
 //Specialized functions for plain graphs, no weights
 template <>
-inline void set_sid<sid_t>(sid_t& sid , sid_t sid1)
-{
+inline void set_sid<sid_t>(sid_t& sid , sid_t sid1) {
     sid = sid1;
+}
+
+template <>
+inline void set_snb<struct snb_t>(struct snb_t& snb, struct snb_t snb1)
+{
+    snb = snb1;
 }
 
 template<>
@@ -277,6 +303,12 @@ template<>
 inline sid_t get_sid<sid_t>(sid_t sid)
 {
     return sid;
+}
+
+template<>
+inline snb_t get_snb<snb_t>(snb_t snb)
+{
+    return snb;
 }
 
 template <>
