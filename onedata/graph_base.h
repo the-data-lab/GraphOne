@@ -29,7 +29,7 @@ class onegraph_t {
     nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
 #endif
  
- private:
+ protected:
     //type id and vertices count together
     tid_t     tid;
     vid_t     max_vcount;
@@ -58,8 +58,8 @@ public:
 
 public:
     onegraph_t(); 
-    void  setup(tid_t tid, vid_t a_max_vcount);
-    void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
+    virtual void  setup(tid_t tid, vid_t a_max_vcount);
+    virtual void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
     void  compress();
     void  handle_write(bool clean = false);
     void  read_vtable();

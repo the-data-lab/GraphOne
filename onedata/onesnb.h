@@ -35,7 +35,7 @@ beg_edge_offset2(vid_t i, vid_t j, vid_t part_count)
 }
 
 template <class T>
-class onesnb_t : onegraph_t<T> {
+class onesnb_t : public onegraph_t<T> {
  private:
      vid_t p;
 
@@ -94,7 +94,7 @@ void onesnb_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
         snb.src = 0;
         snb.dst = 0;
         dst = edges[i].dst_id;
-        set_sid(dst, snb);
+        set_snb(dst, snb);
         this->add_nebr_noatomic(index, dst);
     }
 }

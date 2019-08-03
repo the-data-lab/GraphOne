@@ -1463,3 +1463,70 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
     }
 }
 */
+template<class T>
+void mem_bfs_snb(gview_t<T>* snaph,
+        uint8_t* status, sid_t root)
+{
+    int				level      = 1;
+	int				top_down   = 1;
+	sid_t			frontier   = 0;
+    sid_t           tile_count    = snaph->get_vcount();
+    sid_t           v_count    = _global_vcount;
+    
+    //uint8_t* status = (uint8_t*)calloc(v_count, sizeof(uint8_t));
+    //memset(status, 255, v_count);
+
+	double start1 = mywtime();
+	status[root] = level;
+    
+	do {
+		frontier = 0;
+		double start = mywtime();
+		#pragma omp parallel reduction(+:frontier)
+		{
+            sid_t sid;
+            degree_t nebr_count = 0;
+            degree_t local_degree = 0;
+            degree_t delta_degree = 0;
+            header_t<T> header; 
+            T dst;
+            snb_t snb;
+
+            #pragma omp for nowait
+            for (vid_t v = 0; v < tile_count; v++) {
+                nebr_count = snaph->start_out(v, header);
+                if (0 == nebr_count) continue;
+                for (degree_t i = 0; i < nebr_count; ++i) {
+                    snaph->next(header, dst);
+                    snb = get_snb(dst);
+                    if (status[snb.src] == level && status[snb.dst] == 0) {
+                        status[sid] = level + 1;
+                        ++frontier;
+                        //cout << " " << sid << endl;
+                    }
+                }
+            }
+        }
+        
+		double end = mywtime();
+	
+		cout << " Level = " << level
+             << " Frontier Count = " << frontier
+		     << " Time = " << end - start
+		     << endl;
+
+		++level;
+	} while (frontier);
+		
+    double end1 = mywtime();
+    cout << "BFS Time = " << end1 - start1 << endl;
+
+    for (int l = 1; l < level; ++l) {
+        vid_t vid_count = 0;
+        #pragma omp parallel for reduction (+:vid_count) 
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (status[v] == l) ++vid_count;
+        }
+        cout << " Level = " << l << " count = " << vid_count << endl;
+    }
+}

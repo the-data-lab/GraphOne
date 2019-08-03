@@ -2,7 +2,7 @@
 #include <algorithm>
 #include "mem_pool.h"
 #include "out_going.h"
-#include "snb.h"
+#include "onesnb.h"
 
 using std::min;
 
