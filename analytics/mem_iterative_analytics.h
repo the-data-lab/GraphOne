@@ -58,7 +58,7 @@ mem_hop1(gview_t<T>* snaph)
                 local_degree = delta_adjlist->get_nebrcount();
                 degree_t i_count = min(local_degree, delta_degree);
                 for (degree_t i = 0; i < i_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     sum += sid;
                 }
                 delta_adjlist = delta_adjlist->get_next();
@@ -426,7 +426,7 @@ void mem_hop2(gview_t<T>* snaph)
             local_degree = delta_adjlist->get_nebrcount();
             degree_t i_count = min(local_degree, delta_degree);
             for (degree_t i = 0; i < i_count; ++i) {
-                sid = get_nebr(local_adjlist, i);
+                sid = get_sid(local_adjlist[i]);
                 vlist[d] = sid;
                 ++d;
             }
@@ -494,7 +494,7 @@ void mem_hop2(gview_t<T>* snaph)
                 local_degree = delta_adjlist->get_nebrcount();
                 degree_t i_count = min(local_degree, delta_degree);
                 for (degree_t i = 0; i < i_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     sum += sid;
                 }
                 delta_adjlist = delta_adjlist->get_next();
@@ -576,7 +576,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
                     snaph->get_nebrs_out(v, local_adjlist);
 
                     for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         if (status[sid] == 0) {
                             status[sid] = level + 1;
                             ++frontier;
@@ -603,7 +603,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 
                     //traverse the delta adj list
                     for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         if (status[sid] == level) {
                             status[v] = level + 1;
                             ++frontier;
@@ -709,7 +709,7 @@ void mem_bfs(gview_t<T>* snaph,
                         local_degree = delta_adjlist->get_nebrcount();
                         degree_t i_count = min(local_degree, delta_degree);
                         for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
+                            sid = get_sid(local_adjlist[i]);
                             if (status[sid] == 0) {
                                 status[sid] = level + 1;
                                 ++frontier;
@@ -739,7 +739,7 @@ void mem_bfs(gview_t<T>* snaph,
                         local_degree = delta_adjlist->get_nebrcount();
                         degree_t i_count = min(local_degree, delta_degree);
                         for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
+                            sid = get_sid(local_adjlist[i]);
                             if (status[sid] == level) {
                                 status[v] = level + 1;
                                 ++frontier;
@@ -888,7 +888,7 @@ void mem_pagerank_push(gview_t<T>* snaph, int iteration_count)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         qthread_dincr(rank_array + sid, rank);
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -1015,7 +1015,7 @@ void mem_pagerank(gview_t<T>* snaph, int iteration_count)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -1144,7 +1144,7 @@ void mem_pagerank_simple(gview_t<T>* snaph, int iteration_count)
                 snaph->get_nebrs_in(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     rank += prior_rank_array[sid];
                 }
                 //rank_array[v] = rank;
@@ -1260,7 +1260,7 @@ mem_pagerank_epsilon(gview_t<T>* snaph, double epsilon)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();

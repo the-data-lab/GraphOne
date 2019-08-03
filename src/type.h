@@ -221,15 +221,32 @@ typedef edgeT_t<lite_edge_t> ledge_t;
 inline sid_t get_dst(edge_t* edge) {
     return edge->dst_id;
 }
+inline sid_t get_dst(edgeT_t<snb_t>* edge) {
+    assert(0);
+    return 0;//edge->dst_id;
+}
 inline void set_dst(edge_t* edge, sid_t dst_id) {
     edge->dst_id = dst_id;
+}
+inline void set_dst(edgeT_t<snb_t>* edge, snb_t dst_id) {
+    edge->dst_id = dst_id;
+}
+inline void set_dst(edgeT_t<snb_t>* edge, sid_t dst_id) {
+    assert(0);
+    //edge->dst_id = dst_id;
 }
 inline void set_weight(edge_t* edge, sid_t dst_id) {
 }
 
+inline void set_weight(edgeT_t<snb_t>* edge, snb_t dst_id) {
+}
 template <class T>
 inline sid_t get_dst(edgeT_t<T>* edge) { 
     return edge->dst_id.first;
+}
+template <class T>
+inline snb_t get_snb(edgeT_t<T>* edge) { 
+    return edge->dst_id.snb;
 }
 template <class T>
 inline void set_dst(edgeT_t<T>* edge, sid_t dst_id) {
@@ -241,19 +258,19 @@ inline void set_weight(edgeT_t<T>* edge, T dst_id) {
 }
 
 ////function on dst_weight_t
-template <class T> sid_t get_sid(T dst);
+template <class T> sid_t get_sid(T& dst);
 template <class T> void set_sid(T& edge, sid_t sid1);
 template <class T> void set_weight(T& edge, T& dst);
-template <class T> sid_t get_nebr(T* adj, vid_t k); 
+//template <class T> sid_t get_nebr(T* adj, vid_t k); 
 
 template <class T>
-inline sid_t get_sid(T dst)
+inline sid_t get_sid(T& dst)
 {
     return dst.first;
 }
 
 template <class T>
-inline snb_t get_snb(T dst)
+inline snb_t get_snb(T& dst)
 {
     return dst.snb;
 }
@@ -275,22 +292,37 @@ inline void set_weight(T& edge, T& dst)
 {
     edge.second = dst.second;
 }
-
+/*
 template <class T>
 inline sid_t get_nebr(T* adj, vid_t k) {
     return adj[k].first;
 }
+*/
 
 //Specialized functions for plain graphs, no weights
-template <>
-inline void set_sid<sid_t>(sid_t& sid , sid_t sid1) {
+//template <>
+inline void set_sid(sid_t& sid , sid_t sid1) {
     sid = sid1;
 }
 
-template <>
-inline void set_snb<struct snb_t>(struct snb_t& snb, struct snb_t snb1)
+//template <>
+inline void set_snb(snb_t& snb, snb_t snb1)
 {
     snb = snb1;
+}
+
+//template <>
+inline void set_snb(sid_t& snb, snb_t snb1)
+{
+    assert(0);
+    //snb = snb1;
+}
+
+//template <>
+inline void set_sid(snb_t& snb, sid_t snb1)
+{
+    assert(0);
+    //snb = snb1;
 }
 
 template<>
@@ -300,21 +332,35 @@ inline void set_weight<sid_t>(sid_t& sid , sid_t& dst)
 }
 
 template<>
-inline sid_t get_sid<sid_t>(sid_t sid)
+inline void set_weight<snb_t>(snb_t& sid , snb_t& dst)
+{
+    return;
+}
+
+template<>
+inline sid_t get_sid<sid_t>(sid_t& sid)
 {
     return sid;
 }
 
 template<>
-inline snb_t get_snb<snb_t>(snb_t snb)
+inline sid_t get_sid<snb_t>(snb_t& sid)
+{
+    assert(0);
+    return 0;
+}
+
+template<>
+inline snb_t get_snb<snb_t>(snb_t& snb)
 {
     return snb;
 }
 
+/*
 template <>
 inline sid_t get_nebr<sid_t>(sid_t* adj, vid_t k) {
     return adj[k];
-}
+}*/
 
 
 class snapshot_t {

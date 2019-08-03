@@ -565,7 +565,7 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
         local_adjlist = delta_adjlist->get_adjlist();
         local_degree  = delta_adjlist->get_nebrcount();
         for (degree_t i = 0; i < local_degree; ++i) {
-            nebr = get_nebr(local_adjlist, i);
+            nebr = get_sid(local_adjlist[i]);
             if (nebr == sid) {
                 return i + degree;
             }

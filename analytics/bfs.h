@@ -120,7 +120,7 @@ void do_stream_bfs1d(gview_t<T>* viewh, uint8_t* status)
             snaph->get_nebrs_out(v, local_adjlist);
 
             for (degree_t i = 0; i < nebr_count; ++i) {
-                sid = get_nebr(local_adjlist, i);
+                sid = get_sid(local_adjlist[i]);
                 if (status[sid] > level + 1) {
                     status[sid] = level + 1;
                     snaph->set_vertex_changed_out(sid);

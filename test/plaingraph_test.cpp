@@ -962,7 +962,7 @@ void gen_kickstarter_files(const string& idir, const string& odir)
         }
         snaph->get_nebrs_out(v, local_adjlist);
         for (degree_t i = 0; i < nebr_count; ++i) {
-            sid = get_nebr(local_adjlist, i);
+            sid = get_sid(local_adjlist[i]);
             sprintf(text,"%u\n", sid);
             fwrite(text, sizeof(char), strlen(text), vtf);
             //cerr << sid << endl;
@@ -1351,6 +1351,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         //plaingrah benchmark testing    
         case 0: 
             test_ingestion<sid_t>(idir, odir);
+            //test_ingestion<snb_t>(idir, odir);
             break;
         case 1:
             test_logging<sid_t>(idir, odir);

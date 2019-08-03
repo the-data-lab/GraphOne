@@ -40,6 +40,29 @@ inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type,
     }
     return eOK;
 }
+template<>
+inline status_t create_MPI_datatype<snb_t>(snb_t* edge, MPI_Datatype& data_type, MPI_Datatype& edge_type)
+{
+    //create contiguous derived data type
+    //int SIZE = 1;
+#ifdef B32
+    data_type = MPI_UINT32_T; 
+    //MPI_Type_contiguous(SIZE, MPI_UINT32_T, &data_type);
+#elif B64
+    data_type = MPI_UINT64_T; 
+    //MPI_Type_contiguous(SIZE, MPI_UINT64_T, &data_type);
+#else
+    assert(0);
+#endif
+    if (MPI_SUCCESS != MPI_Type_contiguous(2, data_type, &edge_type)) {
+        assert(0);
+    }
+
+    if (MPI_SUCCESS != MPI_Type_commit(&edge_type)) {
+        assert(0);
+    }
+    return eOK;
+}
 #endif
 
 //------- LANL 2017 -----
