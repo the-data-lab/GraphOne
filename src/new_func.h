@@ -74,7 +74,7 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
     token = strtok_r(line, ",\n", &line);
     netflow.src_id = g->type_update(token);
     token = strtok_r(line, ",\n", &line);
-    netflow.dst_id.first = g->type_update(token);
+    set_dst(netflow, g->type_update(token));
     
     token = strtok_r(line, ",\n", &line);
     netflow.dst_id.second.protocol = atoi(token);
@@ -105,7 +105,7 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
 }
 
 // Actual parse function, one line at a time
-inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
+inline index_t parse_plaingraph_line(char* line, edgeT_t<dst_id_t>& edge)
 {
     if (line[0] == '%') {
         return eNotValid;
@@ -118,12 +118,12 @@ inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
     token = strtok_r(line, del, &line);
     sscanf(token, "%u", &edge.src_id);
     token = strtok_r(line, del, &line);
-    sscanf(token, "%u", &edge.dst_id);
+    sscanf(token, "%u", &edge.dst_id.sid);
     #else
     token = strtok_r(line, del, &line);
     sscanf(token, "%lu", &edge.src_id);
     token = strtok_r(line, del, &line);
-    sscanf(token, "%lu", &edge.dst_id);
+    sscanf(token, "%lu", &edge.dst_id.sid);
     #endif
 
     return eOK;
@@ -189,14 +189,14 @@ inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const
 //---------------netflow functions done---------
 
 template <>
-inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgraph, index_t count) 
+inline index_t parsebuf_and_insert<dst_id_t>(const char* buf, pgraph_t<dst_id_t>* pgraph, index_t count) 
 {
     
     if (0 == buf) {
         return 0;
     }
     
-    edgeT_t<sid_t> edge;
+    edgeT_t<dst_id_t> edge;
     index_t icount = 0;
     const char* start = 0;
     const char* end = 0;
@@ -223,12 +223,12 @@ inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgra
 }
 
 template <>
-inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string& ofile, pgraph_t<sid_t>* pgraph) 
+inline index_t parsefile_and_insert<dst_id_t>(const string& textfile, const string& ofile, pgraph_t<dst_id_t>* pgraph) 
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
     
-    edgeT_t<sid_t> edge;
+    edgeT_t<dst_id_t> edge;
     index_t icount = 0;
 	char sss[512];
     char* line = sss;

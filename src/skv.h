@@ -120,9 +120,9 @@ class one2many: public pgraph_t<T> {
 };
 
 
-typedef one2many<sid_t> one2many_t;
-typedef many2one<sid_t> many2one_t;
-typedef one2one<sid_t> one2one_t;
+typedef one2many<dst_id_t> one2many_t;
+typedef many2one<dst_id_t> many2one_t;
+typedef one2one<dst_id_t> one2one_t;
 typedef one2many<lite_edge_t> p_one2many_t;
 typedef many2one<lite_edge_t> p_many2one_t;
 typedef one2one<lite_edge_t> p_one2one_t;

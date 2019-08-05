@@ -397,9 +397,9 @@ class unigraph: public pgraph_t<T> {
 };
 
 
-typedef ugraph<sid_t> ugraph_t;
-typedef dgraph<sid_t> dgraph_t;
-typedef unigraph<sid_t> unigraph_t;
+typedef ugraph<dst_id_t> ugraph_t;
+typedef dgraph<dst_id_t> dgraph_t;
+typedef unigraph<dst_id_t> unigraph_t;
 
 typedef ugraph<lite_edge_t> p_ugraph_t;
 typedef dgraph<lite_edge_t> p_dgraph_t;

@@ -30,7 +30,7 @@ void wls_schema()
     
     longname = "proc2parent";
     shortname = "proc2parent";
-    info = new unigraph<sid_t>;
+    info = new unigraph<dst_id_t>;
     g->add_columnfamily(info);
     info->add_column(p_info, longname, shortname);
     info->flag1 = 1;
@@ -89,12 +89,12 @@ inline index_t parse_wls_line(char* line)
         return eNotValid;
     }
     
-    edgeT_t<sid_t> edge;
+    edgeT_t<dst_id_t> edge;
     edgeT_t<wls_dst_t> wls;
     edgeT_t<char*> str_edge;
     edgeT_t<proc_label_t> proc_edge;
     
-    pgraph_t<sid_t>* proc2parent = (pgraph_t<sid_t>*)g->get_sgraph(1);
+    pgraph_t<dst_id_t>* proc2parent = (pgraph_t<dst_id_t>*)g->get_sgraph(1);
     pgraph_t<wls_dst_t>* user2proc = (pgraph_t<wls_dst_t>*)g->get_sgraph(2);
     stringkv_t* vlabel = (stringkv_t*)g->get_sgraph(3);
     numberkv_t<proc_label_t>* proc_label = (numberkv_t<proc_label_t>*)g->get_sgraph(4);
@@ -114,7 +114,7 @@ inline index_t parse_wls_line(char* line)
         proc_id += "@";
         proc_id += log_host + "@";
         proc_id += d["LogonID"].GetString();
-        wls.dst_id.first = g->type_update(proc_id.c_str(), 0);//"process" are type id 0.
+        set_dst(wls, g->type_update(proc_id.c_str(), 0));//"process" are type id 0.
 
         proc_name = d["ProcessName"].GetString();
     } else {
@@ -158,8 +158,8 @@ inline index_t parse_wls_line(char* line)
         proc_id = proc_id + "@";
         proc_id += log_host;
         proc_id += logon_id;
-        edge.dst_id = g->type_update(proc_id.c_str(), 0);//"process" are type id 0.
-        edge.src_id = wls.dst_id.first;
+        set_dst(edge, g->type_update(proc_id.c_str(), 0));//"process" are type id 0.
+        edge.src_id = get_dst(wls);
         
         parent_proc_name = d["ParentProcessName"].GetString();
     } else {
@@ -182,7 +182,7 @@ inline index_t parse_wls_line(char* line)
     proc_label->batch_edge(proc_edge);
 
     //label for parent process 
-    proc_edge.src_id = edge.dst_id;
+    proc_edge.src_id = get_dst(edge);
     proc_edge.dst_id.proc_name = proc_label->copy_str(parent_proc_name.c_str()); 
     proc_edge.dst_id.proc_id = parent_process_id;
     proc_label->batch_edge(proc_edge);

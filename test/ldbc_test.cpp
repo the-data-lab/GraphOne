@@ -546,7 +546,7 @@ void just_get_friends()
 	cout << "Property Id : " << pid << "  " << vid << endl;
 
 	typekv_t* typekv = g->get_typekv();//dynamic_cast<typekv_t*>(g->cf_info[0]);
-	//pgraph_t<sid_t>* fr_graph = (pgraph_t<sid_t>*)g->get_sgraph(pid);
+	//pgraph_t<dst_id_t>* fr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(pid);
 	stringkv_t* fn_graph = (stringkv_t*)g->get_sgraph(vid);
 
 
@@ -705,19 +705,19 @@ void query12()
   	string commenter_str = "comment_hasCreator_person"; pid_t commenter_pid = g->get_pid(commenter_str.c_str());
     string tagcategory_str = "tag_hasType_tagclass"; pid_t tagcategory_pid = g->get_pid(tagcategory_str.c_str());
     
-	pgraph_t<sid_t>* pt_graph = (pgraph_t<sid_t>*)g->get_sgraph(posttag_pid);
-	pgraph_t<sid_t>* pr_graph = (pgraph_t<sid_t>*)g->get_sgraph(postreply_pid);
-	pgraph_t<sid_t>* cc_graph = (pgraph_t<sid_t>*)g->get_sgraph(commenter_pid);
-	pgraph_t<sid_t>* tc_graph = (pgraph_t<sid_t>*)g->get_sgraph(tagcategory_pid);
+	pgraph_t<dst_id_t>* pt_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(posttag_pid);
+	pgraph_t<dst_id_t>* pr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(postreply_pid);
+	pgraph_t<dst_id_t>* cc_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(commenter_pid);
+	pgraph_t<dst_id_t>* tc_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(tagcategory_pid);
 
 	
 	std::set<sid_t> alltag;
 	degree_t tag_count = tc_graph->get_degree_in(tag_id);
 	if(tag_count >0){
-		sid_t* tags = (sid_t*) calloc(sizeof(sid_t), tag_count);
+		dst_id_t* tags = (dst_id_t*) calloc(sizeof(sid_t), tag_count);
 		tc_graph->get_nebrs_in(tag_id, tags);
 		for(degree_t j = 0; j < tag_count; ++j){
-			alltag.insert(tags[j]);
+			alltag.insert(get_sid(tags[j]));
 		}
 	}
 	
@@ -736,22 +736,23 @@ void query12()
 			// For everyone, get all of their comments
 			degree_t comm_count = cc_graph->get_degree_in(neighbor);
 			if(comm_count <= 0){continue;}
-			sid_t* comments = (sid_t*) calloc(sizeof(sid_t), comm_count);
+			dst_id_t* comments = (dst_id_t*) calloc(sizeof(dst_id_t), comm_count);
 			cc_graph->get_nebrs_in(neighbor, comments);
 			for(degree_t j = 0; j < comm_count; ++j){
-				sid_t comment = comments[j];
+				sid_t comment = get_sid(comments[j]);
 				
 				// get post that is reply of a comment; skip the degree
-				sid_t* posts = (sid_t*) calloc(sizeof(sid_t), 1);
+				dst_id_t* posts = (dst_id_t*) calloc(sizeof(dst_id_t), 1);
 				if (0 == pr_graph->get_nebrs_out(comment, posts)) continue;
-				sid_t post = posts[0];
+				sid_t post = get_sid(posts[0]);
 
 				// now get the tag of than posts 
 				degree_t tag_count = pt_graph->get_degree_out(post);
 				if(tag_count <= 0){continue;}
-				sid_t* tags = (sid_t*) calloc(sizeof(sid_t), tag_count);
+				dst_id_t* tags = (dst_id_t*) calloc(sizeof(dst_id_t), tag_count);
+				if (0 == pt_graph->get_nebrs_out(post, tags)) continue;
 				for(degree_t k = 0; k < tag_count; ++k){
-					sid_t tag = tags[k];
+					sid_t tag = get_sid(tags[k]);
 					if(alltag.find(tag) != alltag.end()){
 						no_of_replies += 1;
 						break;
@@ -816,14 +817,14 @@ void query11()
 	// get all organizations from given place
 	std::set<sid_t> org_set;
 	string orgloc = "organisation_isLocatedIn_place"; pid_t orgloc_pid = g->get_pid(orgloc.c_str());
-	pgraph_t<sid_t>* orgloc_graph = (pgraph_t<sid_t>*)g->get_sgraph(orgloc_pid);
+	pgraph_t<dst_id_t>* orgloc_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(orgloc_pid);
 	
 	degree_t org_count = orgloc_graph->get_degree_in(typekv->get_sid(place.c_str()));
 	if (org_count > 0){
-	sid_t* org_list = (sid_t*) calloc(sizeof(sid_t), org_count);
+	dst_id_t* org_list = (dst_id_t*) calloc(sizeof(dst_id_t), org_count);
 	for(degree_t i = 0; i < org_count; ++i){
-		org_set.insert(org_list[i]);
-		cout << org_list[i] << endl;
+		org_set.insert(get_sid(org_list[i]));
+		cout << get_sid(org_list[i]) << endl;
 	}
 	}
 	// now for each person check the organization they are working
@@ -920,16 +921,16 @@ void query10(){
 
 	// interest tag graph
 	string interests = "person_hasInterest_tag"; pid_t interests_pid = g->get_pid(interests.c_str());
-	pgraph_t<sid_t>* interests_graph = (pgraph_t<sid_t>*)g->get_sgraph(interests_pid);
+	pgraph_t<dst_id_t>* interests_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(interests_pid);
 	
 	// get my interests
 	std::vector<sid_t> my_interests;
 	degree_t interest_count = interests_graph->get_degree_out(src_id);
 	if (interest_count <= 0){return;}
-	sid_t* myint = (sid_t*) calloc(sizeof(sid_t), interest_count);
+	dst_id_t* myint = (dst_id_t*) calloc(sizeof(dst_id_t), interest_count);
 	interests_graph->get_nebrs_out(src_id, myint);
 	for (degree_t i = 0; i < interest_count; ++i){
-		my_interests.push_back(myint[i]);
+		my_interests.push_back(get_sid(myint[i]));
 	}
 
 	// get my potential friends interests, score them 
@@ -942,10 +943,10 @@ void query10(){
 		std::vector<sid_t> his_interests;
 		degree_t count = interests_graph->get_degree_out(person_id);
 		if (count <= 0){continue;}
-		sid_t* hisint = (sid_t*) calloc(sizeof(sid_t), count);
+		dst_id_t* hisint = (dst_id_t*) calloc(sizeof(dst_id_t), count);
 		interests_graph->get_nebrs_out(person_id, hisint);
 		for (degree_t i = 0; i < count; ++i){
-			his_interests.push_back(hisint[i]);
+			his_interests.push_back(get_sid(hisint[i]));
 		}
 
 		// intersect with my interests; score = common interests - different interests
@@ -1001,9 +1002,9 @@ void query9(){
 	
 	string mydate = "2012-09-15T23:29:28.681+0000";
 	string post_str = "post_hasCreator_person"; pid_t post_pid = g->get_pid(post_str.c_str());
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
 	string comment_str = "comment_hasCreator_person"; pid_t comment_pid = g->get_pid(comment_str.c_str());
-	pgraph_t<sid_t>* comment_graph = (pgraph_t<sid_t>*)g->get_sgraph(comment_pid);
+	pgraph_t<dst_id_t>* comment_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(comment_pid);
 	// creation date value graph
 	string ctime_str = "creationDate"; pid_t ctime_pid = g->get_pid(ctime_str.c_str());
 	stringkv_t* ctime_graph = (stringkv_t*) g->get_sgraph(ctime_pid);
@@ -1020,10 +1021,10 @@ void query9(){
 		degree_t post_count = post_graph->get_degree_in(person_id);
 		//cout << "Number of posts is " << post_count << endl;
 		if (post_count <= 0){continue;}
-		sid_t* post_list = (sid_t*) calloc(sizeof(sid_t), post_count);
+		dst_id_t* post_list = (dst_id_t*) calloc(sizeof(dst_id_t), post_count);
 		post_graph->get_nebrs_in(person_id, post_list);
 		for (degree_t i = 0; i < post_count; ++i){
-			sid_t post_id = post_list[i];
+			sid_t post_id = get_sid(post_list[i]);
 			string date = ctime_graph->get_value(post_id);
 			//cout << "creation date is " << date << endl;
 			if (date < mydate){
@@ -1036,10 +1037,10 @@ void query9(){
 		degree_t comment_count = comment_graph->get_degree_in(person_id);
 		//cout << "Number of comments is " << comment_count << endl;
 		if (comment_count <= 0){continue;}
-		sid_t* comment_list = (sid_t*) calloc(sizeof(sid_t), comment_count);
+		dst_id_t* comment_list = (dst_id_t*) calloc(sizeof(dst_id_t), comment_count);
 		comment_graph->get_nebrs_in(person_id, comment_list);
 		for (degree_t i = 0; i < comment_count; ++i){
-			sid_t comment_id = comment_list[i];
+			sid_t comment_id = get_sid(comment_list[i]);
 			string date = ctime_graph->get_value(comment_id);
 			//cout << "creation date is " << date << endl;
 			if (date < mydate){
@@ -1076,15 +1077,15 @@ void query8()
 
 	//op graphs
 	string post_str = "post_hasCreator_person"; pid_t post_pid = g->get_pid(post_str.c_str());
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
 	string comment_str = "comment_hasCreator_person"; pid_t comment_pid = g->get_pid(comment_str.c_str());
-	pgraph_t<sid_t>* comment_graph = (pgraph_t<sid_t>*)g->get_sgraph(comment_pid);
+	pgraph_t<dst_id_t>* comment_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(comment_pid);
 	
 	// reply graphs 
 	string postr_str = "comment_replyOf_post"; pid_t postr_pid = g->get_pid(postr_str.c_str());
-	pgraph_t<sid_t>* postr_graph = (pgraph_t<sid_t>*)g->get_sgraph(postr_pid);
+	pgraph_t<dst_id_t>* postr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(postr_pid);
 	string commentr_str = "comment_replyOf_comment"; pid_t commentr_pid = g->get_pid(commentr_str.c_str());
-	pgraph_t<sid_t>* commentr_graph = (pgraph_t<sid_t>*)g->get_sgraph(commentr_pid);
+	pgraph_t<dst_id_t>* commentr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(commentr_pid);
 	
 	// creation date value graph
 	string ctime_str = "creationDate"; pid_t ctime_pid = g->get_pid(ctime_str.c_str());
@@ -1098,21 +1099,21 @@ void query8()
 	degree_t post_count = post_graph->get_degree_in(src_id);
 	//cout << "Number of posts is " << post_count << endl;
 	if (post_count > 0){
-	sid_t* post_list = (sid_t*) calloc(sizeof(sid_t), post_count);
+	dst_id_t* post_list = (dst_id_t*) calloc(sizeof(dst_id_t), post_count);
 	post_graph->get_nebrs_in(src_id, post_list);
 	for (degree_t i = 0; i < post_count; ++i){
-		sid_t post_id = post_list[i];
+		sid_t post_id = get_sid(post_list[i]);
 		// for each post find it's replies, put it in a vector
 		degree_t preply_count = postr_graph->get_degree_in(post_id);
 		if (preply_count <= 0){return;}
-		sid_t* preply_list = (sid_t*) calloc(sizeof(sid_t), preply_count);
+		dst_id_t* preply_list = (dst_id_t*) calloc(sizeof(dst_id_t), preply_count);
 		postr_graph->get_nebrs_in(post_id, preply_list);
 
 		// now register individual replies to vector
 		for (degree_t j = 0; j < preply_count; ++j){
 		//	cout << "Reply of post" << typekv->get_vertex_name(preply_list[j]);
-			string time = ctime_graph->get_value(preply_list[j]);
-			all_replies.push_back(std::make_pair(preply_list[j], time));
+			string time = ctime_graph->get_value(get_sid(preply_list[j]));
+			all_replies.push_back(std::make_pair(get_sid(preply_list[j]), time));
 		}
 	}
 	}
@@ -1120,21 +1121,21 @@ void query8()
 	degree_t comment_count = comment_graph->get_degree_in(src_id);
 	//cout << "Number of comments is " << comment_count << endl;
 	if (comment_count > 0){
-	sid_t* comment_list = (sid_t*) calloc(sizeof(sid_t), comment_count);
+	dst_id_t* comment_list = (dst_id_t*) calloc(sizeof(dst_id_t), comment_count);
 	comment_graph->get_nebrs_in(src_id, comment_list);
 	for(degree_t i = 0; i < comment_count; ++i){
-		sid_t comment_id = comment_list[i];
+		sid_t comment_id = get_sid(comment_list[i]);
 		// for each comment find it's replies, put it in vector
 		degree_t creply_count = commentr_graph->get_degree_in(comment_id);
 		if (creply_count <= 0){continue;}
-		sid_t* creply_list = (sid_t*) calloc(sizeof(sid_t), creply_count);
+		dst_id_t* creply_list = (dst_id_t*) calloc(sizeof(dst_id_t), creply_count);
 		commentr_graph->get_nebrs_in(comment_id, creply_list);
 
 		// now register individual replies to vector
 		for (degree_t j = 0; j < creply_count; ++j){
 		//	cout << "Reply of comment" << typekv->get_vertex_name(creply_list[j]);
-			string time = ctime_graph->get_value(creply_list[j]);
-			all_replies.push_back(std::make_pair(creply_list[j], time));
+			string time = ctime_graph->get_value(get_sid(creply_list[j]));
+			all_replies.push_back(std::make_pair(get_sid(creply_list[j]), time));
 		}
 	}
 	}
@@ -1165,9 +1166,9 @@ void query7()
 
 	//op graphs
 	string post_str = "post_hasCreator_person"; pid_t post_pid = g->get_pid(post_str.c_str());
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
 	string comment_str = "comment_hasCreator_person"; pid_t comment_pid = g->get_pid(comment_str.c_str());
-	pgraph_t<sid_t>* comment_graph = (pgraph_t<sid_t>*)g->get_sgraph(comment_pid);
+	pgraph_t<dst_id_t>* comment_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(comment_pid);
 	
     string clike_str = "person_likes_comment"; pid_t clike_pid = g->get_pid(clike_str.c_str());
     string plike_str = "person_likes_post"; pid_t  plike_pid = g->get_pid(plike_str.c_str());
@@ -1193,11 +1194,11 @@ void query7()
 	// post first
 	degree_t p_count = post_graph->get_degree_in(src_id);
 	if (p_count > 0){
-	sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+	dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 	post_graph->get_nebrs_in(src_id, p_list);
 	// loop through friends, get posts and comments 
 	for(degree_t i = 0; i < p_count; ++i){
-		sid_t post_id = p_list[i];
+		sid_t post_id = get_sid(p_list[i]);
 
 		// get all likers of this post, flag if not from friends
 		degree_t num_likes = plike_graph->get_degree_in(post_id);
@@ -1221,11 +1222,11 @@ void query7()
 	// comment second
 	degree_t c_count = comment_graph->get_degree_in(src_id);
 	if (c_count > 0){
-	sid_t* c_list = (sid_t*) calloc(sizeof(sid_t), c_count);
+	dst_id_t* c_list = (dst_id_t*) calloc(sizeof(dst_id_t), c_count);
 	comment_graph->get_nebrs_in(src_id, c_list);
 	// loop through friends, get posts and comments 
 	for(degree_t i = 0; i < c_count; ++i){
-		sid_t comment_id = c_list[i];
+		sid_t comment_id = get_sid(c_list[i]);
 		
 		// get all likers of this post, flag if not from friends
 		degree_t num_likes = clike_graph->get_degree_in(comment_id);
@@ -1313,38 +1314,38 @@ void query6()
 	// now list all the posts from these peoples that has tag listed above that contains the tag
 	
 	string post_str = "post_hasCreator_person"; pid_t post_pid = g->get_pid(post_str.c_str());
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
 	string tag_str = "post_hasTag_tag"; pid_t tag_pid = g->get_pid(tag_str.c_str());
-	pgraph_t<sid_t>* tag_graph = (pgraph_t<sid_t>*)g->get_sgraph(tag_pid);
+	pgraph_t<dst_id_t>* tag_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(tag_pid);
 	
 	std::map<sid_t, uint64_t> tagCooccuranceFreq;
 	for(std::vector<sid_t>::iterator f_iter = all_friends.begin(); f_iter != all_friends.end(); ++f_iter){
 		sid_t person_id = *f_iter;
 		degree_t post_count = post_graph->get_degree_in(person_id);
 		if (post_count <= 0){continue;}
-		sid_t* post_list = (sid_t*) calloc(sizeof(sid_t), post_count);
+		dst_id_t* post_list = (dst_id_t*) calloc(sizeof(dst_id_t), post_count);
 		post_graph->get_nebrs_in(person_id, post_list);
 		//cout << "Person: " << typekv->get_vertex_name(person_id) << " Degree: " << post_count << endl;;
 
 		for (degree_t k = 0; k < post_count; ++k){
-			sid_t post_id = post_list[k];
+			sid_t post_id = get_sid(post_list[k]);
 			// look for all the tags in the post, check if original tag is in it
 			degree_t tag_count = tag_graph->get_degree_out(post_id);
 			if (tag_count <= 0){continue;}
-			sid_t* tag_list = (sid_t*) calloc(sizeof(sid_t), tag_count);
+			dst_id_t* tag_list = (dst_id_t*) calloc(sizeof(dst_id_t), tag_count);
 			tag_graph->get_nebrs_out(post_id, tag_list);
 
 			degree_t j = 0;
 			for (; j < tag_count; ++j){
 				//cout << typekv->get_vertex_name(tag_list[j]) << endl;
-				if(tag_list[j] == tag_id) {break;}
+				if(get_sid(tag_list[j]) == tag_id) {break;}
 			}
 			if (j < tag_count){
 				// this means the tag is in the post so go over and update all values
 				for (degree_t i = 0; i < tag_count; ++i){
-					std::map<sid_t, uint64_t>::iterator m_iter = tagCooccuranceFreq.find(tag_list[i]);
+					std::map<sid_t, uint64_t>::iterator m_iter = tagCooccuranceFreq.find(get_sid(tag_list[i]));
 					if (m_iter == tagCooccuranceFreq.end()){
-						tagCooccuranceFreq[tag_list[i]] = 1;
+						tagCooccuranceFreq[get_sid(tag_list[i])] = 1;
 					}
 					else{
 						m_iter->second++;	
@@ -1432,10 +1433,10 @@ void query5()
 	cout << "Members sorted out " << endl;
 	// for all forums, list all posts made by your friends
 	string fpost_str = "forum_containerOf_post"; pid_t fpost_pid = g->get_pid(fpost_str.c_str());
-	pgraph_t<sid_t>* fpost_graph = (pgraph_t<sid_t>*)g->get_sgraph(fpost_pid);
+	pgraph_t<dst_id_t>* fpost_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(fpost_pid);
 
 	string ppost_str = "post_hasCreator_person"; pid_t ppost_pid = g->get_pid(ppost_str.c_str());
-	pgraph_t<sid_t>* ppost_graph = (pgraph_t<sid_t>*)g->get_sgraph(ppost_pid);
+	pgraph_t<dst_id_t>* ppost_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(ppost_pid);
 	
 	std::vector<std::pair<sid_t, uint64_t> > forumscore;
 	std::map<sid_t, std::vector<sid_t> >::iterator fm_iter = friendsinforum.begin();
@@ -1447,10 +1448,10 @@ void query5()
 		std::vector<sid_t> post_vec1;
 		degree_t f_post_count = fpost_graph->get_degree_out(forum_id);
 		if(f_post_count <= 0){continue;}
-		sid_t* f_post_list = (sid_t*) calloc(sizeof(sid_t), f_post_count);
+		dst_id_t* f_post_list = (dst_id_t*) calloc(sizeof(dst_id_t), f_post_count);
 		fpost_graph->get_nebrs_out(forum_id, f_post_list);
 		for(int i = 0; i < f_post_count; ++i){
-			post_vec1.push_back(f_post_list[i]);
+			post_vec1.push_back(get_sid(f_post_list[i]));
 		}
 
 		// now list all the posts from friends in that forum
@@ -1459,10 +1460,10 @@ void query5()
 			sid_t person_id = *v_iter;
 			degree_t p_post_count = ppost_graph->get_degree_in(person_id);
 			if(p_post_count <= 0){continue;}
-			sid_t* p_post_list = (sid_t*) calloc(sizeof(sid_t), p_post_count);
+			dst_id_t* p_post_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_post_count);
 			ppost_graph->get_nebrs_in(person_id, p_post_list);
 			for(int i = 0; i < p_post_count; ++i){
-				post_vec2.push_back(f_post_list[i]);
+				post_vec2.push_back(get_sid(f_post_list[i]));
 			}
 		}
 
@@ -1494,8 +1495,8 @@ void query4()
 	string posts = "post_hasCreator_person"; pid_t post_pid = g->get_pid(posts.c_str());
 	string tag = "post_hasTag_tag"; pid_t tag_pid = g->get_pid(tag.c_str());
 	
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
-	pgraph_t<sid_t>* tag_graph = (pgraph_t<sid_t>*)g->get_sgraph(tag_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* tag_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(tag_pid);
 	pgraph_t<lite_edge_t>* fr_graph = (pgraph_t<lite_edge_t>*)g->get_sgraph(fr_pid);
 	typekv_t* typekv = dynamic_cast<typekv_t*>(g->cf_info[0]);
 	sid_t src_id = typekv->get_sid(src.c_str());
@@ -1512,10 +1513,10 @@ void query4()
 		// get all of his posts
 		degree_t p_count = post_graph->get_degree_in(neighbor);
 		if (p_count > 0){
-			sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+			dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 			post_graph->get_nebrs_in(neighbor, p_list);
 			for(degree_t j = 0; j < p_count; ++j){
-				sid_t post_id = p_list[j];
+				sid_t post_id = get_sid(p_list[j]);
 				all_posts.push_back(post_id);
 			}
 		}
@@ -1527,10 +1528,10 @@ void query4()
 		sid_t post_id = *p_iter;
 		degree_t tag_count = tag_graph->get_degree_out(post_id);
 		if(tag_count == 0) continue;
-		sid_t* tag_list = (sid_t*) calloc(sizeof(sid_t), tag_count);
+		dst_id_t* tag_list = (dst_id_t*) calloc(sizeof(dst_id_t), tag_count);
 		tag_graph->get_nebrs_out(post_id, tag_list);
 		for(degree_t i = 0; i < tag_count; ++i){
-			sid_t tag_id = tag_list[i];
+			sid_t tag_id = get_sid(tag_list[i]);
 			m_iter = tagFrequency.find(tag_id);
 			if (m_iter != tagFrequency.end()){
 				m_iter->second++;
@@ -1572,10 +1573,10 @@ void query3()
     string p_place = "post_isLocatedIn_place"; pid_t pp_pid = g->get_pid(p_place.c_str());
     string c_place = "comment_isLocatedIn_place"; pid_t cp_pid = g->get_pid(c_place.c_str());
 	
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
-	pgraph_t<sid_t>* comment_graph = (pgraph_t<sid_t>*)g->get_sgraph(comment_pid);
-	pgraph_t<sid_t>* pplace_graph = (pgraph_t<sid_t>*)g->get_sgraph(pp_pid);
-	pgraph_t<sid_t>* cplace_graph = (pgraph_t<sid_t>*)g->get_sgraph(cp_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* comment_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(comment_pid);
+	pgraph_t<dst_id_t>* pplace_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(pp_pid);
+	pgraph_t<dst_id_t>* cplace_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(cp_pid);
 	stringkv_t* date_graph = (stringkv_t*)g->get_sgraph(date_pid);
 	
 	// get friends and friend of friends 
@@ -1592,38 +1593,38 @@ void query3()
 	
 	degree_t p_count = pplace_graph->get_degree_in(countryX);
 	if (p_count > 0){
-		sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+		dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 		pplace_graph->get_nebrs_in(countryX, p_list);
 		// loop through friends, get posts and comments 
 		for(degree_t i = 0; i < p_count; ++i){
-			fromX.insert(p_list[i]);
+			fromX.insert(get_sid(p_list[i]));
 		}
 	}
 	degree_t c_count = cplace_graph->get_degree_in(countryX);
 	if (c_count > 0){
-		sid_t* c_list = (sid_t*) calloc(sizeof(sid_t), c_count);
+		dst_id_t* c_list = (dst_id_t*) calloc(sizeof(dst_id_t), c_count);
 		cplace_graph->get_nebrs_in(countryX, c_list);
 		// loop through friends, get posts and comments 
 		for(degree_t i = 0; i < c_count; ++i){
-			fromX.insert(c_list[i]);
+			fromX.insert(get_sid(c_list[i]));
 		}
 	}
 	p_count = pplace_graph->get_degree_in(countryY);
 	if (p_count > 0){
-		sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+		dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 		pplace_graph->get_nebrs_in(countryY, p_list);
 		// loop through friends, get posts and comments 
 		for(degree_t i = 0; i < p_count; ++i){
-			fromY.insert(p_list[i]);
+			fromY.insert(get_sid(p_list[i]));
 		}
 	}
 	c_count = cplace_graph->get_degree_in(countryY);
 	if (c_count > 0){
-		sid_t* c_list = (sid_t*) calloc(sizeof(sid_t), c_count);
+		dst_id_t* c_list = (dst_id_t*) calloc(sizeof(dst_id_t), c_count);
 		cplace_graph->get_nebrs_in(countryY, c_list);
 		// loop through friends, get posts and comments 
 		for(degree_t i = 0; i < c_count; ++i){
-			fromY.insert(c_list[i]);
+			fromY.insert(get_sid(c_list[i]));
 		}
 	}
 
@@ -1678,10 +1679,10 @@ void query3()
 		// Posts
 		degree_t p_count = post_graph->get_degree_in(neighbor);
 		if (p_count > 0){
-			sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+			dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 			post_graph->get_nebrs_in(neighbor, p_list);
 			for(degree_t j = 0; j < p_count; ++j){
-				sid_t post = p_list[j];
+				sid_t post = get_sid(p_list[j]);
 				if (fromX.find(post) != fromX.end()){isfromX = true;}
 				if (fromY.find(post) != fromY.end()){isfromY = true;}
 			}
@@ -1690,10 +1691,10 @@ void query3()
 		//comments
 		degree_t c_count = comment_graph->get_degree_in(neighbor);
 		if (c_count>0){
-			sid_t* c_list = (sid_t*) calloc(sizeof(sid_t), c_count);
+			dst_id_t* c_list = (dst_id_t*) calloc(sizeof(dst_id_t), c_count);
 			comment_graph->get_nebrs_in(neighbor, c_list);
 			for(degree_t j = 0; j < c_count; ++j){
-				sid_t comment = c_list[j];
+				sid_t comment = get_sid(c_list[j]);
 				if (fromX.find(comment) != fromX.end()){isfromX = true;}
 				if (fromY.find(comment) != fromY.end()){isfromY = true;}
 			}
@@ -1728,15 +1729,15 @@ void query2()
 	string posts = "post_hasCreator_person"; pid_t post_pid = g->get_pid(posts.c_str());
 	string comments = "comment_hasCreator_person"; pid_t comment_pid = g->get_pid(comments.c_str());
 	string date = "creationDate"; pid_t date_pid = g->get_pid(date.c_str());
-	pgraph_t<sid_t>* post_graph = (pgraph_t<sid_t>*)g->get_sgraph(post_pid);
-	pgraph_t<sid_t>* comment_graph = (pgraph_t<sid_t>*)g->get_sgraph(comment_pid);
+	pgraph_t<dst_id_t>* post_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(post_pid);
+	pgraph_t<dst_id_t>* comment_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(comment_pid);
 	stringkv_t* date_graph = (stringkv_t*)g->get_sgraph(date_pid);
 	
 	// get friends 
 	typekv_t* typekv = dynamic_cast<typekv_t*>(g->cf_info[0]);
 	sid_t src_id = typekv->get_sid(src.c_str());
 	pid_t pid = g->get_pid(pred.c_str());
-	//pgraph_t<sid_t>* fr_graph = (pgraph_t<sid_t>*)g->get_sgraph(pid);
+	//pgraph_t<dst_id_t>* fr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(pid);
 	pgraph_t<lite_edge_t>* fr_graph = (pgraph_t<lite_edge_t>*)g->get_sgraph(pid);
 		
 	// get friends
@@ -1756,11 +1757,11 @@ void query2()
 		degree_t p_count = post_graph->get_degree_in(neighbor);
 		std::vector<string> temp;
 		if (p_count > 0){
-			sid_t* p_list = (sid_t*) calloc(sizeof(sid_t), p_count);
+			dst_id_t* p_list = (dst_id_t*) calloc(sizeof(dst_id_t), p_count);
 			post_graph->get_nebrs_in(neighbor, p_list);
 			for(degree_t j = 0; j < p_count; ++j){
 				temp.clear();
-				sid_t post = p_list[j];
+				sid_t post = get_sid(p_list[j]);
 				string creationdate = date_graph->get_value(post);
 				if(creationdate > mydate){continue;}
 				//cout << typekv->get_vertex_name(post) <<"\t"<< creationdate << endl;
@@ -1774,11 +1775,11 @@ void query2()
 		//comments
 		degree_t c_count = comment_graph->get_degree_in(neighbor);
 		if (c_count>0){
-			sid_t* c_list = (sid_t*) calloc(sizeof(sid_t), c_count);
+			dst_id_t* c_list = (dst_id_t*) calloc(sizeof(dst_id_t), c_count);
 			comment_graph->get_nebrs_in(neighbor, c_list);
 			for(degree_t j = 0; j < c_count; ++j){
 				temp.clear();
-				sid_t comment = c_list[j];
+				sid_t comment = get_sid(c_list[j]);
 				string creationdate = date_graph->get_value(comment);
 				if (creationdate > mydate){continue;}
 				//cout << typekv->get_vertex_name(comment) <<"\t"<< creationdate << endl;
@@ -1827,7 +1828,7 @@ void query1()
 
 	typekv_t* typekv = dynamic_cast<typekv_t*>(g->cf_info[0]);
 	pid_t pid = g->get_pid(pred.c_str());
-	//pgraph_t<sid_t>* fr_graph = (pgraph_t<sid_t>*)g->get_sgraph(pid);
+	//pgraph_t<dst_id_t>* fr_graph = (pgraph_t<dst_id_t>*)g->get_sgraph(pid);
 	pgraph_t<lite_edge_t>* fr_graph = (pgraph_t<lite_edge_t>*)g->get_sgraph(pid);
 
 

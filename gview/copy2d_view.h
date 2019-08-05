@@ -90,14 +90,14 @@ status_t copy2d_server_t<T>::update_view()
     part2d_t* part;
     for (index_t e = 0; e < edge_count; ++e) {
         edge = edges[e];
-        src = get_sid(edge.src_id);
+        src = edge.src_id;
         dst = get_sid(edge.dst_id);
         i = src/local_vcount;
         j = dst/local_vcount;
         
         part = _part + i*part_count + j;
-        set_sid(edge.dst_id, dst - part->dst_offset);
-        set_sid(edge.src_id, src - part->v_offset);
+        set_dst(edge, dst - part->dst_offset);
+        edge.src_id = src - part->v_offset;
         if (part->position + sizeof(edge) > part->buf_size) {
             send_buf_one(part, 2);
         }
@@ -107,8 +107,8 @@ status_t copy2d_server_t<T>::update_view()
         
         if (pgraph->sgraph_in == pgraph->sgraph_out) {//XXX
             part = _part + j*part_count + i;
-            set_sid(edge.dst_id, src - part->dst_offset);
-            set_sid(edge.src_id, dst - part->v_offset);
+            set_dst(edge, src - part->dst_offset);
+            edge.src_id = dst - part->v_offset;
             if (part->position + sizeof(edge) > part->buf_size) {
                 send_buf_one(part, 2);
             }

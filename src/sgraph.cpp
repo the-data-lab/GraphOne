@@ -4,7 +4,7 @@
 
 //Applicable to graphs only, labels should be aware of it.
 template <>
-status_t pgraph_t<sid_t>::batch_update(const string& src, const string& dst, propid_t pid /* = 0 */)
+status_t pgraph_t<dst_id_t>::batch_update(const string& src, const string& dst, propid_t pid /* = 0 */)
 {
     edge_t  edge;
 
@@ -12,8 +12,8 @@ status_t pgraph_t<sid_t>::batch_update(const string& src, const string& dst, pro
     tid_t type_id = TO_TID(edge.src_id);
     flag1 |= TID_TO_SFLAG(type_id);
     
-    edge.dst_id = g->get_sid(dst.c_str());
-    type_id = TO_TID(edge.dst_id);
+    set_dst(edge, g->get_sid(dst.c_str()));
+    type_id = TO_TID(get_dst(edge));
     flag2 |= TID_TO_SFLAG(type_id);
 
     return batch_edge(edge);
@@ -27,8 +27,8 @@ status_t pgraph_t<lite_edge_t>::batch_update(const string& src, const string& ds
     tid_t type_id = TO_TID(edge.src_id);
     flag1 |= TID_TO_SFLAG(type_id);
     
-    edge.dst_id.first = g->get_sid(dst.c_str());
-    type_id = TO_TID(edge.dst_id.first);
+    set_dst(edge, g->get_sid(dst.c_str()));
+    type_id = TO_TID(get_dst(edge));
     flag2 |= TID_TO_SFLAG(type_id);
     
     prop_encoder->encode(property_str, edge.dst_id.second, this);

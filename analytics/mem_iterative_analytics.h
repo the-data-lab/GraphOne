@@ -447,7 +447,7 @@ void mem_hop2(gview_t<T>* snaph)
             #pragma omp for schedule(static) nowait 
             for (index_t i = 0; i < marker; ++i) {
                 src = edges[i].src_id;
-                dst = edges[i].dst_id;
+                dst = get_dst(edges[i]);
                 if (src == v) {
                     d1 = __sync_fetch_and_add(&query[q].d, 1);
                     vlist[d1] = dst;
@@ -509,7 +509,7 @@ void mem_hop2(gview_t<T>* snaph)
         #pragma omp for reduction(+:sum1) schedule(static) nowait
         for (index_t i = 0; i < marker; ++i) {
             src = edges[i].src_id;
-            dst = edges[i].dst_id;
+            dst = get_dst(edges[i]);
             for (degree_t j = 0; j < d; ++j) {
                 v = vlist[j];
                 if (src == v) {

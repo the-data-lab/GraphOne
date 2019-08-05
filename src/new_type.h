@@ -18,7 +18,7 @@ inline status_t free_MPI_datatype(MPI_Datatype& data_type, MPI_Datatype& edge_ty
 }
 
 template<>
-inline status_t create_MPI_datatype<sid_t>(sid_t* edge, MPI_Datatype& data_type, MPI_Datatype& edge_type)
+inline status_t create_MPI_datatype<dst_id_t>(dst_id_t* edge, MPI_Datatype& data_type, MPI_Datatype& edge_type)
 {
     //create contiguous derived data type
     //int SIZE = 1;

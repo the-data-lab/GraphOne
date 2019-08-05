@@ -92,14 +92,14 @@ struct estimate_t {
 template <class T>
 void estimate_chain(const string& idirname, const string& odirname)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
     
     propid_t          cf_id = g->get_cfid("friend");
-    pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
-    blog_t<sid_t>*     blog = ugraph->blog;
+    pgraph_t<dst_id_t>* ugraph = (pgraph_t<dst_id_t>*)g->cf_info[cf_id];
+    blog_t<dst_id_t>*     blog = ugraph->blog;
     
     blog->blog_head  += read_idir<T>(idirname, &blog->blog_beg, false);
     
@@ -128,7 +128,7 @@ void estimate_chain(const string& idirname, const string& odirname)
         //do batching
         for (index_t j = i; j < last; ++j) {
             src = edge[j].src_id;
-            dst = edge[j].dst_id;
+            dst = get_dst(edge[j]);
             est[src].degree++;
             est[dst].degree++;
         }
@@ -181,14 +181,14 @@ void estimate_chain(const string& idirname, const string& odirname)
 template <class T>
 void estimate_chain_new(const string& idirname, const string& odirname)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
 
     propid_t          cf_id = g->get_cfid("friend");
-    pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
-    blog_t<sid_t>*     blog = ugraph->blog;
+    pgraph_t<dst_id_t>* ugraph = (pgraph_t<dst_id_t>*)g->cf_info[cf_id];
+    blog_t<dst_id_t>*     blog = ugraph->blog;
     
     blog->blog_head  += read_idir<T>(idirname, &blog->blog_beg, false);
     
@@ -216,7 +216,7 @@ void estimate_chain_new(const string& idirname, const string& odirname)
         //do batching
         for (index_t j = i; j < last; ++j) {
             src = edge[j].src_id;
-            dst = edge[j].dst_id;
+            dst = get_dst(edge[j]);
             est[src].degree++;
             est[dst].degree++;
         }
@@ -301,14 +301,14 @@ void estimate_chain_new(const string& idirname, const string& odirname)
 template <class T>
 void estimate_IO(const string& idirname, const string& odirname)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
     
     propid_t          cf_id = g->get_cfid("friend");
-    pgraph_t<sid_t>* ugraph = (pgraph_t<sid_t>*)g->cf_info[cf_id];
-    blog_t<sid_t>*     blog = ugraph->blog;
+    pgraph_t<dst_id_t>* ugraph = (pgraph_t<dst_id_t>*)g->cf_info[cf_id];
+    blog_t<dst_id_t>*     blog = ugraph->blog;
     
     blog->blog_head  += read_idir<T>(idirname, &blog->blog_beg, false);
     
@@ -348,7 +348,7 @@ void estimate_IO(const string& idirname, const string& odirname)
         //do batching
         for (index_t j = i; j < last; ++j) {
             src = edge[j].src_id;
-            dst = edge[j].dst_id;
+            dst = get_dst(edge[j]);
             est[src].degree++;
             est[dst].degree++;
         }
@@ -575,7 +575,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     lite_edge_t* nebrs = (lite_edge_t*)malloc(ne*sizeof(lite_edge_t));
 
     for (int64_t i = 0; i < ne; i++) {
-        nebrs[i].first = index[i];
+        set_sid(nebrs[i], index[i]);
         nebrs[i].second.value = weight[i];  
     }
 
@@ -673,14 +673,14 @@ void weighted_dtest0(const string& idir, const string& odir)
     for (int64_t i = 0; i < na; i++) {
         src = edges[i].src_id;
         edge.dst_id.second.value = 1;
-        dst = edges[i].dst_id;
+        dst = get_dst(edges[i]);
         if (src >= 0) {
             edge.src_id = src;
-            edge.dst_id.first = dst;
+            set_dst(edge, dst);
             graph->batch_edge(edge);
         } else {
             edge.src_id = DEL_SID(-src);
-            edge.dst_id.first = DEL_SID(-dst);
+            set_dst(edge, DEL_SID(-dst));
             graph->batch_edge(edge);
             ++del_count;
         }
@@ -825,18 +825,18 @@ void plain_test6(const string& odir)
     //call mem_bfs
     propid_t cf_id = g->get_cfid("friend");
     ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
-    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
+    vert_table_t<dst_id_t>* graph = ugraph->sgraph[0]->get_begpos();
     index_t edge_count = (_global_vcount << 5);
     uint8_t* level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
     
-    snap_bfs<sid_t>(graph, graph, _global_vcount, edge_count, level_array, 1, 1);
+    snap_bfs<dst_id_t>(graph, graph, _global_vcount, edge_count, level_array, 1, 1);
     return ;
 }
 */
 
 void paper_test_chain_bfs(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -848,7 +848,7 @@ void paper_test_chain_bfs(const string& idir, const string& odir)
 }
 void paper_test_pr_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -861,7 +861,7 @@ void paper_test_pr_chain(const string& idir, const string& odir)
 
 void paper_test_pr(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -872,7 +872,7 @@ void paper_test_pr(const string& idir, const string& odir)
 
 void paper_test_hop1_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -883,7 +883,7 @@ void paper_test_hop1_chain(const string& idir, const string& odir)
 
 void paper_test_hop1(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -894,7 +894,7 @@ void paper_test_hop1(const string& idir, const string& odir)
 
 void paper_test_hop2_chain(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -905,7 +905,7 @@ void paper_test_hop2_chain(const string& idir, const string& odir)
 
 void paper_test_hop2(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> plaingraph_manager; 
+    plaingraph_manager_t<dst_id_t> plaingraph_manager; 
     plaingraph_manager.schema(_dir);
     //do some setup for plain graphs
     plaingraph_manager.setup_graph(_global_vcount);    
@@ -1107,20 +1107,20 @@ void stream_netflow_aggregation(const string& idir, const string& odir)
 
 void test_stream_wcc(const string& idir, const string& odir)
 {
-    plaingraph_manager_t<sid_t> manager; 
+    plaingraph_manager_t<dst_id_t> manager; 
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(_global_vcount);    
-    pgraph_t<sid_t>* pgraph = manager.get_plaingraph();
+    pgraph_t<dst_id_t>* pgraph = manager.get_plaingraph();
     
     /*
-    stream_t<sid_t>* streamh = reg_stream_view(pgraph, stream_wcc, E_CENTRIC);
+    stream_t<dst_id_t>* streamh = reg_stream_view(pgraph, stream_wcc, E_CENTRIC);
     wcc_post_reg(streamh); 
     manager.prep_graph_and_compute(idir, odir, streamh); 
     print_wcc_summary(streamh);
     */
     
-    stream_t<sid_t>* streamh = reg_stream_view(pgraph, do_stream_wcc, E_CENTRIC|C_THREAD);
+    stream_t<dst_id_t>* streamh = reg_stream_view(pgraph, do_stream_wcc, E_CENTRIC|C_THREAD);
     manager.prep_graph_edgelog(idir, odir);
     void* ret;
     pthread_join(streamh->thread, &ret);
@@ -1350,30 +1350,30 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
     switch (job) {
         //plaingrah benchmark testing    
         case 0: 
-            test_ingestion<sid_t>(idir, odir);
+            test_ingestion<dst_id_t>(idir, odir);
             //test_ingestion<snb_t>(idir, odir);
             break;
         case 1:
-            test_logging<sid_t>(idir, odir);
+            test_logging<dst_id_t>(idir, odir);
             break;
         case 2: 
-            test_archive<sid_t>(idir, odir);
+            test_archive<dst_id_t>(idir, odir);
             break;
         case 3://leave some in the edge format
-            test_mix<sid_t>(idir, odir);
+            test_mix<dst_id_t>(idir, odir);
             break;
         case 4://recover from durable edge log
-            recover_test0<sid_t>(idir, odir);
+            recover_test0<dst_id_t>(idir, odir);
             break;
         case 5:
-            recover_test<sid_t>(odir);
+            recover_test<dst_id_t>(odir);
             break;
         case 6:
-            prior_snap_test<sid_t>(odir);
+            prior_snap_test<dst_id_t>(odir);
             break;
         //plain graph in text format with ID. 
         case 9: //Not for performance
-            ingestion<sid_t>(idir, odir);
+            ingestion<dst_id_t>(idir, odir);
             break;
 
         //netflow graph testing
@@ -1422,26 +1422,26 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             split_files<weight_sid_t>(idir, odir);
             break;
         case 26://generate kickstarter files
-            gen_kickstarter_files<sid_t>(idir, odir);
+            gen_kickstarter_files<dst_id_t>(idir, odir);
             break;
         case 27://text to binary file not for performance
             //ingestion_full<netflow_dst_t>(idir, odir, parsefile_to_bin);
             break;
         
         case 30:
-            serial_scopy2d_bfs<sid_t>(idir, odir, scopy2d_client, scopy2d_server);
+            serial_scopy2d_bfs<dst_id_t>(idir, odir, scopy2d_client, scopy2d_server);
             break;
         case 31:
-            serial_scopy1d_bfs<sid_t>(idir, odir, scopy1d_client, scopy1d_server);
+            serial_scopy1d_bfs<dst_id_t>(idir, odir, scopy1d_client, scopy1d_server);
             break;
         case 32:
-            serial_scopy_bfs<sid_t>(idir, odir, scopy_client, scopy_server);
+            serial_scopy_bfs<dst_id_t>(idir, odir, scopy_client, scopy_server);
             break;
         case 33:
-            multi_stream_bfs<sid_t>(idir, odir, stream_bfs, residue);
+            multi_stream_bfs<dst_id_t>(idir, odir, stream_bfs, residue);
             break;
         case 34:
-            test_serial_stream<sid_t>(idir, odir, stream_serial_bfs);
+            test_serial_stream<dst_id_t>(idir, odir, stream_serial_bfs);
             break;
         case 35:
             stream_netflow_aggregation(idir, odir);
@@ -1451,7 +1451,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
 
         case 40://edge centric
-            serial_copy2d_bfs<sid_t>(idir, odir, copy2d_client, copy2d_server);
+            serial_copy2d_bfs<dst_id_t>(idir, odir, copy2d_client, copy2d_server);
             break;
         
         case 50:
@@ -1476,13 +1476,13 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             paper_test_hop2_chain(idir, odir);
             break;
         case 57:
-            estimate_chain_new<sid_t>(idir, odir);
+            estimate_chain_new<dst_id_t>(idir, odir);
             break; 
         case 58:
-            estimate_chain<sid_t>(idir, odir);
+            estimate_chain<dst_id_t>(idir, odir);
             break; 
         case 59:
-            estimate_IO<sid_t>(idir, odir);
+            estimate_IO<dst_id_t>(idir, odir);
             break; 
         default:
             break;
