@@ -286,40 +286,16 @@ inline void set_sid(T& edge, sid_t sid1)
     edge.first.sid = sid1;
 }
 
-template <class T>
-inline void set_snb(T& edge, snb_t snb1)
-{
-    edge.first.snb = snb1;
-}
-
-//template<dst_id_t>
-inline void set_weight(dst_id_t& sid , sid_t& dst)
-{
-    return;
-}
-
-//template<>
-inline void set_weight(dst_id_t& sid , dst_id_t& dst)
-{
-    return;
-}
-
-template <class T>
-inline void set_weight(T& edge, T& dst)
-{
-    edge.second = dst.second;
-}
-/*
-template <class T>
-inline sid_t get_nebr(T* adj, vid_t k) {
-    return adj[k].first;
-}
-*/
-
 //Specialized functions for plain graphs, no weights
 template <>
 inline void set_sid<dst_id_t>(dst_id_t& sid , sid_t sid1) {
     sid.sid = sid1;
+}
+
+template <class T>
+inline void set_snb(T& edge, snb_t snb1)
+{
+    edge.first.snb = snb1;
 }
 
 template <>
@@ -338,6 +314,24 @@ template<>
 inline snb_t get_snb<dst_id_t>(dst_id_t& snb)
 {
     return snb.snb;
+}
+
+//template<dst_id_t>
+inline void set_weight(dst_id_t& sid , sid_t& dst)
+{
+    return;
+}
+
+//template<>
+inline void set_weight(dst_id_t& sid , dst_id_t& dst)
+{
+    return;
+}
+
+template <class T>
+inline void set_weight(T& edge, T& dst)
+{
+    edge.second = dst.second;
 }
 
 /*

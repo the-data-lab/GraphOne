@@ -1464,19 +1464,21 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
 }
 */
 template<class T>
-void mem_bfs_snb(gview_t<T>* snaph,
+void mem_bfs_snb(gview_t<T>* viewh,
         uint8_t* status, sid_t root)
 {
-    int				level      = 1;
-	int				top_down   = 1;
-	sid_t			frontier   = 0;
-    sid_t           tile_count    = snaph->get_vcount();
-    sid_t           v_count    = _global_vcount;
+    snap_t<T>* snaph = (snap_t<T>*)viewh;
+	int		   top_down   = 1;
+	sid_t	   frontier   = 0;
+    sid_t      tile_count = snaph->get_vcount();
+    sid_t      v_count    = _global_vcount;
+    vid_t              p  = 1;//snaph->graph_out->p;
     
     //uint8_t* status = (uint8_t*)calloc(v_count, sizeof(uint8_t));
     //memset(status, 255, v_count);
 
 	double start1 = mywtime();
+    int	  level  = 1;
 	status[root] = level;
     
 	do {
@@ -1490,19 +1492,44 @@ void mem_bfs_snb(gview_t<T>* snaph,
             degree_t delta_degree = 0;
             header_t<T> header; 
             T dst;
+            vid_t index = 0;
             snb_t snb;
+            vid_t offset, src_offset, dst_offset;
 
             #pragma omp for nowait
-            for (vid_t v = 0; v < tile_count; v++) {
-                nebr_count = snaph->start_out(v, header);
-                if (0 == nebr_count) continue;
-                for (degree_t i = 0; i < nebr_count; ++i) {
-                    snaph->next(header, dst);
-                    snb = get_snb(dst);
-                    if (status[snb.src] == level && status[snb.dst] == 0) {
-                        status[sid] = level + 1;
-                        ++frontier;
-                        //cout << " " << sid << endl;
+            for (vid_t i = 0; i < p; ++i) {
+                for (vid_t j = 0; j < p; ++j) {
+                    offset = ((i*p + j) << bit_shift4); 
+                    for (vid_t s_i = 0; s_i < 256; s_i++) {
+                        for (vid_t s_j = 0; s_j < 256; s_j++) {
+                            index = offset + ((s_i << bit_shift3) + s_j);
+                            nebr_count = snaph->start_out(index, header);
+                            if (0 == nebr_count) continue;
+                            src_offset = ((i << bit_shift3) + s_i) << bit_shift4;
+                            dst_offset = ((j << bit_shift3) + s_j) << bit_shift4;
+                            for (degree_t i = 0; i < nebr_count; ++i) {
+                                snaph->next(header, dst);
+                                snb = get_snb(dst);
+                                /*
+                                if ((s_j == 21 && s_i == 0) ||
+                                   (s_i == 21 && s_j == 0)) {
+                                    cout << snb.src + src_offset << ":" 
+                                         << snb.dst + dst_offset << endl;
+                                }*/
+                                if (status[snb.src + src_offset] == level && 
+                                    status[snb.dst + dst_offset] == 0) {
+                                    status[snb.dst + dst_offset] = level + 1;
+                                    ++frontier;
+                                    //cout << " " << snb.dst + dst_offset << endl;
+                                }
+                                if (status[snb.dst + dst_offset] == level && 
+                                    status[snb.src + src_offset] == 0) {
+                                    status[snb.src + src_offset] = level + 1;
+                                    ++frontier;
+                                    //cout << " " << snb.src + src_offset << endl;
+                                }
+                            }
+                        }
                     }
                 }
             }
