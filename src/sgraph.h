@@ -42,9 +42,8 @@ class pgraph_t: public cfinfo_t {
     inline pgraph_t(): cfinfo_t(egraph){ 
         sgraph = 0;
         sgraph_in = 0;
-        
+        edge_shard = 0;
         blog = new blog_t<T>;
-        edge_shard = new edge_shard_t<T>(blog);
 #ifdef _MPI
         T* type = 0;
         create_MPI_datatype(type, data_type, edge_type);
@@ -116,19 +115,14 @@ class pgraph_t: public cfinfo_t {
     void fill_adj_list(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in);
     void fill_adj_list_in(onekv_t<T>** skv_out, onegraph_t<T>** sgraph_in); 
     void fill_adj_list_out(onegraph_t<T>** sgraph_out, onekv_t<T>** skv_in); 
-#else
-    /*
-    void calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    virtual void fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    */
 #endif    
     void fill_skv_in(onekv_t<T>** skv, global_range_t<T>* global_range, vid_t j_start, vid_t j_end);
     void fill_skv(onekv_t<T>** skv_out, onekv_t<T>** skv_in);
   
     //compress the graph
     void compress_sgraph(onegraph_t<T>** sgraph);
+
+ public:
     void archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end); 
 
  public:

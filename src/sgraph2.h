@@ -37,31 +37,11 @@ void pgraph_t<T>::make_graph_uni()
     if (blog->blog_tail >= blog->blog_marker) return;
     
     #pragma omp parallel num_threads (THD_COUNT) 
-    {
-#ifndef BULK
-        edge_shard->classify_uni();
-
-        //Now get the division of work
-        vid_t     j_start;
-        vid_t     j_end;
-        vid_t tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
-        }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        //actual work
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        #pragma omp barrier 
-        edge_shard->cleanup();
-#endif
-    }
+    edge_shard->classify_uni(this);
 
     blog->blog_tail = blog->blog_marker;  
 }
+
 template <class T>
 void pgraph_t<T>::make_graph_d() 
 {
@@ -70,32 +50,8 @@ void pgraph_t<T>::make_graph_d()
     #pragma omp parallel num_threads (THD_COUNT) 
     {
 #ifndef BULK
-        edge_shard->classify_d();
+        edge_shard->classify_d(this);
         
-        //Now get the division of work
-        vid_t     j_start, j_start_in;
-        vid_t     j_end, j_end_in;
-        int tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
-        }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        if (tid == THD_COUNT - 1) j_start_in = 0;
-        else {
-            j_start_in = edge_shard->thd_local_in[THD_COUNT - 2 - tid].range_end;
-        }
-        j_end_in = edge_shard->thd_local_in[THD_COUNT - 1 - tid].range_end;
-
-        //actual work
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        this->archive_sgraph(sgraph_in, edge_shard->global_range_in, j_start_in, j_end_in);
-        #pragma omp barrier 
-        edge_shard->cleanup();
-
 #else
         this->calc_edge_count(sgraph_out, sgraph_in);
         prep_sgraph_internal(sgraph_out);
@@ -116,28 +72,12 @@ void pgraph_t<T>::make_graph_u()
     #pragma omp parallel num_threads(THD_COUNT)
     {
 #ifndef BULK
-        edge_shard->classify_u();
-        //Now get the division of work
-        vid_t     j_start;
-        vid_t     j_end;
-        int tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
+        if (edge_shard) edge_shard->classify_u(this);
+        else {
+            sgraph[0]->archive(blog->blog_beg + blog->blog_tail, 
+                        blog->blog_marker - blog->blog_tail, snap_id + 1);
         }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        #pragma omp barrier 
-        edge_shard->cleanup();
-        
-        //sgraph[0]->archive(blog->blog_beg + blog->blog_tail, 
-        //                   blog->blog_marker - blog->blog_tail, snap_id + 1);
-
 #else
-        
         this->calc_edge_count(sgraph, sgraph);
         prep_sgraph_internal(sgraph);
         this->fill_adj_list(sgraph, sgraph);
@@ -153,6 +93,9 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph, egraph_t
 {
     sflag_t flag = ori_flag;
     vid_t   max_vcount;
+    if (egraph_type == eADJ) {
+        edge_shard = new edge_shard_t<T>(blog);
+    }
     
     if (flag == 0) {
         flag1_count = g->get_total_types();

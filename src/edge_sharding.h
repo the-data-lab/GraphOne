@@ -83,10 +83,10 @@ class edge_shard_t {
  public:
     ~edge_shard_t();
     edge_shard_t(blog_t<T>* binary_log);
-    void classify_u();
-    void classify_d();
-    void classify_uni();
-    void classify_runi();
+    void classify_u(pgraph_t<T>* pgraph);
+    void classify_d(pgraph_t<T>* pgraph);
+    void classify_uni(pgraph_t<T>* pgraph);
+    void classify_runi(pgraph_t<T>* pgraph);
     void cleanup();
 
  private:
@@ -155,7 +155,7 @@ void edge_shard_t<T>::cleanup()
 }
 
 template <class T>
-void edge_shard_t<T>::classify_u()
+void edge_shard_t<T>::classify_u(pgraph_t<T>* pgraph)
 {
     index_t total_edge_count = blog->blog_marker - blog->blog_tail ;
     index_t edge_count = ((total_edge_count << 1)*1.15)/(THD_COUNT);
@@ -194,10 +194,25 @@ void edge_shard_t<T>::classify_u()
     }
     #pragma omp barrier 
     free(vid_range);
+        
+    //Now get the division of work
+    vid_t     j_start;
+    vid_t     j_end;
+    
+    if (tid == 0) { 
+        j_start = 0; 
+    } else { 
+        j_start = thd_local[tid - 1].range_end;
+    }
+    j_end = thd_local[tid].range_end;
+    
+    pgraph->archive_sgraph(pgraph->sgraph, global_range, j_start, j_end);
+    #pragma omp barrier 
+    cleanup();
 }
 
 template <class T>
-void edge_shard_t<T>::classify_uni()
+void edge_shard_t<T>::classify_uni(pgraph_t<T>* pgraph)
 {
     index_t total_edge_count = blog->blog_marker - blog->blog_tail ;
     index_t edge_count = ((total_edge_count << 1)*1.15)/(THD_COUNT);
@@ -235,10 +250,26 @@ void edge_shard_t<T>::classify_uni()
     }
     #pragma omp barrier 
     free(vid_range);
+    
+    //Now get the division of work
+    vid_t     j_start;
+    vid_t     j_end;
+    
+    if (tid == 0) { 
+        j_start = 0; 
+    } else { 
+        j_start = thd_local[tid - 1].range_end;
+    }
+    j_end = thd_local[tid].range_end;
+    
+    //actual work
+    pgraph->archive_sgraph(pgraph->sgraph, global_range, j_start, j_end);
+    #pragma omp barrier 
+    cleanup();
 }
 
 template <class T>
-void edge_shard_t<T>::classify_runi()
+void edge_shard_t<T>::classify_runi(pgraph_t<T>* pgraph)
 {
     index_t total_edge_count = blog->blog_marker - blog->blog_tail ;
     index_t edge_count = ((total_edge_count << 1)*1.15)/(THD_COUNT);
@@ -279,7 +310,7 @@ void edge_shard_t<T>::classify_runi()
 }
 
 template <class T>
-void edge_shard_t<T>::classify_d()
+void edge_shard_t<T>::classify_d(pgraph_t<T>* pgraph)
 {
     tid_t src_index = TO_TID(blog->blog_beg[0].src_id);
     vid_t v_count = g->get_type_vcount(src_index);
@@ -345,6 +376,28 @@ void edge_shard_t<T>::classify_d()
     free(vid_range);
     free(vid_range_in);
 
+    //Now get the division of work
+    vid_t     j_start, j_start_in;
+    vid_t     j_end, j_end_in;
+    
+    if (tid == 0) { 
+        j_start = 0; 
+    } else { 
+        j_start = thd_local[tid - 1].range_end;
+    }
+    j_end = thd_local[tid].range_end;
+    
+    if (tid == THD_COUNT - 1) j_start_in = 0;
+    else {
+        j_start_in = thd_local_in[THD_COUNT - 2 - tid].range_end;
+    }
+    j_end_in = thd_local_in[THD_COUNT - 1 - tid].range_end;
+
+    //actual work
+    pgraph->archive_sgraph(pgraph->sgraph, global_range, j_start, j_end);
+    pgraph->archive_sgraph(pgraph->sgraph_in, global_range_in, j_start_in, j_end_in);
+    #pragma omp barrier 
+    cleanup();
 }
 
 template <class T>

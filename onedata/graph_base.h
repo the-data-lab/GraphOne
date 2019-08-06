@@ -29,7 +29,7 @@ class onegraph_t {
     nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
 #endif
  
- public:
+ protected:
     //type id and vertices count together
     tid_t     tid;
     vid_t     max_vcount;
