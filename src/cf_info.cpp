@@ -20,6 +20,7 @@ index_t  BLOG_SHIFT = 27;
 //index_t  BLOG_MASK = (BLOG_SIZE - 1);
 
 vid_t RANGE_COUNT = 1024;
+vid_t RANGE_2DSHIFT = 5;
 index_t  SNAP_COUNT  = (3);
 index_t  LOCAL_VUNIT_COUNT = 20;
 index_t  LOCAL_DELTA_SIZE = 28;
@@ -81,6 +82,7 @@ cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
     global_snapmarker = -1L;
     snap_id = 0;
     gtype = type;
+    egtype = eADJ;
     flag1 = 0;
     flag2 = 0;
     flag1_count = 0;

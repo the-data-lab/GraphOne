@@ -22,16 +22,10 @@ typedef uint32_t spart_t;
 #define part_mask1 (-1UL << bit_shift1)
 #define part_mask1_2 ~(part_mask1) 
 
-
-//2*bit_shift3
-#define bit_shift4 16 
-#define part_mask4 (-1UL << bit_shift4)
-#define part_mask4_2 ~(part_mask4)
-
 inline index_t
 beg_edge_offset2(vid_t i, vid_t j, vid_t part_count)
 {
-    return ((i*part_count + j) << bit_shift4);
+    return ((i*part_count + j) << bit_shift2);
 }
 
 template <class T>
@@ -52,7 +46,7 @@ void onesnb_t<T>::setup(tid_t t, vid_t a_max_vcount)
     this->snap_id = 0;
     this->tid = t;
     p = (a_max_vcount >> bit_shift1) + (0 != (a_max_vcount & part_mask1_2));
-    this->max_vcount = (p*p << bit_shift4);
+    this->max_vcount = (p*p << bit_shift2);
     cout << this->max_vcount << endl;
     this->beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), a_max_vcount);
     this->thd_mem = new thd_mem_t<T>; 

@@ -1472,7 +1472,8 @@ void mem_bfs_snb(gview_t<T>* viewh,
 	sid_t	   frontier   = 0;
     sid_t      tile_count = snaph->get_vcount();
     sid_t      v_count    = _global_vcount;
-    vid_t              p  = 1;//snaph->graph_out->p;
+    vid_t      p = (v_count >> bit_shift1) 
+                 + (0 != (v_count & part_mask1_2));
     
     //uint8_t* status = (uint8_t*)calloc(v_count, sizeof(uint8_t));
     //memset(status, 255, v_count);
@@ -1499,14 +1500,14 @@ void mem_bfs_snb(gview_t<T>* viewh,
             #pragma omp for nowait
             for (vid_t i = 0; i < p; ++i) {
                 for (vid_t j = 0; j < p; ++j) {
-                    offset = ((i*p + j) << bit_shift4); 
-                    for (vid_t s_i = 0; s_i < 256; s_i++) {
-                        for (vid_t s_j = 0; s_j < 256; s_j++) {
+                    offset = ((i*p + j) << bit_shift2); 
+                    for (vid_t s_i = 0; s_i < p_p; s_i++) {
+                        for (vid_t s_j = 0; s_j < p_p; s_j++) {
                             index = offset + ((s_i << bit_shift3) + s_j);
                             nebr_count = snaph->start_out(index, header);
                             if (0 == nebr_count) continue;
-                            src_offset = ((i << bit_shift3) + s_i) << bit_shift4;
-                            dst_offset = ((j << bit_shift3) + s_j) << bit_shift4;
+                            src_offset = ((i << bit_shift3) + s_i) << bit_shift2;
+                            dst_offset = ((j << bit_shift3) + s_j) << bit_shift2;
                             for (degree_t i = 0; i < nebr_count; ++i) {
                                 snaph->next(header, dst);
                                 snb = get_snb(dst);

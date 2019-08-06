@@ -3,25 +3,6 @@
 #include "sgraph.h"
 #include "onegraph.h"
 
-template <class T>
-void pgraph_t<T>::archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end) 
-{
-    index_t total = 0;
-    edgeT_t<T>* edges = 0;
-    tid_t src_index;
-    sid_t src;
-    vid_t vert1_id;
-
-    for (vid_t j = j_start; j < j_end; ++j) {
-        total = global_range[j].count;
-        edges = global_range[j].edges;
-        if (total != 0) {
-            src_index = TO_TID(edges[0].src_id);
-            sgraph[src_index]->archive(edges, total, snap_id + 1);
-        }
-    }
-}
-
 inline void print(const char* str, double start_time) 
 {
 	//#pragma omp master
@@ -37,8 +18,10 @@ void pgraph_t<T>::make_graph_uni()
     if (blog->blog_tail >= blog->blog_marker) return;
     
     #pragma omp parallel num_threads (THD_COUNT) 
-    edge_shard->classify_uni(this);
-
+    {
+        if (egtype == eADJ) edge_shard->classify_uni(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
+    }
     blog->blog_tail = blog->blog_marker;  
 }
 
@@ -50,7 +33,8 @@ void pgraph_t<T>::make_graph_d()
     #pragma omp parallel num_threads (THD_COUNT) 
     {
 #ifndef BULK
-        edge_shard->classify_d(this);
+        if (egtype == eADJ) edge_shard->classify_d(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
         
 #else
         this->calc_edge_count(sgraph_out, sgraph_in);
@@ -72,11 +56,8 @@ void pgraph_t<T>::make_graph_u()
     #pragma omp parallel num_threads(THD_COUNT)
     {
 #ifndef BULK
-        if (edge_shard) edge_shard->classify_u(this);
-        else {
-            sgraph[0]->archive(blog->blog_beg + blog->blog_tail, 
-                        blog->blog_marker - blog->blog_tail, snap_id + 1);
-        }
+        if (egtype == eADJ) edge_shard->classify_u(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
 #else
         this->calc_edge_count(sgraph, sgraph);
         prep_sgraph_internal(sgraph);
@@ -93,9 +74,8 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph, egraph_t
 {
     sflag_t flag = ori_flag;
     vid_t   max_vcount;
-    if (egraph_type == eADJ) {
-        edge_shard = new edge_shard_t<T>(blog);
-    }
+    egtype = egraph_type;
+    edge_shard = new edge_shard_t<T>(blog);
     
     if (flag == 0) {
         flag1_count = g->get_total_types();

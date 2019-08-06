@@ -53,6 +53,7 @@ class cfinfo_t {
     index_t     global_snapmarker;
     snapid_t    snap_id;
     gtype_t     gtype;
+    egraph_t    egtype;
     sflag_t     flag1;
     sflag_t     flag2;
     

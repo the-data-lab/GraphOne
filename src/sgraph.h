@@ -123,9 +123,6 @@ class pgraph_t: public cfinfo_t {
     void compress_sgraph(onegraph_t<T>** sgraph);
 
  public:
-    void archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end); 
-
- public:
     //Making Queries easy
     degree_t get_degree_out(sid_t sid);
     degree_t get_degree_in(sid_t sid);
