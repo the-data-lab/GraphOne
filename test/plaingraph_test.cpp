@@ -1079,6 +1079,18 @@ void test_ingestion(const string& idir, const string& odir)
 }
 
 template <class T>
+void test_ingestion_snb(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount, eSNB);    
+    manager.prep_graph2(idir, odir);
+    manager.run_bfs_snb();
+}
+
+template <class T>
 void ingestion(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
@@ -1453,7 +1465,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 40://edge centric
             serial_copy2d_bfs<dst_id_t>(idir, odir, copy2d_client, copy2d_server);
             break;
-        
+        case 41://SNB
+            test_ingestion_snb<dst_id_t>(idir, odir);
+            break;
         case 50:
             paper_test_pr(idir, odir);
             break;

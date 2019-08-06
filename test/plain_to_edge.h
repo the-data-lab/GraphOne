@@ -46,8 +46,8 @@ class plaingraph_manager_t {
   public:
     void split_files(const string& idirname, const string& odirname);
     
-    void setup_graph(vid_t v_count);
-    void setup_graph_vert_nocreate(vid_t v_count);
+    void setup_graph(vid_t v_count, egraph_t egraph_type=eADJ);
+    void setup_graph_vert_nocreate(vid_t v_count, egraph_t egraph_type=eADJ);
     
     void recover_graph_adj(const string& idirname, const string& odirname);
 
@@ -70,6 +70,7 @@ class plaingraph_manager_t {
     void run_pr();
     void run_prd();
     void run_bfs(sid_t root = 1);
+    void run_bfs_snb(sid_t root = 1);
     void run_1hop();
     void run_2hop();
 };
@@ -181,21 +182,21 @@ void plaingraph_manager_t<T>::schema_plaingraphuni()
 }
 
 template <class T>
-void plaingraph_manager_t<T>::setup_graph(vid_t v_count)
+void plaingraph_manager_t<T>::setup_graph(vid_t v_count, egraph_t egraph_type)
 {
     //do some setup for plain graphs
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, true);
-    g->prep_graph_baseline();
+    pgraph->prep_graph_baseline(egraph_type);
 }
 
 template <class T>
-void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count)
+void plaingraph_manager_t<T>::setup_graph_vert_nocreate(vid_t v_count, egraph_t egraph_type)
 {
     //do some setup for plain graphs
     typekv_t* typekv = g->get_typekv();
     typekv->manual_setup(v_count, false);
-    g->prep_graph_baseline();
+    pgraph->prep_graph_baseline(egraph_type);
 }
 
 struct arg_t {
@@ -584,6 +585,27 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     end = mywtime();
     cout << "BFS simple = " << end - start << endl;    
     */
+    delete_static_view(snaph);
+}
+
+template <class T>
+void plaingraph_manager_t<T>::run_bfs_snb(sid_t root/*=1*/)
+{
+    double start, end;
+
+    pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
+    
+    start = mywtime();
+    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
+    end = mywtime();
+    cout << "static View creation = " << end - start << endl;    
+    
+    uint8_t* level_array = 0;
+    level_array = (uint8_t*) calloc(_global_vcount, sizeof(uint8_t));
+    start = mywtime();
+    mem_bfs_snb<T>(snaph, level_array, root);
+    end = mywtime();
+    free(level_array);
     delete_static_view(snaph);
 }
 

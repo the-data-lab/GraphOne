@@ -287,7 +287,7 @@ void cfinfo_t::waitfor_archive()
     return;
 }
 
-void cfinfo_t::prep_graph_baseline()
+void cfinfo_t::prep_graph_baseline(egraph_t egraph_type)
 {   
     return;
 }

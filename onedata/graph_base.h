@@ -29,7 +29,7 @@ class onegraph_t {
     nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
 #endif
  
- protected:
+ public:
     //type id and vertices count together
     tid_t     tid;
     vid_t     max_vcount;
@@ -100,7 +100,7 @@ public:
         return 0;
     }
 
-private:
+protected:
     inline void set_delta_adjlist(vid_t vid, delta_adjlist_t<T>* adj_list) {
         vunit_t<T>* v_unit = get_vunit(vid);
         assert(v_unit);
