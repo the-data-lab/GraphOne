@@ -1463,6 +1463,38 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
     }
 }
 */
+
+template <class T>
+index_t bfs_tile(snap_t<T>* snaph, vid_t index, vid_t i, vid_t j, uint8_t* status, uint8_t level)
+{
+    header_t<T> header; 
+    degree_t nebr_count = snaph->start_out(index, header);
+    if (0 == nebr_count) return 0;
+    
+    index_t frontier;
+    T dst;
+    snb_t snb;
+    vid_t src_offset = (i << bit_shift2);
+    vid_t dst_offset = (j << bit_shift2);
+    for (degree_t e = 0; e < nebr_count; ++e) {
+        snaph->next(header, dst);
+        snb = get_snb(dst);
+        if (status[snb.src + src_offset] == level && 
+            status[snb.dst + dst_offset] == 0) {
+            status[snb.dst + dst_offset] = level + 1;
+            ++frontier;
+            //cout << " " << snb.dst + dst_offset << endl;
+        }
+        if (status[snb.dst + dst_offset] == level && 
+            status[snb.src + src_offset] == 0) {
+            status[snb.src + src_offset] = level + 1;
+            ++frontier;
+            //cout << " " << snb.src + src_offset << endl;
+        }
+    }
+    return frontier;
+}
+
 template<class T>
 void mem_bfs_snb(gview_t<T>* viewh,
         uint8_t* status, sid_t root)
@@ -1487,15 +1519,10 @@ void mem_bfs_snb(gview_t<T>* viewh,
 		double start = mywtime();
 		#pragma omp parallel reduction(+:frontier)
 		{
-            sid_t sid;
             degree_t nebr_count = 0;
-            degree_t local_degree = 0;
-            degree_t delta_degree = 0;
             header_t<T> header; 
             T dst;
-            vid_t index = 0;
-            snb_t snb;
-            vid_t offset, src_offset, dst_offset;
+            vid_t index = 0, m, n, offset;
 
             #pragma omp for nowait
             for (vid_t i = 0; i < p; ++i) {
@@ -1504,32 +1531,9 @@ void mem_bfs_snb(gview_t<T>* viewh,
                     for (vid_t s_i = 0; s_i < p_p; s_i++) {
                         for (vid_t s_j = 0; s_j < p_p; s_j++) {
                             index = offset + ((s_i << bit_shift3) + s_j);
-                            nebr_count = snaph->start_out(index, header);
-                            if (0 == nebr_count) continue;
-                            src_offset = ((i << bit_shift3) + s_i) << bit_shift2;
-                            dst_offset = ((j << bit_shift3) + s_j) << bit_shift2;
-                            for (degree_t i = 0; i < nebr_count; ++i) {
-                                snaph->next(header, dst);
-                                snb = get_snb(dst);
-                                /*
-                                if ((s_j == 21 && s_i == 0) ||
-                                   (s_i == 21 && s_j == 0)) {
-                                    cout << snb.src + src_offset << ":" 
-                                         << snb.dst + dst_offset << endl;
-                                }*/
-                                if (status[snb.src + src_offset] == level && 
-                                    status[snb.dst + dst_offset] == 0) {
-                                    status[snb.dst + dst_offset] = level + 1;
-                                    ++frontier;
-                                    //cout << " " << snb.dst + dst_offset << endl;
-                                }
-                                if (status[snb.dst + dst_offset] == level && 
-                                    status[snb.src + src_offset] == 0) {
-                                    status[snb.src + src_offset] = level + 1;
-                                    ++frontier;
-                                    //cout << " " << snb.src + src_offset << endl;
-                                }
-                            }
+                            m = ((i << bit_shift3) + s_i);
+                            n = ((j << bit_shift3) + s_j); 
+                            frontier += bfs_tile(snaph, index, m, n, status, level); 
                         }
                     }
                 }
