@@ -1238,14 +1238,72 @@ void serial_copy2d_bfs(const string& idir, const string& odir,
         vid_t local_vcount = _global_vcount/_part_count;
         manager.setup_graph(local_vcount);
         g->create_threads(true, false);
-        //create scopy_client
+        
         copy2d_client_t<T>* clienth = reg_copy2d_client(pgraph, stream_fn, 
                                                 STALE_MASK|V_CENTRIC);
         
+        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_bfs2d, 
+                                    STALE_MASK|V_CENTRIC|C_THREAD);
         stream_fn(clienth);
+        void* ret;
+        pthread_join(sstreamh->thread, &ret);
     }
 #endif
+}
+            
+template <class T>
+void snb_copy2d_bfs(const string& idir, const string& odir, 
+                              typename callback<T>::sfunc stream_fn, 
+                              typename callback<T>::sfunc copy_fn)
+{
+    //int i = 0 ; while (i < 100000) { usleep(100); ++i;}
+    plaingraph_manager_t<T> manager;
+#ifdef _MPI
+    assert(_part_count*_part_count + 1 == _numtasks);
+    vid_t rem = _global_vcount%_part_count;
+    _global_vcount = rem? _global_vcount + _part_count - rem :_global_vcount;
+    //cout << "global " <<  _global_vcount << endl; 
 
+    // extract the original group handle
+    create_analytics_comm();
+    create_2d_comm();
+    if (_rank == 0) {
+        manager.schema(_dir);
+        pgraph_t<T>* pgraph = manager.get_plaingraph();
+        //do some setup for plain graphs
+        manager.setup_graph(_global_vcount, eSNB);    
+        
+        //create scopy_server
+        copy2d_server_t<T>* copyh = reg_copy2d_server(pgraph, copy_fn, 
+                                            STALE_MASK|V_CENTRIC|C_THREAD);
+        manager.prep_graph_edgelog(idir, odir);
+        void* ret;
+        pthread_join(copyh->thread, &ret);
+
+    } else {
+        if (_dir == 0) {
+            manager.schema(2);
+            _edge_count += _edge_count;
+        } else {
+            manager.schema(_dir);
+        }
+        pgraph_t<T>* pgraph = manager.get_plaingraph();
+
+        //do some setup for plain graphs
+        vid_t local_vcount = _global_vcount/_part_count;
+        manager.setup_graph(local_vcount, eSNB);
+        g->create_threads(true, false);
+        
+        copy2d_client_t<T>* clienth = reg_copy2d_client(pgraph, stream_fn, 
+                                                STALE_MASK|V_CENTRIC);
+        
+        //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_bfs2d_snb, 
+        //                            STALE_MASK|V_CENTRIC|C_THREAD);
+        stream_fn(clienth);
+        //void* ret;
+        //pthread_join(sstreamh->thread, &ret);
+    }
+#endif
 }
 
 template <class T>
@@ -1468,6 +1526,10 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 41://SNB
             test_ingestion_snb<dst_id_t>(idir, odir);
             break;
+        case 42://edge centric
+            snb_copy2d_bfs<dst_id_t>(idir, odir, copy2d_client, copy2d_server);
+            break;
+        
         case 50:
             paper_test_pr(idir, odir);
             break;

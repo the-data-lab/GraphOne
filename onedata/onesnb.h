@@ -47,7 +47,6 @@ void onesnb_t<T>::setup(tid_t t, vid_t a_max_vcount)
     this->tid = t;
     p = (a_max_vcount >> bit_shift1) + (0 != (a_max_vcount & part_mask1_2));
     this->max_vcount = (p*p << bit_shift2);
-    cout << this->max_vcount << endl;
     this->beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), a_max_vcount);
     this->thd_mem = new thd_mem_t<T>; 
 }
