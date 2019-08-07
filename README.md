@@ -110,13 +110,13 @@ You can generate such a graph file using https://github.com/pradeep-k/gConv/tree
 
 `Example 2 (MPI version, In progress):`
 ```
-   mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2
-   mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -d 1
-   mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -s 1
-   mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -r8 -t8 -p2 -s 1 -d 1
+   mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -t8 -p2
+   mpirun -np 5 ./graphone32 -i kron_21_16/text_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -t8 -p2 -d 1
+   mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -t8 -p2 -s 1
+   mpirun -np 5 ./graphone32 -i kron_21_16/edge_file/ -o ./db_dir/ -j 30 -v 2097152 -e 33554432 -t8 -p2 -s 1 -d 1
 ```
 
-This will create 2x2 2-D partition, while the master rank (0) will handle the data ingestion from source (text file here). It will keep executing streaming bfs for 8 (-r8) incremental time.  This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
+This will create 2x2 2-D partition, while the master rank (0) will handle the data ingestion from source (text file here). It will keep executing streaming bfs for many incremental time.  This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
 
 `Example 3 (No Benchmarking):`
    `./graphone32 -i lanl_2017/text_file/ -o ./db_dir/ -j 16 -v 162315`
