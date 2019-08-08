@@ -94,6 +94,8 @@ int main(int argc, char* argv[])
     //Thread thing
 	THD_COUNT = omp_get_max_threads()-1;// - 3;
 
+    //int i = 0;
+    //while (i < 100000) { usleep(10); ++i; }
     g = new graph; 
 	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:d:p:s:h", longopts, &index)) != -1) {
 		switch(o) {

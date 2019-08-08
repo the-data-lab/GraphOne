@@ -18,6 +18,7 @@ void copy2d_client(gview_t<T>* viewh)
         }
         ++update_count;
     }
+    pgraph->waitfor_archive();
     _edge_count = pgraph->global_snapmarker; 
 }
 

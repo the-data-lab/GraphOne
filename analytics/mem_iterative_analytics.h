@@ -9,6 +9,7 @@ using std::min;
 typedef float rank_t; 
 extern float qthread_dincr(float* sum, float value);
 extern double qthread_doubleincr(double *operand, double incr);
+void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count);
 
 template<class T>
 void
@@ -655,15 +656,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+    print_bfs_summary(status, level, v_count);
 }
 
 template<class T>
@@ -797,15 +790,7 @@ void mem_bfs(gview_t<T>* snaph,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+    print_bfs_summary(status, level, v_count);
 }
 
 template<class T>
@@ -1452,42 +1437,62 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+    print_bfs_summary(status, level, v_count);
 }
 */
 
 template <class T>
-index_t bfs_tile(snap_t<T>* snaph, vid_t index, vid_t i, vid_t j, uint8_t* status, uint8_t level)
+index_t bfs_tile(snap_t<T>* snaph, vid_t index, uint8_t* lstatus, uint8_t* rstatus, uint8_t level)
 {
     header_t<T> header; 
     degree_t nebr_count = snaph->start_out(index, header);
     if (0 == nebr_count) return 0;
     
-    index_t frontier;
+    index_t frontier = 0;
     T dst;
     snb_t snb;
-    vid_t src_offset = (i << bit_shift2);
-    vid_t dst_offset = (j << bit_shift2);
     for (degree_t e = 0; e < nebr_count; ++e) {
         snaph->next(header, dst);
         snb = get_snb(dst);
-        if (status[snb.src + src_offset] == level && 
-            status[snb.dst + dst_offset] == 0) {
-            status[snb.dst + dst_offset] = level + 1;
+        if (lstatus[snb.src] == level && 
+            rstatus[snb.dst] == 0) {
+            rstatus[snb.dst] = level + 1;
             ++frontier;
             //cout << " " << snb.dst + dst_offset << endl;
         }
-        if (status[snb.dst + dst_offset] == level && 
-            status[snb.src + src_offset] == 0) {
-            status[snb.src + src_offset] = level + 1;
+        if (rstatus[snb.dst] == level && 
+            lstatus[snb.src] == 0) {
+            lstatus[snb.src] = level + 1;
+            ++frontier;
+            //cout << " " << snb.src + src_offset << endl;
+        }
+    }
+    return frontier;
+}
+
+template <class T>
+index_t bfs_async_tile(snap_t<T>* snaph, vid_t index, uint8_t* lstatus, uint8_t* rstatus, uint8_t level)
+{
+    header_t<T> header; 
+    degree_t nebr_count = snaph->start_out(index, header);
+    if (0 == nebr_count) return 0;
+    
+    index_t frontier = 0;
+    T dst;
+    snb_t snb;
+    uint8_t llevel = 0, rlevel = 0;
+    for (degree_t e = 0; e < nebr_count; ++e) {
+        snaph->next(header, dst);
+        snb = get_snb(dst);
+        if (lstatus[snb.src] == level && 
+            rstatus[snb.dst] > level+1) {
+            rstatus[snb.dst] = level + 1;
+            ++frontier;
+            //cout << " " << snb.dst + dst_offset << endl;
+        }
+        if (rstatus[snb.dst] == level && 
+            lstatus[snb.src] > level + 1) {
+            lstatus[snb.src] = level + 1;
             ++frontier;
             //cout << " " << snb.src + src_offset << endl;
         }
@@ -1531,9 +1536,9 @@ void mem_bfs_snb(gview_t<T>* viewh,
                     for (vid_t s_i = 0; s_i < p_p; s_i++) {
                         for (vid_t s_j = 0; s_j < p_p; s_j++) {
                             index = offset + ((s_i << bit_shift3) + s_j);
-                            m = ((i << bit_shift3) + s_i);
-                            n = ((j << bit_shift3) + s_j); 
-                            frontier += bfs_tile(snaph, index, m, n, status, level); 
+                            m = ((i << bit_shift3) + s_i) << bit_shift2;
+                            n = ((j << bit_shift3) + s_j) << bit_shift2; 
+                            frontier += bfs_tile(snaph, index, status+m, status+n, level); 
                         }
                     }
                 }
@@ -1542,22 +1547,22 @@ void mem_bfs_snb(gview_t<T>* viewh,
         
 		double end = mywtime();
 	
-		cout << " Level = " << level
-             << " Frontier Count = " << frontier
-		     << " Time = " << end - start
-		     << endl;
-
 		++level;
 	} while (frontier);
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
+    print_bfs_summary(status, level, v_count);
+}
 
+void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count)
+{
     for (int l = 1; l < level; ++l) {
         vid_t vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) {
             if (status[v] == l) ++vid_count;
+            //if (status[v] == l && l == 3) cout << v << endl;
         }
         cout << " Level = " << l << " count = " << vid_count << endl;
     }

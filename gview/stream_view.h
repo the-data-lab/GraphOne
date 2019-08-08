@@ -49,6 +49,10 @@ status_t stream_t<T>::update_view()
 {
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
+    edgeT_t<T>* edge = blog->blog_beg + marker  - 1;
+    if (marker > 0 && edge->src_id == get_dst(edge)) {
+        --marker;
+    }
    
     if (marker > snap_marker) {
         //XXX need to copy it

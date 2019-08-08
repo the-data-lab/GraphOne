@@ -7,6 +7,9 @@ void stream_bfs1d(gview_t<T>* viewh);
 template<class T>
 void stream_bfs2d(gview_t<T>* viewh);
 
+template<class T>
+void stream_bfs2d_snb(gview_t<T>* viewh);
+
 index_t bfs2d_finalize(Bitmap* bitmap2, uint8_t* lstatus, uint8_t* rstatus,
                      index_t frontier, vid_t v_count)
 {
@@ -49,6 +52,7 @@ void print_bfs2d_summary(gview_t<T>* viewh, uint8_t* status)
 {
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
     vid_t v_count = sstreamh->get_vcount();
+    v_count = _global_vcount/_part_count;
     
     for (int l = 0; l < 10; ++l) {
         uint64_t vid_count = 0;
@@ -183,6 +187,101 @@ void do_stream_bfs2d(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitm
 }
 
 template<class T>
+void do_snb_bfs2d(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitmap* bitmap2)
+{
+    index_t  frontier = 0;
+    sstream_t<T>* snaph = dynamic_cast<sstream_t<T>*>(viewh);
+    vid_t v_count = snaph->get_vcount();
+    v_count = _global_vcount/_part_count;
+    vid_t      p = (v_count >> bit_shift1) 
+                 + (0 != (v_count & part_mask1_2));
+    uint8_t level = 0;
+    
+    do {
+        frontier = 0;
+        #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
+        {
+        sid_t sid;
+        vid_t vid;
+        degree_t nebr_count = 0;
+        vid_t index = 0, m, n, offset;
+        header_t<T> header; 
+        T dst;
+        #pragma omp for nowait
+        for (vid_t i = 0; i < p; ++i) {
+            for (vid_t j = 0; j < p; ++j) {
+                offset = ((i*p + j) << bit_shift2); 
+                for (vid_t s_i = 0; s_i < p_p; s_i++) {
+                    for (vid_t s_j = 0; s_j < p_p; s_j++) {
+                        index = offset + ((s_i << bit_shift3) + s_j);
+                        m = ((i << bit_shift3) + s_i) << bit_shift2;
+                        n = ((j << bit_shift3) + s_j) << bit_shift2; 
+                        frontier += bfs_async_tile(snaph, index, lstatus+m, rstatus+n, level); 
+                    }
+                }
+            }
+        }
+        }
+        //Finalize the iteration
+        frontier = bfs2d_finalize(bitmap2, lstatus, rstatus, frontier, v_count);
+        ++level;
+    } while (frontier);
+}
+
+template<class T>
+void snb_bfs2d(gview_t<T>* viewh)
+{
+    sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
+    pgraph_t<T>* pgraph  = sstreamh->pgraph;
+    vid_t v_count = sstreamh->get_vcount();
+    v_count = _global_vcount/_part_count;
+    
+    sid_t    root   = 1;
+    Bitmap bitmap(v_count);
+    int update_count = 0;
+    
+    int row_id = (_analytics_rank)/_part_count;
+    int col_id = (_analytics_rank)%_part_count;
+    vid_t v_offset = row_id*(v_count);
+    vid_t dst_offset = col_id*(v_count);
+    
+    uint8_t* lstatus = (uint8_t*)malloc(v_count*sizeof(uint8_t));
+    memset(lstatus, 255, v_count);
+    uint8_t* rstatus = lstatus;
+    
+    if (root >= v_offset && root < v_offset + v_count) {
+        lstatus[root - v_offset] = 0;
+    }
+
+    if (_row_rank != _col_rank) {
+        rstatus = (uint8_t*)malloc(v_count*sizeof(uint8_t));
+        memset(rstatus, 255, v_count);
+        if (root >= dst_offset && root < dst_offset + v_count) {
+            rstatus[root - dst_offset] = 0;
+        }
+    }
+
+    double start = mywtime();
+    double end = 0;
+    
+    while (sstreamh->get_snapmarker() < _edge_count) {
+        //update the sstream view
+        if (eOK != sstreamh->update_view()) {
+            usleep(100);
+            continue;
+        }
+        ++update_count;
+	    //do_snb_bfs2d(sstreamh, lstatus, rstatus, &bitmap);
+    } 
+    
+    end = mywtime();
+	do_snb_bfs2d(sstreamh, lstatus, rstatus, &bitmap);
+    print_bfs2d_summary(sstreamh, lstatus); 
+    if(_row_rank == 0 && _col_rank == 0)
+    cout << "BFS Batches = " << update_count << " Time = " << end - start << endl;
+}
+
+template<class T>
 void stream_bfs2d(gview_t<T>* viewh)
 {
     sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
@@ -195,8 +294,8 @@ void stream_bfs2d(gview_t<T>* viewh)
     
     int row_id = (_analytics_rank)/_part_count;
     int col_id = (_analytics_rank)%_part_count;
-    vid_t v_offset = row_id*(_global_vcount/_part_count);
-    vid_t dst_offset = col_id*(_global_vcount/_part_count);
+    vid_t v_offset = row_id*(v_count);
+    vid_t dst_offset = col_id*(v_count);
     
     uint8_t* lstatus = (uint8_t*)malloc(v_count*sizeof(uint8_t));
     memset(lstatus, 255, v_count);

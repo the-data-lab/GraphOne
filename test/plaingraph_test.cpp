@@ -1297,11 +1297,11 @@ void snb_copy2d_bfs(const string& idir, const string& odir,
         copy2d_client_t<T>* clienth = reg_copy2d_client(pgraph, stream_fn, 
                                                 STALE_MASK|V_CENTRIC);
         
-        //sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_bfs2d_snb, 
-        //                            STALE_MASK|V_CENTRIC|C_THREAD);
+        sstream_t<T>* sstreamh = reg_sstream_view(pgraph, snb_bfs2d, 
+                                    STALE_MASK|V_CENTRIC|C_THREAD);
         stream_fn(clienth);
-        //void* ret;
-        //pthread_join(sstreamh->thread, &ret);
+        void* ret;
+        pthread_join(sstreamh->thread, &ret);
     }
 #endif
 }
