@@ -40,5 +40,5 @@ void copy2d_server(gview_t<T>* viewh)
         }
         ++update_count;
     }
-    //cout << " RANK" << _rank << " update_count = " << update_count << endl;
+    cout << " RANK:" << _rank << " update_count = " << update_count << endl;
 }

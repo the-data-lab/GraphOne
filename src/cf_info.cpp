@@ -19,8 +19,8 @@ index_t  BLOG_SHIFT = 27;
 //index_t  BLOG_SIZE = (1L << BLOG_SHIFT); //size of edge log
 //index_t  BLOG_MASK = (BLOG_SIZE - 1);
 
-vid_t RANGE_COUNT = 1024;
-vid_t RANGE_2DSHIFT = 5;
+vid_t RANGE_COUNT = 256;
+vid_t RANGE_2DSHIFT = 4;
 index_t  SNAP_COUNT  = (3);
 index_t  LOCAL_VUNIT_COUNT = 20;
 index_t  LOCAL_DELTA_SIZE = 28;

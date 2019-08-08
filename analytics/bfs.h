@@ -36,6 +36,28 @@ index_t bfs2d_finalize(Bitmap* bitmap2, uint8_t* lstatus, uint8_t* rstatus,
     return frontier;
 }
 
+index_t snb_bfs2d_finalize(Bitmap* bitmap2, uint8_t* lstatus, uint8_t* rstatus,
+                     index_t frontier, vid_t v_count)
+{
+    int col_root = _row_rank;
+    int row_root = _col_rank;
+    
+    //rank should be root
+    if (_col_rank == col_root) {
+        MPI_Reduce(MPI_IN_PLACE, rstatus, v_count, MPI_UINT8_T, MPI_MIN, col_root, _col_comm);
+        MPI_Reduce(MPI_IN_PLACE, lstatus, v_count, MPI_UINT8_T, MPI_MIN, row_root, _row_comm);
+    } else {
+        MPI_Reduce(rstatus, rstatus, v_count, MPI_UINT8_T, MPI_MIN, col_root, _col_comm);
+        MPI_Reduce(lstatus, lstatus, v_count, MPI_UINT8_T, MPI_MIN, row_root, _row_comm);
+    }
+
+    MPI_Bcast(lstatus, v_count, MPI_UINT8_T, row_root, _row_comm);
+    MPI_Bcast(rstatus, v_count, MPI_UINT8_T, col_root, _col_comm);
+    
+    MPI_Allreduce(MPI_IN_PLACE, &frontier, 1, MPI_UINT64_T, MPI_SUM, _analytics_comm);
+    return frontier;
+}
+
 index_t bfs1d_finalize(Bitmap* bitmap, uint8_t* status, index_t& frontier, vid_t v_count)
 {
     //Finalize the iteration
@@ -223,7 +245,7 @@ void do_snb_bfs2d(gview_t<T>* viewh, uint8_t* lstatus, uint8_t* rstatus, Bitmap*
         }
         }
         //Finalize the iteration
-        frontier = bfs2d_finalize(bitmap2, lstatus, rstatus, frontier, v_count);
+        frontier = snb_bfs2d_finalize(bitmap2, lstatus, rstatus, frontier, v_count);
         ++level;
     } while (frontier);
 }
