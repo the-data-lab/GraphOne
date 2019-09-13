@@ -56,13 +56,14 @@ Discription will be updated later.
 If need to install intel tbb on your machine. Then, Just run following command to build GraphOne:
 
   `mkdir build`
+  `cd build`
   `cmake ../`
   `make`
   
   
-  It will produce two executables: graphone32 and graphone64 using -O3 flag. Otherwise, remove -DTBB and -ltbb from the command line flags from CMakeLists.txt at line no. 6.
+  It will produce two executables: graphone32 and graphone64 using -O3 flag. Otherwise, remove -DTBB and -ltbb from the command line flags from CMakeLists.txt at line no. 9 and 14.
   
-  If you need to build the graph in debug mode. Then comment the line 6, and uncomment the line 7 of CMakeLists.txt. and call `above three command`.
+  If you need to build the graph in debug mode. Then comment the line 9, and uncomment the line 10, and remove -ltbb from line 14 of CMakeLists.txt, and call `above four commands`.
   
   
   ## Running
