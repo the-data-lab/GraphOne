@@ -95,16 +95,17 @@ We need to install intel tbb on your machine. Then, Just run following command t
  ```   
 
 `Example1 (Single Machine execution):`
-```
-   ./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152
-   ./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152 -d 1
-   ./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1
-   ./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1 -d 1
-```
+ -  In Memory, undirected, text input:   `./graphone32 -i kron21_16/text_file/  -j 0 -v 2097152`
+ -  Durable, undirected, text input:     `./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152`
+ -  Durable, directed, text input:       `./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152 -d 1`
+ -  In Memory, undirected, binary input: `./graphone32 -i kron21_16/edge_file/ -j 0 -v 2097152 -s 1`
+ -  Durable, unidrected, binary input: `./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152 -s 1`
+ -  Durable, directed, binary input: `./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152 -s 1 -d 1`
+
 
 This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data.   The files inside kron21_16/text_file/ directory have graph data in text edge list format. The files inside kron21_16/edge_file/ directory have graph data in binary edge list format. This job (0) runs bfs from a fixed root treating the graph as undirected and directed(if -d1 is supplied).
 
-You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
+You can generate a binary graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code. And a text graph file from https://github.com/the-data-lab/gstore/tree/master/graph500-generator.
 
 `Example 2 (No Benchmarking):`
    `./graphone32 -i lanl_2017/text_file/ -o ./db_dir/ -j 16 -v 162315`
