@@ -12,6 +12,7 @@ set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -fope
 set(COMPILE_FLAGS32 "${COMPILE_FLAGS_COMMON} -DB32")
 set(COMPILE_FLAGS64 "${COMPILE_FLAGS_COMMON} -DB64")
 set(LINK_FLAGS_COMMON "-ltbb -fopenmp")
+#set(LINK_FLAGS_COMMON "-fopenmp")
 #set(LINK_FLAGS_COMMON "-ltbb -fopenmp -ltcmalloc_minimal")
 
 include_directories(include)
