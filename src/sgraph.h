@@ -35,17 +35,18 @@ class pgraph_t: public cfinfo_t {
 
 #ifdef _MPI
         MPI_Datatype data_type;//For T
+        MPI_Datatype edge_type;//For edgeT_t<T>
 #endif
 
  public:    
     inline pgraph_t(): cfinfo_t(egraph){ 
         sgraph = 0;
         sgraph_in = 0;
-        
+        edge_shard = 0;
         blog = new blog_t<T>;
-        edge_shard = new edge_shard_t<T>(blog);
 #ifdef _MPI
-        data_type = create_MPI_datatype(T* type, data_type);
+        T* type = 0;
+        create_MPI_datatype(type, data_type, edge_type);
 #endif
     }
 
@@ -88,7 +89,7 @@ class pgraph_t: public cfinfo_t {
     }
     
  protected:
-    void prep_sgraph(sflag_t ori_flag, onegraph_t<T>** a_sgraph);
+    void prep_sgraph(sflag_t ori_flag, onegraph_t<T>** a_sgraph, egraph_t egraph_type);
     void prep_skv(sflag_t ori_flag, onekv_t<T>** a_skv);
     void prep_sgraph_internal(onegraph_t<T>** sgraph);
     
@@ -114,20 +115,12 @@ class pgraph_t: public cfinfo_t {
     void fill_adj_list(onegraph_t<T>** sgraph_out, onegraph_t<T>** sgraph_in);
     void fill_adj_list_in(onekv_t<T>** skv_out, onegraph_t<T>** sgraph_in); 
     void fill_adj_list_out(onegraph_t<T>** sgraph_out, onekv_t<T>** skv_in); 
-#else
-    /*
-    void calc_degree_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    virtual void fill_adjlist_noatomic(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                      vid_t j_start, vid_t j_end);
-    */
 #endif    
     void fill_skv_in(onekv_t<T>** skv, global_range_t<T>* global_range, vid_t j_start, vid_t j_end);
     void fill_skv(onekv_t<T>** skv_out, onekv_t<T>** skv_in);
   
     //compress the graph
     void compress_sgraph(onegraph_t<T>** sgraph);
-    void archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end); 
 
  public:
     //Making Queries easy
@@ -321,7 +314,7 @@ class ugraph: public pgraph_t<T> {
  public:
     static cfinfo_t* create_instance();
     
-    void prep_graph_baseline();
+    void prep_graph_baseline(egraph_t egraph_type=eADJ);
     void make_graph_baseline();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
@@ -352,7 +345,7 @@ class dgraph: public pgraph_t<T> {
  public:
     static cfinfo_t* create_instance();
     
-    void prep_graph_baseline();
+    void prep_graph_baseline(egraph_t egraph_type=eADJ);
     void make_graph_baseline();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
@@ -383,7 +376,7 @@ class unigraph: public pgraph_t<T> {
  public:
     static cfinfo_t* create_instance();
     
-    void prep_graph_baseline();
+    void prep_graph_baseline(egraph_t egraph_type=eADJ);
     void make_graph_baseline();
     void compress_graph_baseline();
     void store_graph_baseline(bool clean = false);
@@ -395,9 +388,9 @@ class unigraph: public pgraph_t<T> {
 };
 
 
-typedef ugraph<sid_t> ugraph_t;
-typedef dgraph<sid_t> dgraph_t;
-typedef unigraph<sid_t> unigraph_t;
+typedef ugraph<dst_id_t> ugraph_t;
+typedef dgraph<dst_id_t> dgraph_t;
+typedef unigraph<dst_id_t> unigraph_t;
 
 typedef ugraph<lite_edge_t> p_ugraph_t;
 typedef dgraph<lite_edge_t> p_dgraph_t;
@@ -893,7 +886,7 @@ void pgraph_t<T>::prep_skv(sflag_t ori_flag, onekv_t<T>** skv)
 
 /************* Semantic graphs  *****************/
 template <class T> 
-void dgraph<T>::prep_graph_baseline()
+void dgraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
     this->alloc_edgelog(1L << BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
@@ -905,12 +898,12 @@ void dgraph<T>::prep_graph_baseline()
     if (0 == sgraph_out) {
         sgraph_out  = (onegraph_t<T>**) calloc (sizeof(onegraph_t<T>*), t_count);
     }
-    prep_sgraph(flag1, sgraph_out);    
+    prep_sgraph(flag1, sgraph_out, egraph_type);    
     
     if (0 == sgraph_in) {
         sgraph_in  = (onegraph_t<T>**) calloc (sizeof(onegraph_t<T>*), t_count);
     }
-    prep_sgraph(flag2, sgraph_in);
+    prep_sgraph(flag2, sgraph_in, egraph_type);
 }
 
 //We assume that no new vertex type is defined
@@ -971,7 +964,7 @@ void dgraph<T>::read_graph_baseline()
 
 /*******************************************/
 template <class T> 
-void ugraph<T>::prep_graph_baseline()
+void ugraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
     this->alloc_edgelog( 1L << BLOG_SHIFT);
     flag1 = flag1 | flag2;
@@ -986,7 +979,7 @@ void ugraph<T>::prep_graph_baseline()
     if (0 == sgraph) {
         sgraph  = (onegraph_t<T>**) calloc (sizeof(onegraph_t<T>*), t_count);
     }
-    prep_sgraph(flag1, sgraph);
+    prep_sgraph(flag1, sgraph, egraph_type);
     this->sgraph_in = sgraph; 
 }
 
@@ -1044,7 +1037,7 @@ void ugraph<T>::read_graph_baseline()
 
 /***********/
 template <class T> 
-void unigraph<T>::prep_graph_baseline()
+void unigraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
     this->alloc_edgelog(1L << BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
@@ -1056,7 +1049,7 @@ void unigraph<T>::prep_graph_baseline()
     if (0 == sgraph_out) {
         sgraph_out  = (onegraph_t<T>**) calloc (sizeof(onegraph_t<T>*), t_count);
     }
-    prep_sgraph(flag1, sgraph_out);
+    prep_sgraph(flag1, sgraph_out, egraph_type);
 }
 
 //We assume that no new vertex type is defined

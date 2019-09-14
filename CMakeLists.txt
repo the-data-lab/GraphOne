@@ -6,7 +6,7 @@ project(graphone)
 #set(CMAKE_CXX_EXTENSIONS ON)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DB32 -DTBB -Wall -O3 -fopenmp -DOVER_COMMIT -ltbb")
 
-set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -fopenmp")
+set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -g -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -fopenmp")
 #set(COMPILE_FLAGS_COMMON "-std=gnu++1z -g -DOVER_COMMIT -DPLAIN_GRAPH -fopenmp")
 
 set(COMPILE_FLAGS32 "${COMPILE_FLAGS_COMMON} -DB32")
@@ -19,6 +19,7 @@ include_directories(include)
 include_directories(src)
 include_directories(gview)
 include_directories(onedata)
+include_directories(analytics)
 
 add_subdirectory(src)
 add_subdirectory(onedata)

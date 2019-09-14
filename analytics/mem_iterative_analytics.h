@@ -9,6 +9,7 @@ using std::min;
 typedef float rank_t; 
 extern float qthread_dincr(float* sum, float value);
 extern double qthread_doubleincr(double *operand, double incr);
+void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count);
 
 template<class T>
 void
@@ -16,6 +17,7 @@ mem_hop1(gview_t<T>* snaph)
 {
     srand(0);
     int query_count = 2048;
+    vid_t  v_count  = snaph->get_vcount();
     vid_t* query = (vid_t*)calloc(sizeof(vid_t), query_count);
     int i1 = 0;
     while (i1 < query_count) {
@@ -57,7 +59,7 @@ mem_hop1(gview_t<T>* snaph)
                 local_degree = delta_adjlist->get_nebrcount();
                 degree_t i_count = min(local_degree, delta_degree);
                 for (degree_t i = 0; i < i_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     sum += sid;
                 }
                 delta_adjlist = delta_adjlist->get_next();
@@ -74,7 +76,7 @@ mem_hop1(gview_t<T>* snaph)
         #pragma omp parallel for reduction(+:sum1) schedule(static)
         for (index_t j = 0; j < marker ; ++j) {
             src = edges[j].src_id;
-            dst = edges[j].dst_id;
+            dst = get_sid(edges[j].dst_id);
             if (src == v) {
                 sum1 += dst;
             }
@@ -382,6 +384,7 @@ void mem_hop2(gview_t<T>* snaph)
 {
     srand(0);
     int query_count = 512;
+    vid_t v_count = snaph->get_vcount();
     hop2_t* query = (hop2_t*)calloc(sizeof(hop2_t), query_count); 
     int i1 = 0;
     while (i1 < query_count) {
@@ -424,7 +427,7 @@ void mem_hop2(gview_t<T>* snaph)
             local_degree = delta_adjlist->get_nebrcount();
             degree_t i_count = min(local_degree, delta_degree);
             for (degree_t i = 0; i < i_count; ++i) {
-                sid = get_nebr(local_adjlist, i);
+                sid = get_sid(local_adjlist[i]);
                 vlist[d] = sid;
                 ++d;
             }
@@ -445,7 +448,7 @@ void mem_hop2(gview_t<T>* snaph)
             #pragma omp for schedule(static) nowait 
             for (index_t i = 0; i < marker; ++i) {
                 src = edges[i].src_id;
-                dst = edges[i].dst_id;
+                dst = get_dst(edges[i]);
                 if (src == v) {
                     d1 = __sync_fetch_and_add(&query[q].d, 1);
                     vlist[d1] = dst;
@@ -492,7 +495,7 @@ void mem_hop2(gview_t<T>* snaph)
                 local_degree = delta_adjlist->get_nebrcount();
                 degree_t i_count = min(local_degree, delta_degree);
                 for (degree_t i = 0; i < i_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     sum += sid;
                 }
                 delta_adjlist = delta_adjlist->get_next();
@@ -507,7 +510,7 @@ void mem_hop2(gview_t<T>* snaph)
         #pragma omp for reduction(+:sum1) schedule(static) nowait
         for (index_t i = 0; i < marker; ++i) {
             src = edges[i].src_id;
-            dst = edges[i].dst_id;
+            dst = get_dst(edges[i]);
             for (degree_t j = 0; j < d; ++j) {
                 v = vlist[j];
                 if (src == v) {
@@ -574,7 +577,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
                     snaph->get_nebrs_out(v, local_adjlist);
 
                     for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         if (status[sid] == 0) {
                             status[sid] = level + 1;
                             ++frontier;
@@ -601,7 +604,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 
                     //traverse the delta adj list
                     for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         if (status[sid] == level) {
                             status[v] = level + 1;
                             ++frontier;
@@ -653,15 +656,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+    print_bfs_summary(status, level, v_count);
 }
 
 template<class T>
@@ -671,6 +666,7 @@ void mem_bfs(gview_t<T>* snaph,
     int				level      = 1;
 	int				top_down   = 1;
 	sid_t			frontier   = 0;
+    sid_t           v_count    = snaph->get_vcount();
     
 	double start1 = mywtime();
     if (snaph->get_degree_out(root) == 0) { root = 0;}
@@ -706,7 +702,7 @@ void mem_bfs(gview_t<T>* snaph,
                         local_degree = delta_adjlist->get_nebrcount();
                         degree_t i_count = min(local_degree, delta_degree);
                         for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
+                            sid = get_sid(local_adjlist[i]);
                             if (status[sid] == 0) {
                                 status[sid] = level + 1;
                                 ++frontier;
@@ -736,7 +732,7 @@ void mem_bfs(gview_t<T>* snaph,
                         local_degree = delta_adjlist->get_nebrcount();
                         degree_t i_count = min(local_degree, delta_degree);
                         for (degree_t i = 0; i < i_count; ++i) {
-                            sid = get_nebr(local_adjlist, i);
+                            sid = get_sid(local_adjlist[i]);
                             if (status[sid] == level) {
                                 status[v] = level + 1;
                                 ++frontier;
@@ -794,15 +790,7 @@ void mem_bfs(gview_t<T>* snaph,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
-
-    for (int l = 1; l < level; ++l) {
-        vid_t vid_count = 0;
-        #pragma omp parallel for reduction (+:vid_count) 
-        for (vid_t v = 0; v < v_count; ++v) {
-            if (status[v] == l) ++vid_count;
-        }
-        cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+    print_bfs_summary(status, level, v_count);
 }
 
 template<class T>
@@ -885,7 +873,7 @@ void mem_pagerank_push(gview_t<T>* snaph, int iteration_count)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         qthread_dincr(rank_array + sid, rank);
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -1012,7 +1000,7 @@ void mem_pagerank(gview_t<T>* snaph, int iteration_count)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -1141,7 +1129,7 @@ void mem_pagerank_simple(gview_t<T>* snaph, int iteration_count)
                 snaph->get_nebrs_in(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     rank += prior_rank_array[sid];
                 }
                 //rank_array[v] = rank;
@@ -1257,7 +1245,7 @@ mem_pagerank_epsilon(gview_t<T>* snaph, double epsilon)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -1449,14 +1437,133 @@ void mem_bfs(vert_table_t<T>* graph_out, degree_t* degree_out,
 		
     double end1 = mywtime();
     cout << "BFS Time = " << end1 - start1 << endl;
+    print_bfs_summary(status, level, v_count);
+}
+*/
 
+template <class T>
+index_t bfs_tile(snap_t<T>* snaph, vid_t index, uint8_t* lstatus, uint8_t* rstatus, uint8_t level)
+{
+    header_t<T> header; 
+    degree_t nebr_count = snaph->start_out(index, header);
+    if (0 == nebr_count) return 0;
+    
+    index_t frontier = 0;
+    T dst;
+    snb_t snb;
+    for (degree_t e = 0; e < nebr_count; ++e) {
+        snaph->next(header, dst);
+        snb = get_snb(dst);
+        if (lstatus[snb.src] == level && 
+            rstatus[snb.dst] == 0) {
+            rstatus[snb.dst] = level + 1;
+            ++frontier;
+            //cout << " " << snb.dst + dst_offset << endl;
+        }
+        if (rstatus[snb.dst] == level && 
+            lstatus[snb.src] == 0) {
+            lstatus[snb.src] = level + 1;
+            ++frontier;
+            //cout << " " << snb.src + src_offset << endl;
+        }
+    }
+    return frontier;
+}
+
+template <class T>
+index_t bfs_async_tile(snap_t<T>* snaph, vid_t index, uint8_t* lstatus, uint8_t* rstatus, uint8_t level)
+{
+    header_t<T> header; 
+    degree_t nebr_count = snaph->start_out(index, header);
+    if (0 == nebr_count) return 0;
+    
+    index_t frontier = 0;
+    T dst;
+    snb_t snb;
+    uint8_t llevel = 0, rlevel = 0;
+    for (degree_t e = 0; e < nebr_count; ++e) {
+        snaph->next(header, dst);
+        snb = get_snb(dst);
+        if (lstatus[snb.src] == level && 
+            rstatus[snb.dst] > level+1) {
+            rstatus[snb.dst] = level + 1;
+            ++frontier;
+            //cout << " " << snb.dst + dst_offset << endl;
+        }
+        if (rstatus[snb.dst] == level && 
+            lstatus[snb.src] > level + 1) {
+            lstatus[snb.src] = level + 1;
+            ++frontier;
+            //cout << " " << snb.src + src_offset << endl;
+        }
+    }
+    return frontier;
+}
+
+template<class T>
+void mem_bfs_snb(gview_t<T>* viewh,
+        uint8_t* status, sid_t root)
+{
+    snap_t<T>* snaph = (snap_t<T>*)viewh;
+	int		   top_down   = 1;
+	sid_t	   frontier   = 0;
+    sid_t      tile_count = snaph->get_vcount();
+    sid_t      v_count    = _global_vcount;
+    vid_t      p = (v_count >> bit_shift1) 
+                 + (0 != (v_count & part_mask1_2));
+    
+    //uint8_t* status = (uint8_t*)calloc(v_count, sizeof(uint8_t));
+    //memset(status, 255, v_count);
+
+	double start1 = mywtime();
+    int	  level  = 1;
+	status[root] = level;
+    
+	do {
+		frontier = 0;
+		double start = mywtime();
+		#pragma omp parallel reduction(+:frontier)
+		{
+            degree_t nebr_count = 0;
+            header_t<T> header; 
+            T dst;
+            vid_t index = 0, m, n, offset;
+
+            #pragma omp for nowait
+            for (vid_t i = 0; i < p; ++i) {
+                for (vid_t j = 0; j < p; ++j) {
+                    offset = ((i*p + j) << bit_shift2); 
+                    for (vid_t s_i = 0; s_i < p_p; s_i++) {
+                        for (vid_t s_j = 0; s_j < p_p; s_j++) {
+                            index = offset + ((s_i << bit_shift3) + s_j);
+                            m = ((i << bit_shift3) + s_i) << bit_shift2;
+                            n = ((j << bit_shift3) + s_j) << bit_shift2; 
+                            frontier += bfs_tile(snaph, index, status+m, status+n, level); 
+                        }
+                    }
+                }
+            }
+        }
+        
+		double end = mywtime();
+	
+		++level;
+	} while (frontier);
+		
+    double end1 = mywtime();
+    cout << "BFS Time = " << end1 - start1 << endl;
+    print_bfs_summary(status, level, v_count);
+}
+
+inline void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count)
+{
     for (int l = 1; l < level; ++l) {
         vid_t vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) {
             if (status[v] == l) ++vid_count;
+            //if (status[v] == l && l == 3) cout << v << endl;
         }
         cout << " Level = " << l << " count = " << vid_count << endl;
     }
 }
-*/

@@ -45,14 +45,24 @@ class delta_adjlist_t {
     
     // XXX Should be used for testing purpose, be careful to use it,
     // as it avoids atomic instructions.
-    inline void add_nebr_bulk(T* adj_list2, degree_t count) {
-        if(count != 0) {
+    inline void add_nebr_bulk(T* adj_list2, degree_t count1) {
+        if(count1 != 0) {
             T* adj_list1 = get_adjlist();
-            degree_t old_count = incr_nebrcount_bulk(count);
-            memcpy(adj_list1+old_count, adj_list2, count*sizeof(T));
+            degree_t old_count = incr_nebrcount_bulk(count1);
+            assert(count <= max_count);
+            memcpy(adj_list1+old_count, adj_list2, count1*sizeof(T));
         }
     }
     
+};
+
+template <class T> 
+class header_t {
+ public:
+	delta_adjlist_t<T>* next;
+    degree_t   max_count;
+	degree_t   count;
+	T*  adj_list;
 };
 
 template <class T>

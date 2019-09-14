@@ -29,7 +29,7 @@ class onegraph_t {
     nebrcount_t*   nebr_count;//Only being used in BULK, remove it in future
 #endif
  
- private:
+ protected:
     //type id and vertices count together
     tid_t     tid;
     vid_t     max_vcount;
@@ -58,14 +58,15 @@ public:
 
 public:
     onegraph_t(); 
-    void  setup(tid_t tid, vid_t a_max_vcount);
-    void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
+    virtual void  setup(tid_t tid, vid_t a_max_vcount);
+    virtual void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
     void  compress();
     void  handle_write(bool clean = false);
     void  read_vtable();
     void  file_open(const string& filename, bool trunc);
     
     
+    inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}
     degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
         vunit_t<T>* v_unit = get_vunit(vid);
@@ -80,6 +81,8 @@ public:
 
     degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
+    degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
+    status_t next(header_t<T>& header, T& dst);
 
 	void increment_count_noatomic(vid_t vid, degree_t count = 1);
     void decrement_count_noatomic(vid_t vid, degree_t count = 1);
@@ -97,7 +100,7 @@ public:
         return 0;
     }
 
-private:
+protected:
     inline void set_delta_adjlist(vid_t vid, delta_adjlist_t<T>* adj_list) {
         vunit_t<T>* v_unit = get_vunit(vid);
         assert(v_unit);

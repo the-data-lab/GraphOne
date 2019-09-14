@@ -2,15 +2,15 @@
 
 #include "type.h"
 #include "cf_info.h"
-    
-void* alloc_buf();
+
 class typekv_t;
 
 //For many purpose. Will be removed ultimately
 extern index_t residue;
-
+extern vid_t _global_vcount;
 //Required for exiting from the streaming computation
 extern index_t _edge_count;
+extern int _dir, _persist, _source;
 
 ////////////main class/////////////////////
 class graph {
@@ -44,7 +44,6 @@ class graph {
 	tid_t get_tid(const char* type);
     sid_t type_update(const string& src, const string& dst);
     sid_t type_update(const string& src, tid_t tid = 0);
-    void  type_done();
     sid_t get_sid(const char* src);
     void  type_store(const string& odir);
 

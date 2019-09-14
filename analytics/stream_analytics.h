@@ -24,7 +24,9 @@ class wcc_t {
 const cid_t invalid_cid = -1;
 
 template <class T>
-void wcc_post_reg(stream_t<T>* streamh, vid_t v_count) {
+void wcc_post_reg(stream_t<T>* streamh)
+{
+    vid_t v_count = streamh->get_vcount();
     wcc_t* wcc = new wcc_t();
     wcc->v_cid =  (cid_t*)calloc(v_count, sizeof(cid_t));
     wcc->c_cid =  (cid_t*)calloc(v_count, sizeof(cid_t));
@@ -42,7 +44,8 @@ struct aggr_flow_t {
     index_t dst_bytes;
 };
 
-inline void netflow_post_reg(stream_t<netflow_dst_t>* streamh, vid_t v_count) {
+inline void netflow_post_reg(stream_t<netflow_dst_t>* streamh) {
+    vid_t v_count = streamh->get_vcount();
     aggr_flow_t* aggr_flow = (aggr_flow_t*)calloc(v_count, sizeof(aggr_flow_t));
     streamh->set_algometa(aggr_flow);
 } 
@@ -124,7 +127,7 @@ void wcc_edge(vid_t v0, vid_t v1, wcc_t* wcc)
 }
 
 template <class T>
-void wcc_finalize(stream_t<T>* streamh)
+void print_wcc_summary(stream_t<T>* streamh)
 {
     cid_t count = 0;
     wcc_t* wcc = (wcc_t*)streamh->get_algometa();
@@ -138,8 +141,9 @@ void wcc_finalize(stream_t<T>* streamh)
 }
 
 template <class T>
-void do_stream_wcc(stream_t<T>* streamh)
+void stream_wcc(gview_t<T>* viewh)
 {
+    stream_t<T>* streamh = (stream_t<T>*)viewh;
     edgeT_t<T>* edges = streamh->get_edges();
     index_t edge_count = streamh->get_edgecount();
     vid_t src, dst;
@@ -153,8 +157,23 @@ void do_stream_wcc(stream_t<T>* streamh)
     }
 }
 
-void do_stream_netflow_aggr(stream_t<netflow_dst_t>* streamh)
+template <class T>
+void do_stream_wcc(gview_t<T>* viewh)
 {
+    stream_t<T>* streamh = (stream_t<T>*)viewh;
+    wcc_post_reg(streamh); 
+
+    while (streamh->get_snapmarker() < _edge_count) {
+        while(eOK != streamh->update_view()) usleep(100);
+        stream_wcc(streamh);
+    }
+    print_wcc_summary(streamh);
+
+}
+
+inline void do_stream_netflow_aggr(gview_t<netflow_dst_t>* viewh)
+{
+    stream_t<netflow_dst_t>* streamh = (stream_t<netflow_dst_t>*)viewh;
     edgeT_t<netflow_dst_t>* edges = streamh->get_edges();
     index_t edge_count = streamh->get_edgecount();
     vid_t src;

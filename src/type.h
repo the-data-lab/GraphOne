@@ -184,12 +184,23 @@ typedef union __univeral_type {
 #endif
 }univ_t;
 
+typedef uint16_t word_t;
+struct snb_t {
+    word_t src;
+    word_t dst;
+};
+
+union dst_id_t {
+    sid_t sid;
+    snb_t snb; 
+};
+
 //First can be nebr sid, while the second could be edge id/property
 template <class T>
 class dst_weight_t {
  public:
-    sid_t first;
-    T second;
+    dst_id_t first;
+    T        second;
 };
 
 template <class T>
@@ -202,7 +213,7 @@ class  edgeT_t {
 #include "new_type.h"
 
 //Feel free to name the derived types, but not required.
-typedef edgeT_t<sid_t> edge_t;
+typedef edgeT_t<dst_id_t> edge_t;
 
 typedef dst_weight_t<univ_t> lite_edge_t;
 typedef dst_weight_t<univ_t> weight_sid_t;
@@ -210,21 +221,41 @@ typedef edgeT_t<lite_edge_t> ledge_t;
 
 // Functions on edgeT_t
 inline sid_t get_dst(edge_t* edge) {
-    return edge->dst_id;
+    return edge->dst_id.sid;
+}
+inline sid_t get_dst(edge_t& edge) {
+    return edge.dst_id.sid;
 }
 inline void set_dst(edge_t* edge, sid_t dst_id) {
-    edge->dst_id = dst_id;
+    edge->dst_id.sid = dst_id;
 }
-inline void set_weight(edge_t* edge, sid_t dst_id) {
+inline void set_dst(edge_t& edge, sid_t dst_id) {
+    edge.dst_id.sid = dst_id;
 }
-
+inline void set_dst(edge_t* edge, snb_t dst_id) {
+    edge->dst_id.snb = dst_id;
+}
+inline void set_weight(edge_t* edge, dst_id_t dst_id) {
+}
 template <class T>
 inline sid_t get_dst(edgeT_t<T>* edge) { 
-    return edge->dst_id.first;
+    return edge->dst_id.first.sid;
+}
+template <class T>
+inline sid_t get_dst(edgeT_t<T>& edge) { 
+    return edge.dst_id.first.sid;
+}
+template <class T>
+inline snb_t get_snb(edgeT_t<T>* edge) { 
+    return edge->dst_id.first.snb;
 }
 template <class T>
 inline void set_dst(edgeT_t<T>* edge, sid_t dst_id) {
-    edge->dst_id.first = dst_id;
+    edge->dst_id.first.sid = dst_id;
+}
+template <class T>
+inline void set_dst(edgeT_t<T>& edge, sid_t dst_id) {
+    edge.dst_id.first.sid = dst_id;
 }
 template <class T>
 inline void set_weight(edgeT_t<T>* edge, T dst_id) {
@@ -232,21 +263,69 @@ inline void set_weight(edgeT_t<T>* edge, T dst_id) {
 }
 
 ////function on dst_weight_t
-template <class T> sid_t get_sid(T dst);
+template <class T> sid_t get_sid(T& dst);
 template <class T> void set_sid(T& edge, sid_t sid1);
 template <class T> void set_weight(T& edge, T& dst);
-template <class T> sid_t get_nebr(T* adj, vid_t k); 
+//template <class T> sid_t get_nebr(T* adj, vid_t k); 
 
 template <class T>
-inline sid_t get_sid(T dst)
+inline sid_t get_sid(T& dst)
 {
-    return dst.first;
+    return dst.first.sid;
+}
+
+template <class T>
+inline snb_t get_snb(T& dst)
+{
+    return dst.first.snb;
 }
 
 template <class T>
 inline void set_sid(T& edge, sid_t sid1)
 {
-    edge.first = sid1;
+    edge.first.sid = sid1;
+}
+
+//Specialized functions for plain graphs, no weights
+template <>
+inline void set_sid<dst_id_t>(dst_id_t& sid , sid_t sid1) {
+    sid.sid = sid1;
+}
+
+template <class T>
+inline void set_snb(T& edge, snb_t snb1)
+{
+    edge.first.snb = snb1;
+}
+
+template <>
+inline void set_snb<dst_id_t>(dst_id_t& snb, snb_t snb1)
+{
+    snb.snb = snb1;
+}
+
+template<>
+inline sid_t get_sid<dst_id_t>(dst_id_t& sid)
+{
+    return sid.sid;
+}
+
+template<>
+inline snb_t get_snb<dst_id_t>(dst_id_t& snb)
+{
+    return snb.snb;
+}
+
+//template<dst_id_t>
+inline void set_weight(dst_id_t& sid , sid_t& dst)
+{
+    return;
+}
+
+//template<>
+inline void set_weight(dst_id_t& sid , dst_id_t& dst)
+{
+    return;
 }
 
 template <class T>
@@ -255,34 +334,11 @@ inline void set_weight(T& edge, T& dst)
     edge.second = dst.second;
 }
 
-template <class T>
-inline sid_t get_nebr(T* adj, vid_t k) {
-    return adj[k].first;
-}
-
-//Specialized functions for plain graphs, no weights
-template <>
-inline void set_sid<sid_t>(sid_t& sid , sid_t sid1)
-{
-    sid = sid1;
-}
-
-template<>
-inline void set_weight<sid_t>(sid_t& sid , sid_t& dst)
-{
-    return;
-}
-
-template<>
-inline sid_t get_sid<sid_t>(sid_t sid)
-{
-    return sid;
-}
-
+/*
 template <>
 inline sid_t get_nebr<sid_t>(sid_t* adj, vid_t k) {
     return adj[k];
-}
+}*/
 
 
 class snapshot_t {
@@ -365,9 +421,9 @@ template<class T>
 struct callback {
       typedef void(*sfunc)(gview_t<T>*);
       typedef void(*wfunc)(wstream_t<T>*);
-      typedef void(*func)(stream_t<T>*);
+      typedef void(*func)(gview_t<T>*);
 
       typedef index_t (*parse_fn_t)(const string&, const string&, pgraph_t<T>*);
-      typedef index_t (*parse_fn2_t)(const char*, pgraph_t<T>*);
+      typedef index_t (*parse_fn2_t)(const char*, pgraph_t<T>*, index_t);
 };
 

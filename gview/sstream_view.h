@@ -20,6 +20,7 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::v_count;
     using snap_t<T>::flag;
 
+ public:   
     Bitmap*  bitmap_in;
     Bitmap*  bitmap_out;
 
@@ -39,22 +40,23 @@ class sstream_t : public snap_t<T> {
         }
     }
     
-    inline void init_sstream_view(pgraph_t<T>* pgraph, index_t a_flag) 
+    inline void init_view(pgraph_t<T>* pgraph, index_t a_flag) 
     {
-        this->init_view(pgraph, a_flag);
+        snap_t<T>::init_view(pgraph, a_flag);
         
         bitmap_out = new Bitmap(v_count);
         if (graph_out == graph_in) {
             bitmap_in = bitmap_out;
-        } else {
+        } else if (graph_in !=0){
             bitmap_in = new Bitmap(v_count);
         }
     }
 
     status_t    update_view();
+ private:
     void  update_degreesnap();
     void update_degreesnapd();
-
+ public:
     //These two functions are for vertex centric programming
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
     inline bool has_vertex_changed_in(vid_t v) {return bitmap_in->get_bit(v);}
@@ -172,7 +174,7 @@ status_t sstream_t<T>::update_view()
     edges = blog->blog_beg + (new_marker & blog->blog_mask);
     edge_count = marker - new_marker;
     
-    if (graph_in == graph_out) {
+    if (graph_in == graph_out || graph_in == 0) {
         update_degreesnap();
     } else {
         update_degreesnapd();

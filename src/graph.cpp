@@ -11,10 +11,6 @@
 #include "numberkv.h"
 #include "str2sid.h"
 
-
-index_t residue = 0;
-index_t _edge_count = 0;
-
 typedef cfinfo_t* (*get_graph_instance)();
 map<string, get_graph_instance>  graph_instance;
     
@@ -156,12 +152,6 @@ sid_t graph::type_update(const string& src, const string& dst)
 sid_t graph::type_update(const string& src, tid_t tid/*=0*/)
 {
     return get_typekv()->type_update(src, tid);
-}
-
-void graph::type_done()
-{
-    typekv = (typekv_t*) cf_info[0];
-    typekv->make_graph_baseline();
 }
 
 void graph::type_store(const string& odir)

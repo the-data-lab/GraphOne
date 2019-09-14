@@ -114,7 +114,7 @@ void parse_redteam15_file(FILE* file, char* buf)
         token = strtok_r(line, delim, &line);
         edge.src_id = g->type_update(token, 0);//"user" are type id 0
         token = strtok_r(line, delim, &line);
-        edge.dst_id.first = g->type_update(token, 1);//"computer" are type id 1
+        set_dst(edge, g->type_update(token, 1));//"computer" are type id 1
         
         //Some more fields are pending
         redteam15->batch_edge(edge);
@@ -149,7 +149,7 @@ void parse_dns15_file(FILE* file, char* buf)
         token = strtok_r(line, delim, &line);
         edge.src_id = g->type_update(token, 1);//"computer" are type id 1
         token = strtok_r(line, delim, &line);
-        edge.dst_id.first = g->type_update(token, 1);//"computer" are type id 1
+        set_dst(edge, g->type_update(token, 1));//"computer" are type id 1
         
         //Some more fields are pending
         dns15->batch_edge(edge);
@@ -184,7 +184,7 @@ void parse_flow15_file(FILE* file, char* buf)
         token = strtok_r(line, delim, &line);
         edge.src_id = g->type_update(token, 1);//"computer" are type id 1
         token = strtok_r(line, delim, &line);
-        edge.dst_id.first = g->type_update(token, 1);//"computer" are type id 1
+        set_dst(edge, g->type_update(token, 1));//"computer" are type id 1
         
         //Some more fields are pending
         flow15->batch_edge(edge);
@@ -219,7 +219,7 @@ void parse_proc15_file(FILE* file, char* buf)
         token = strtok_r(line, delim, &line);
         edge.src_id = g->type_update(token, 0);//"user" are type id 0
         token = strtok_r(line, delim, &line);
-        edge.dst_id.first = g->type_update(token, 1);//"computer" are type id 1
+        set_dst(edge, g->type_update(token, 1));//"computer" are type id 1
         
         //Some more fields are pending
         proc15->batch_edge(edge);    
@@ -268,7 +268,7 @@ void parse_auth15_file(FILE* file, char* buf1)
         token = strtok_r(line, delim, &line);
         edge.src_id = g->type_update(token, 0);//"user" are type id 0
         token = strtok_r(line, delim, &line);
-        edge.dst_id.first = g->type_update(token, 0);//"user" are type id 0
+        set_dst(edge, g->type_update(token, 0));//"user" are type id 0
         
         //src computer and dst computer
         token = strtok_r(line, delim, &line);

@@ -37,7 +37,6 @@ void ntriple_manager::prep_type(const string& typefile, const string& odir)
         }
     }
 
-    g->type_done();
     //g->type_store(odir);
 }
 

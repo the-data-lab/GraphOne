@@ -120,9 +120,9 @@ class one2many: public pgraph_t<T> {
 };
 
 
-typedef one2many<sid_t> one2many_t;
-typedef many2one<sid_t> many2one_t;
-typedef one2one<sid_t> one2one_t;
+typedef one2many<dst_id_t> one2many_t;
+typedef many2one<dst_id_t> many2one_t;
+typedef one2one<dst_id_t> one2one_t;
 typedef one2many<lite_edge_t> p_one2many_t;
 typedef many2one<lite_edge_t> p_many2one_t;
 typedef one2one<lite_edge_t> p_one2one_t;
@@ -258,7 +258,7 @@ void one2many<T>::make_graph_baseline()
     #pragma omp parallel num_threads (THD_COUNT) 
     {
 #ifndef BULK
-        this->edge_shard->classify_uni();
+        this->edge_shard->classify_uni(this);
         
         //Now get the division of work
         vid_t     j_start;
@@ -273,12 +273,6 @@ void one2many<T>::make_graph_baseline()
         }
         j_end = this->edge_shard->thd_local[tid].range_end;
         
-        //actual work
-        this->archive_sgraph(sgraph_out, this->edge_shard->global_range, j_start, j_end);
-        
-        //this->calc_degree_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
-        //this->fill_adjlist_noatomic(sgraph_out, this->edge_shard->global_range, j_start, j_end);
-        //this->make_on_classify(sgraph_out, this->edge_shard->global_range, j_start, j_end, 0); 
         this->fill_skv_in(skv_in, this->edge_shard->global_range, j_start, j_end); 
         #pragma omp barrier
         this->edge_shard->cleanup(); 

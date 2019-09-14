@@ -3,25 +3,6 @@
 #include "sgraph.h"
 #include "onegraph.h"
 
-template <class T>
-void pgraph_t<T>::archive_sgraph(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end) 
-{
-    index_t total = 0;
-    edgeT_t<T>* edges = 0;
-    tid_t src_index;
-    sid_t src;
-    vid_t vert1_id;
-
-    for (vid_t j = j_start; j < j_end; ++j) {
-        total = global_range[j].count;
-        edges = global_range[j].edges;
-        if (total != 0) {
-            src_index = TO_TID(edges[0].src_id);
-            sgraph[src_index]->archive(edges, total, snap_id + 1);
-        }
-    }
-}
-
 inline void print(const char* str, double start_time) 
 {
 	//#pragma omp master
@@ -38,30 +19,12 @@ void pgraph_t<T>::make_graph_uni()
     
     #pragma omp parallel num_threads (THD_COUNT) 
     {
-#ifndef BULK
-        edge_shard->classify_uni();
-
-        //Now get the division of work
-        vid_t     j_start;
-        vid_t     j_end;
-        vid_t tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
-        }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        //actual work
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        #pragma omp barrier 
-        edge_shard->cleanup();
-#endif
+        if (egtype == eADJ) edge_shard->classify_uni(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
     }
-
     blog->blog_tail = blog->blog_marker;  
 }
+
 template <class T>
 void pgraph_t<T>::make_graph_d() 
 {
@@ -70,32 +33,9 @@ void pgraph_t<T>::make_graph_d()
     #pragma omp parallel num_threads (THD_COUNT) 
     {
 #ifndef BULK
-        edge_shard->classify_d();
+        if (egtype == eADJ) edge_shard->classify_d(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
         
-        //Now get the division of work
-        vid_t     j_start, j_start_in;
-        vid_t     j_end, j_end_in;
-        int tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
-        }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        if (tid == THD_COUNT - 1) j_start_in = 0;
-        else {
-            j_start_in = edge_shard->thd_local_in[THD_COUNT - 2 - tid].range_end;
-        }
-        j_end_in = edge_shard->thd_local_in[THD_COUNT - 1 - tid].range_end;
-
-        //actual work
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        this->archive_sgraph(sgraph_in, edge_shard->global_range_in, j_start_in, j_end_in);
-        #pragma omp barrier 
-        edge_shard->cleanup();
-
 #else
         this->calc_edge_count(sgraph_out, sgraph_in);
         prep_sgraph_internal(sgraph_out);
@@ -116,24 +56,9 @@ void pgraph_t<T>::make_graph_u()
     #pragma omp parallel num_threads(THD_COUNT)
     {
 #ifndef BULK
-        edge_shard->classify_u();
-        //Now get the division of work
-        vid_t     j_start;
-        vid_t     j_end;
-        int tid = omp_get_thread_num();
-        
-        if (tid == 0) { 
-            j_start = 0; 
-        } else { 
-            j_start = edge_shard->thd_local[tid - 1].range_end;
-        }
-        j_end = edge_shard->thd_local[tid].range_end;
-        
-        this->archive_sgraph(sgraph, edge_shard->global_range, j_start, j_end);
-        #pragma omp barrier 
-        edge_shard->cleanup();
+        if (egtype == eADJ) edge_shard->classify_u(this);
+        else if (egtype == eSNB) edge_shard->classify_snb(this);
 #else
-        
         this->calc_edge_count(sgraph, sgraph);
         prep_sgraph_internal(sgraph);
         this->fill_adj_list(sgraph, sgraph);
@@ -145,17 +70,23 @@ void pgraph_t<T>::make_graph_u()
 }
 
 template <class T>
-void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
+void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph, egraph_t egraph_type)
 {
     sflag_t flag = ori_flag;
     vid_t   max_vcount;
+    egtype = egraph_type;
+    edge_shard = new edge_shard_t<T>(blog);
     
     if (flag == 0) {
         flag1_count = g->get_total_types();
         for(tid_t i = 0; i < flag1_count; i++) {
             if (0 == sgraph[i]) {
                 max_vcount = g->get_type_scount(i);
-                sgraph[i] = new onegraph_t<T>;
+                if (egraph_type == eADJ) {
+                    sgraph[i] = new onegraph_t<T>;
+                } else if (egraph_type == eSNB) {
+                    sgraph[i] = new onesnb_t<T>;
+                }
                 sgraph[i]->setup(i, max_vcount);
             }
         } 
@@ -169,7 +100,11 @@ void pgraph_t<T>::prep_sgraph(sflag_t ori_flag, onegraph_t<T>** sgraph)
         pos = __builtin_ctzll(flag);
         flag ^= (1L << pos);//reset that position
         if (0 == sgraph[pos]) {
-            sgraph[pos] = new onegraph_t<T>;
+            if (egraph_type == eADJ) {
+                sgraph[pos] = new onegraph_t<T>;
+            } else if (egraph_type == eSNB) {
+                sgraph[pos] = new onesnb_t<T>;
+            }
         }
         max_vcount = g->get_type_scount(i);
         sgraph[pos]->setup(pos, max_vcount);

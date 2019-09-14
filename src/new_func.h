@@ -1,8 +1,12 @@
 #include "type.h"
 
 //-----Two high level functions can be used by many single stream graph ----
+//----- The generic versions are for binary files/buffers.------
+//----- Specialized versions are for text files/buffers.------
+
+//uses buffered read, one binary edge at a time, and then insert
 template <class T>
-index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
+index_t file_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
@@ -25,10 +29,29 @@ index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph
 }
 
 template <class T>
-index_t parsebuf_and_insert(const char* buf , pgraph_t<T>* pgraph) 
+index_t buf_and_insert(const char* buf , pgraph_t<T>* pgraph, index_t count) 
+{
+    index_t edge_count = count/sizeof(edgeT_t<T>);
+    edgeT_t<T>* edges = (edgeT_t<T>*)buf;
+    for (index_t i = 0; i < edge_count; ++i) {
+        pgraph->batch_edge(edges[i]);
+    }
+    return edge_count;
+}
+
+template <class T>
+index_t parsefile_and_insert(const string& textfile, const string& ofile, pgraph_t<T>* pgraph) 
 {
     cout << "No plugin found for reading and parsing the buffers" << endl;
-    assert(0); 
+    assert(0);
+    return 0;
+}
+
+template <class T>
+index_t parsebuf_and_insert(const char* buf , pgraph_t<T>* pgraph, index_t count) 
+{
+    cout << "No plugin found for reading and parsing the buffers" << endl;
+    assert(0);
     return 0;
 }
 
@@ -51,7 +74,7 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
     token = strtok_r(line, ",\n", &line);
     netflow.src_id = g->type_update(token);
     token = strtok_r(line, ",\n", &line);
-    netflow.dst_id.first = g->type_update(token);
+    set_dst(netflow, g->type_update(token));
     
     token = strtok_r(line, ",\n", &line);
     netflow.dst_id.second.protocol = atoi(token);
@@ -82,7 +105,7 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
 }
 
 // Actual parse function, one line at a time
-inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
+inline index_t parse_plaingraph_line(char* line, edgeT_t<dst_id_t>& edge)
 {
     if (line[0] == '%' || line[0]=='#') {
         return eNotValid;
@@ -95,19 +118,19 @@ inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
     token = strtok_r(line, del, &line);
     sscanf(token, "%u", &edge.src_id);
     token = strtok_r(line, del, &line);
-    sscanf(token, "%u", &edge.dst_id);
+    sscanf(token, "%u", &edge.dst_id.sid);
     #else
     token = strtok_r(line, del, &line);
     sscanf(token, "%lu", &edge.src_id);
     token = strtok_r(line, del, &line);
-    sscanf(token, "%lu", &edge.dst_id);
+    sscanf(token, "%lu", &edge.dst_id.sid);
     #endif
 
     return eOK;
 }
 
 template <>
-inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph) 
+inline index_t parsebuf_and_insert<netflow_dst_t>(const char* buf, pgraph_t<netflow_dst_t>* pgraph, index_t count) 
 {
     
     if (0 == buf) {
@@ -166,14 +189,14 @@ inline index_t parsefile_and_insert<netflow_dst_t>(const string& textfile, const
 //---------------netflow functions done---------
 
 template <>
-inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgraph) 
+inline index_t parsebuf_and_insert<dst_id_t>(const char* buf, pgraph_t<dst_id_t>* pgraph, index_t count) 
 {
     
     if (0 == buf) {
         return 0;
     }
     
-    edgeT_t<sid_t> edge;
+    edgeT_t<dst_id_t> edge;
     index_t icount = 0;
     const char* start = 0;
     const char* end = 0;
@@ -200,12 +223,12 @@ inline index_t parsebuf_and_insert<sid_t>(const char* buf, pgraph_t<sid_t>* pgra
 }
 
 template <>
-inline index_t parsefile_and_insert<sid_t>(const string& textfile, const string& ofile, pgraph_t<sid_t>* pgraph) 
+inline index_t parsefile_and_insert<dst_id_t>(const string& textfile, const string& ofile, pgraph_t<dst_id_t>* pgraph) 
 {
     FILE* file = fopen(textfile.c_str(), "r");
     assert(file);
     
-    edgeT_t<sid_t> edge;
+    edgeT_t<dst_id_t> edge;
     index_t icount = 0;
 	char sss[512];
     char* line = sss;

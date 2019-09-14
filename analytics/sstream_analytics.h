@@ -75,7 +75,7 @@ void stream_bfs(gview_t<T>* viewh)
                 snaph->get_nebrs_out(v, local_adjlist);
 
                 for (degree_t i = 0; i < nebr_count; ++i) {
-                    sid = get_nebr(local_adjlist, i);
+                    sid = get_sid(local_adjlist[i]);
                     if (status[sid] > level + 1) {
                         status[sid] = level + 1;
                         snaph->set_vertex_changed_out(sid);
@@ -174,7 +174,7 @@ void stream_serial_bfs(gview_t<T>* viewh)
                     snaph->get_nebrs_out(v, local_adjlist);
 
                     for (degree_t i = 0; i < nebr_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         if (status[sid] > level + 1) {
                             status[sid] = level + 1;
                             snaph->set_vertex_changed_out(sid);
@@ -444,7 +444,7 @@ void stream_pagerank_epsilon1(gview_t<T>* viewh)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();
@@ -545,7 +545,7 @@ stream_pagerank_epsilon(gview_t<T>* sstreamh)
                     local_degree = delta_adjlist->get_nebrcount();
                     degree_t i_count = min(local_degree, delta_degree);
                     for (degree_t i = 0; i < i_count; ++i) {
-                        sid = get_nebr(local_adjlist, i);
+                        sid = get_sid(local_adjlist[i]);
                         rank += prior_rank_array[sid];
                     }
                     delta_adjlist = delta_adjlist->get_next();

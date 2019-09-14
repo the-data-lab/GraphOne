@@ -132,24 +132,8 @@ index_t read_bin_dir(const string& idirname, edgeT_t<T>* edges)
 
 //------- The APIs to use by higher level function -------//
 template <class T>
-index_t read_idir(const string& idirname, edgeT_t<T>** pedges, bool alloc)
-{
-    //allocate accuately
-    char* buf = 0;
-    index_t total_size = alloc_mem_dir(idirname, &buf, alloc);
-    index_t total_edge_count = total_size/sizeof(edgeT_t<T>);
-    *pedges = (edgeT_t<T>*)buf;
-
-    if (total_edge_count != read_bin_dir(idirname, *pedges)) {
-        assert(0);
-    }
-    
-    return total_edge_count;
-}
-
-template <class T>
 void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
-                    typename callback<T>::parse_fn_t parsefile_and_insert)
+                    typename callback<T>::parse_fn_t parse_and_insert)
 {
     struct dirent *ptr;
     DIR *dir;
@@ -184,7 +168,7 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
     double start = mywtime();
     //#pragma omp parallel for num_threads(16) schedule(static)
     for (int i = 0; i < icount; ++i) {
-        edge_count += parsefile_and_insert(ifiles[i], ofilename, pgraph);
+        edge_count += parse_and_insert(ifiles[i], ofilename, pgraph);
         //cout << edge_count << endl;
     }
     end = mywtime();
@@ -196,7 +180,7 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
 
 template <class T>
 void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
-                    typename callback<T>::parse_fn2_t parsebuf_and_insert)
+                    typename callback<T>::parse_fn2_t parse_and_insert)
 {
     
     //allocate accuately
@@ -210,11 +194,31 @@ void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>
     cout << "  Read/alloc time = " << end - start << endl;
     
     start = mywtime(); 
-    index_t line = parsebuf_and_insert(buf, pgraph);
+    index_t line = parse_and_insert(buf, pgraph, total_size);
     end = mywtime();
     //vid_t vid = g->get_type_scount();
     //cout << "vertex count " << vid << endl;
     cout << "  Batching time = " << end - start << " Edges = " << line << endl;
     return;
 }
+
+template <class T>
+index_t read_idir(const string& idirname, edgeT_t<T>** pedges, bool alloc)
+{
+    //allocate accuately
+    char* buf = 0;
+    index_t total_size = alloc_mem_dir(idirname, &buf, alloc);
+    index_t total_edge_count = total_size/sizeof(edgeT_t<T>);
+    *pedges = (edgeT_t<T>*)buf;
+
+    
+    if (total_edge_count != read_bin_dir(idirname, *pedges)) {
+        assert(0);
+    }
+    
+    //read_text_dir(idirname, (char*)*pedges);
+    
+    return total_edge_count;
+}
+
 

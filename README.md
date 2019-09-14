@@ -53,13 +53,12 @@ Discription will be updated later.
 
 # Help
 ## Building
-If need to install intel tbb on your machine. Then, Just run following command to build GraphOne:
+We need to install intel tbb on your machine. Then, Just run following command to build GraphOne:
 
   `mkdir build`
   `cd build`
   `cmake ../`
   `make`
-  
   
   It will produce two executables: graphone32 and graphone64 using -O3 flag. Otherwise, remove -DTBB and -ltbb from the command line flags from CMakeLists.txt at line no. 9 and 14.
   
@@ -73,30 +72,44 @@ If need to install intel tbb on your machine. Then, Just run following command t
   {"help",        no_argument,        0, 'h'},
   {"idir",        required_argument,  0, 'i'},
   {"odir",        required_argument,  0, 'o'},
-  {"category",    required_argument,  0, 'c'},
   {"job",         required_argument,  0, 'j'},
   {"residue",     required_argument,  0, 'r'},
-  {"qfile",       required_argument,  0, 'q'},
-  {"fileconf",    required_argument,  0, 'f'},
   {"threadcount", required_argument,  0, 't'},
+  {"edgecount",  required_argument,  0, 'e'},
+  {"direction",  required_argument,  0, 'd'},
+  {"source",  required_argument,  0, 's'},
   ```
-       
-`Example1 (Can be used as Benchmark):`
-   `./graphone32 -i ./kron21_16/edge_file/ -o ./del2/ -c 0 -j 25 -v 2097152`
+    
+ Here is explantion:
+ ```
+ --help -h: This message.
+ --vcount -v: Vertex count
+ --edgecount -e: Edge count, required only for streaming analytics as exit criteria.
+ --idir -i: input directory
+ --odir -o: output directory. This option will also persist the edge log.
+ --job -j: job number. Default: 0
+ --threadcount --t: Thread count. Default: Cores in your system - 1
+ --direction -d: Direction, 0 for undirected, 1 for directed, 2 for unidirected. Default: 0(undirected)
+ --source  -s: Data source. 0 for text files, 1 for binary files. Default: text files
+ --residue or -r: Various meanings.
+ ```   
 
-This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data.  The files inside kron21_16/edge_file/ directory have graph data in binary edge list format.
+`Example1 (Single Machine execution):`
+```
+   ./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152
+   ./graphone32 -i kron21_16/text_file/ -o ./db_dir/  -j 0 -v 2097152 -d 1
+   ./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1
+   ./graphone32 -i kron21_16/edge_file/ -o ./db_dir/  -j 0 -v 2097152`-s 1 -d 1
+```
+
+This command ingests the data from binary files present in kron21_16/edge_file/ directory, where vertex count is 2097152. `db_dir` is the output directory where we write the data.   The files inside kron21_16/text_file/ directory have graph data in text edge list format. The files inside kron21_16/edge_file/ directory have graph data in binary edge list format. This job (0) runs bfs from a fixed root treating the graph as undirected and directed(if -d1 is supplied).
 
 You can generate such a graph file using https://github.com/pradeep-k/gConv/tree/master/g500_gen code.
 
 `Example 2 (No Benchmarking):`
-   `./graphone32 -i kron_21_16/text_file/ -o ./del2/ -c 0 -j 18 -v 2097152`
+   `./graphone32 -i lanl_2017/text_file/ -o ./db_dir/ -j 16 -v 162315`
 
-This command ingests the data from text files present in kron21_16/text_file/ directory, where vertex count is 2097152. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside kron21_16/text_file/ directory have graph data in text edge list format. The data does not need to convert to ID format, as they are already in ID format. This test case is good for all the data that you would download from Internet such as twitter, orkut etc. that are available as benchmarks.
-
-`Example 3 (No Benchmarking):`
-   `./graphone32 -i lanl_2017/text_file/ -o ./del2/ -c 0 -j 35 -v 162315`
-
-This command ingests the data from text files present in lanl_2017/text_file/ directory, where vertex count is 162315. `c` is just another way for us to separate some categories of testcases. `del2` is the output directory where we write the data. The files inside lanl_2017/text_file/ directory have graph data in text raw edge list format. The data need to convert to ID format, as the edges are in string format. This test case is good for all the data that you would download from Internet where data is format but are in string format, such as LANL 2017, etc. that are available as benchmarks.
+This command ingests the data from text files present in lanl_2017/text_file/ directory, where vertex count is 162315.  `db_dir` is the output directory where we write the data. The files inside lanl_2017/text_file/ directory have graph data in text raw edge list format. The data need to convert to ID format, as the edges are in string format. This test case is good for all the data that you would download from Internet where data is in graph format but are in string format, such as LANL 2017, etc. that are available as benchmarks.
 
  ## Ingestion Your Own Data (No Benchmarking)
  You possibly have your own graph data, and want to use GraphOne as a data store. This section describes how to write ingestion testcases. For writing analytics please refer to next section. 
@@ -238,27 +251,26 @@ Here is how I wrote a plug-in for netflow data:
   }
 ```
 
-- Write Down a Testcase to Ingest: In the file plaingraph_test.cpp, see the huge switch-case statement, choose a number that is un-used as switch value. Let's choose 35, and write down following code. We will implement `ingestion_fulld()` next.
+- Write Down a Testcase to Ingest: In the file plaingraph_test.cpp, see the huge switch-case statement, choose a number that is un-used as switch value. Let's choose 35, and write down following code. We will implement `ingestion_full()` next.
 ```
-        case 35://text to our format
-            ingestion_fulld<netflow_dst_t>(idir, odir, parsefile_and_insert);
+        case 17://text to our format
+            ingestion_full<netflow_dst_t>(idir, odir) ;
             break;
 ```   
 
-The function ingestion_fulld() have some nomenclature, you don't have to worry about that. The function is implemented like this:
+The function ingestion_full() have some nomenclature, you don't have to worry about that. The function is implemented like this:
 ```
 template <class T>
-void ingestion_fulld(const string& idir, const string& odir, typename callback<T>::parse_fn_t parsefile_fn)
+void ingestion_full(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    manager.schema_plaingraphd(); \\Schema is already defined for directed single stream graph. We have three types of schema: directed, undirected and unidirected. You don't have to write it.
+    manager.schema(_dir); \\Schema is already defined for directed single stream graph. We have three types of schema: directed, undirected and unidirected. You don't have to write it.
     manager.setup_graph_vert_nocreate(v_count); \\ saying that your plugin will be coverting string to vertex ID
-    //g->create_wthread(); \\This is durable phase. Uncomment it if you want the edges to be made durable.
-    g->create_snapthread();\\ This does the archiving in the background
-    manager.prep_graph_fromtext(idir, odir, parsefile_fn);\\ parsefile_fn is the plug-in you wrote in new_func.h
+    manager.prep_graph(idir, odir);
+    manager.run_bfs();
     //g->store_graph_baseline(); \\ If you want to store the adjacency store data at the end.
 }
 ```
 
 - Executing the Testcase: Run this command: 
- `./graphone32 -i lanl_2017/text_file/ -o ./del2/ -c 0 -j 35 -v 162315`
+ `./graphone32 -i lanl_2017/text_file/ -o ./db_dir/ -j 17 -v 162315`

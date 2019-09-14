@@ -14,7 +14,7 @@ void run_sample_wls_query()
     numberkv_t<proc_label_t>* proc_label = (numberkv_t<proc_label_t>*)g->get_sgraph(4);
     
     //First graph is 
-    pgraph_t<sid_t>* proc2parent = (pgraph_t<sid_t>*) g->get_sgraph(1);
+    pgraph_t<dst_id_t>* proc2parent = (pgraph_t<dst_id_t>*) g->get_sgraph(1);
     
     //second graph is 
     pgraph_t<wls_dst_t>* user2proc = (pgraph_t<wls_dst_t>*)g->get_sgraph(2);
@@ -46,15 +46,15 @@ void run_sample_wls_query()
     }
     cout << "Parent of First process is: ";
     
-    sid_t* parent_procs = (sid_t*)calloc(sizeof(sid_t), parent_count);
+    dst_id_t* parent_procs = (dst_id_t*)calloc(sizeof(sid_t), parent_count);
     proc2parent->get_nebrs_out(first_proc_id, parent_procs);
     
 
     for(degree_t i = 0; i < parent_count; i++) {
-        cout << typekv->get_vertex_name(parent_procs[i]) << ", ";
+        cout << typekv->get_vertex_name(get_sid(parent_procs[i])) << ", ";
         //cout << stringkv->get_value(parent_procs[i]) << endl;
-        cout << proc_label->get_value(parent_procs[i]).proc_id << ", ";
-        cout << proc_label->get_str(proc_label->get_value(parent_procs[i]).proc_name) << ", ";
+        cout << proc_label->get_value(get_sid(parent_procs[i])).proc_id << ", ";
+        cout << proc_label->get_str(proc_label->get_value(get_sid(parent_procs[i])).proc_name) << ", ";
     }
     cout << endl;
    
