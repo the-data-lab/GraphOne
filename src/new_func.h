@@ -36,7 +36,7 @@ index_t parsebuf_and_insert(const char* buf , pgraph_t<T>* pgraph)
 // Actual parse function, one line at a time
 inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow) 
 {
-    if (line[0] == '%') {
+    if (line[0] == '%' || line[0]=='#') {
         return eNotValid;
     }
     
@@ -84,7 +84,7 @@ inline index_t parse_netflow_line(char* line, edgeT_t<netflow_dst_t>& netflow)
 // Actual parse function, one line at a time
 inline index_t parse_plaingraph_line(char* line, edgeT_t<sid_t>& edge)
 {
-    if (line[0] == '%') {
+    if (line[0] == '%' || line[0]=='#') {
         return eNotValid;
     }
     
