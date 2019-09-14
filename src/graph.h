@@ -2,8 +2,7 @@
 
 #include "type.h"
 #include "cf_info.h"
-    
-void* alloc_buf();
+
 class typekv_t;
 
 //For many purpose. Will be removed ultimately
@@ -12,16 +11,7 @@ extern vid_t _global_vcount;
 //Required for exiting from the streaming computation
 extern index_t _edge_count;
 extern int _dir, _persist, _source;
-    
-extern int _numtasks, _rank;
 extern int _part_count;
-#ifdef _MPI
-extern int _numlogs;
-extern MPI_Comm   _analytics_comm;
-extern int _analytics_rank;
-extern MPI_Comm  _row_comm, _col_comm;
-extern int _col_rank, _row_rank;
-#endif
 
 ////////////main class/////////////////////
 class graph {

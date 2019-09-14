@@ -1,7 +1,5 @@
 #pragma once
 
-#ifdef _MPI
-
 #include "sstream_view.h"
 #include "communicator.h"
 
@@ -35,7 +33,7 @@ struct part1d_t {
     }
 };
 
-void buf_vertex(part1d_t* part, vid_t vid)
+inline void buf_vertex(part1d_t* part, vid_t vid)
 {
     part->changed_v++;
     MPI_Pack(&vid, 1, mpi_type_vid, part->buf, 2*part->buf_size, &part->vposition, MPI_COMM_WORLD);
@@ -44,7 +42,7 @@ void buf_vertex(part1d_t* part, vid_t vid)
     part->delta_count = 0;
 }
 
-void send_buf_one(part1d_t* part, index_t archive_marker, int partial = 1)
+inline void send_buf_one(part1d_t* part, index_t archive_marker, int partial = 1)
 {
     int header_size = 5*sizeof(uint64_t);
     //directions, prop_id, tid, snap_id, vertex size, edge size(dst vertex+properties)
@@ -331,4 +329,3 @@ void scopy1d_client_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
         this->bitmap_in = new Bitmap(global_vcount);
     }*/
 }
-#endif

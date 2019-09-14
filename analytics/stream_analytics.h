@@ -171,7 +171,7 @@ void do_stream_wcc(gview_t<T>* viewh)
 
 }
 
-void do_stream_netflow_aggr(gview_t<netflow_dst_t>* viewh)
+inline void do_stream_netflow_aggr(gview_t<netflow_dst_t>* viewh)
 {
     stream_t<netflow_dst_t>* streamh = (stream_t<netflow_dst_t>*)viewh;
     edgeT_t<netflow_dst_t>* edges = streamh->get_edges();

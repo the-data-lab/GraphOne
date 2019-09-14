@@ -1,4 +1,7 @@
 #pragma once
+
+#ifdef _MPI
+
 #include "graph_view.h"
 #include "bfs.h"
 
@@ -91,3 +94,4 @@ void scopy2d_server(gview_t<T>* viewh)
     }
     //cout << " RANK" << _rank << " update_count = " << update_count << endl;
 }
+#endif

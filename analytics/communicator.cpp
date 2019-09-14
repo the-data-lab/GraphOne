@@ -1,6 +1,14 @@
 #include "communicator.h"
 #include "graph.h"
 
+#ifdef _MPI
+int _numtasks = 0, _rank = 0;
+int _numlogs = 1;
+MPI_Comm   _analytics_comm;
+int _analytics_rank;
+MPI_Comm  _row_comm, _col_comm;
+int _col_rank, _row_rank;
+
 #ifdef B32    
     MPI_Datatype mpi_type_vid = MPI_UINT32_T;
 #elif B64 
@@ -77,3 +85,4 @@ status_t unpack_meta(char* buf, int buf_size, int& position, uint64_t& flag,
     
     return eOK;
 }
+#endif

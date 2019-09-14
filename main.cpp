@@ -4,32 +4,28 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include "graph.h"
+#include "communicator.h"
 
 #define no_argument 0
 #define required_argument 1 
 #define optional_argument 2
 
+int dist_init(int argc, char* argv[]);
 void plain_test(vid_t v_count, const string& idir, const string& odir, int job);
+void dist_test(vid_t v_count, const string& idir, const string& odir, int job);
 void multigraph_test(vid_t v_count, const string& idir, const string& odir, int job);
 void lubm_test(const string& typefile, const string& idir, const string& odir, int job);
 void ldbc_test(const string& conf_file, const string& idir, const string& odir, int job);
 void darshan_test0(const string& conf_file, const string& idir, const string& odir);
-//using namespace std;
 
-graph* g;
-int _numtasks = 0, _rank = 0;
 int _part_count;
-#ifdef _MPI
-int _numlogs = 1;
-MPI_Comm   _analytics_comm;
-int _analytics_rank;
-MPI_Comm  _row_comm, _col_comm;
-int _col_rank, _row_rank;
-#endif
-
-void ontology_lubm();
-void fill_lubm_inference_type();
-
+index_t residue = 0;
+int THD_COUNT = 0;
+vid_t _global_vcount = 0;
+index_t _edge_count = 0;
+int _dir = 0;//undirected
+int _persist = 0;//no
+int _source = 0;//text
 
 void print_usage() 
 {
@@ -49,6 +45,12 @@ void print_usage()
 
     cout << help << endl;
 }
+
+#ifndef _MPI
+int dist_init(int argc, char* argv[]) { return 0; }
+#endif
+
+graph* g;
 
 int main(int argc, char* argv[])
 {
@@ -78,21 +80,9 @@ int main(int argc, char* argv[])
     int category = 0;
     int job = 0;
     _part_count = 1;
-
-#ifdef _MPI    
-    //MPI_Init(&argc,&argv);
-    int required = MPI_THREAD_MULTIPLE;
-    int provided;
-    MPI_Init_thread(&argc, &argv, required, &provided);
-
-    if (provided != required) assert(0);
-
-    MPI_Comm_size(MPI_COMM_WORLD, &_numtasks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
-#endif
-
-    //Thread thing
 	THD_COUNT = omp_get_max_threads()-1;// - 3;
+    
+    if (0 != dist_init(argc, argv)) return 0;
 
     //int i = 0;
     //while (i < 100000) { usleep(10); ++i; }
@@ -105,7 +95,7 @@ int main(int argc, char* argv[])
 				#elif B32
                 sscanf(optarg, "%d", &_global_vcount);
 				#endif
-				//cout << "_global_vcount = " << _global_vcount << endl;
+				cout << "Global vcount = " << _global_vcount << endl;
 				break;
 			case 'h':
 				print_usage();
@@ -113,7 +103,7 @@ int main(int argc, char* argv[])
                 break;
 			case 'i':
 				idir = optarg;
-				//cout << "input dir = " << idir << endl;
+				cout << "input dir = " << idir << endl;
 				break;
             case 'c':
                 category = atoi(optarg);
@@ -124,7 +114,7 @@ int main(int argc, char* argv[])
 			case 'o':
 				odir = optarg;
                 _persist = 1;
-				//cout << "output dir = " << odir << endl;
+				cout << "output dir = " << odir << endl;
 				break;
             case 'q':
                 queryfile = optarg;
@@ -132,6 +122,7 @@ int main(int argc, char* argv[])
             case 't':
                 //Thread thing
                 THD_COUNT = atoi(optarg);
+	            cout << "Threads Count = " << THD_COUNT << endl;
                 break;
             case 'f':
                 typefile = optarg;
@@ -150,14 +141,14 @@ int main(int argc, char* argv[])
                 break;
             case 'r':
                 sscanf(optarg, "%ld", &residue);
-                //cout << "residue (multi-purpose) value) = " << residue << endl;
+                cout << "residue (multi-purpose) value) = " << residue << endl;
                 break;
 			default:
                 cout << "invalid input " << endl;
+                print_usage();
                 return 1;
 		}
 	}
-	//cout << "Total thds = " << THD_COUNT << endl;
     g->set_odir(odir);
     switch (category) {
         case 0:
@@ -166,11 +157,16 @@ int main(int argc, char* argv[])
         case 1:
         multigraph_test(_global_vcount, idir, odir, job);
             break;
-#ifdef B64
+#ifdef _MPI
         case 2:
+            dist_test(_global_vcount, idir, odir, job);
+            break;
+#endif
+#ifdef B64
+        case 3:
         lubm_test(typefile, idir, odir, job);
             break;
-        case 3:
+        case 4:
             ldbc_test(typefile, idir, odir, job);
             break;
         /*

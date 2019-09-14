@@ -1,4 +1,6 @@
 #pragma once
+
+#ifdef _MPI
 #include "graph_view.h"
 #include "bfs.h"
 
@@ -183,3 +185,4 @@ void scopy1d_serial_bfs(gview_t<T>* viewh)
     }
 }
 */
+#endif

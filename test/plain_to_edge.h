@@ -6,22 +6,18 @@
 #include <string>
 #include <unistd.h>
 
-#include "type.h"
 #include "graph_view.h"
-#include "graph.h"
 #include "typekv.h"
 #include "sgraph.h"
 #include "util.h"
 
 using namespace std;
 
-extern index_t residue;
-
 template <class T>
 class plaingraph_manager_t {
   public:
     //Class member, pgraph_t<T> only
-    cfinfo_t* pgraph; 
+    pgraph_t<T>* pgraph; 
     
   public:
     plaingraph_manager_t() {
@@ -29,12 +25,12 @@ class plaingraph_manager_t {
     }
 
     inline pgraph_t<T>* get_plaingraph() {
-        return static_cast<pgraph_t<T>*> (pgraph);
+        return pgraph;
     }
     
     inline void
     set_pgraph(cfinfo_t* a_pgraph) {
-        pgraph = a_pgraph;
+        pgraph = static_cast<pgraph_t<T>*>(a_pgraph);
     }
 
     void schema(int dir);

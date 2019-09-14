@@ -1,4 +1,6 @@
 #pragma once
+
+#ifdef _MPI
 #include "graph_view.h"
 
 template<class T>
@@ -127,3 +129,4 @@ void scopy_server(gview_t<T>* viewh)
     }
     cout << "update_count = " << update_count << endl;
 }
+#endif

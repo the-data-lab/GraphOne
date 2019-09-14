@@ -3,8 +3,6 @@
 #include "sstream_view.h"
 #include "communicator.h"
 
-#ifdef _MPI
-
 template <class T>
 struct part_t {
     index_t changed_v;
@@ -552,4 +550,3 @@ index_t scopy2d_client_t<T>::apply_view(degree_t* degree, onegraph_t<T>* graph, 
     //cout << "Rank " << _rank << " done" << endl;
     return archive_marker;
 }*/
-#endif

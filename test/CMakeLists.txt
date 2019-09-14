@@ -9,6 +9,7 @@ set(test_source_files
     nt_to_edge.cpp
     nt_to_edge.h
     plaingraph_test.cpp
+    dist_test.cpp
     plain_to_edge.h
     util.cpp
     util.h

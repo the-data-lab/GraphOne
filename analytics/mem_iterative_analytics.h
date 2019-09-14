@@ -1555,7 +1555,7 @@ void mem_bfs_snb(gview_t<T>* viewh,
     print_bfs_summary(status, level, v_count);
 }
 
-void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count)
+inline void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count)
 {
     for (int l = 1; l < level; ++l) {
         vid_t vid_count = 0;
