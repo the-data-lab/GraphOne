@@ -1,5 +1,8 @@
 # GraphOne
-This repository is for following FAST'19 paper: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs"
+This repository is for following FAST'19 paper:  
+["GraphOne: A Data Store for Real-time Analytics on Evolving Graphs"](https://www.usenix.org/system/files/fast19-kumar.pdf)
+
+**Latest revision contains simplified options than V0.0 release.** Less number of command line options to work with, clear in-memory/durable execution options. The GraphView APIs are simplified, now there is just one flag to pass with different pre-defined flag values. Allowed values of flags include a thread creation flag. Hope to write more about it in future. **Feel free to raise an issue in github, if you have any problem in using GraphOne.** 
 
 The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. As of GraphOne, we only discussed ingestion for a single type of edges, called single stream graph. E.g. Twitter's follower-followee graph, or facebook's friendship graph. However, this code-base can ingest multi-stream graph, i.e. property graph. However, that a paper for that portion of codebase is under review. So, I am going to explain single stream graph. Send me an email, if your graph is multi-stream graph.
 
