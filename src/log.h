@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 template <class T>
 class tmp_blog_t {
  public:
@@ -30,7 +32,7 @@ class blog_t {
     //current batching position
     index_t     blog_head;
     //Make adj list from this point
-    index_t     blog_tail;
+    std::atomic<index_t>   blog_tail;
     //Make adj list upto this point
     index_t     blog_marker;
     //Make edge durable from this point
