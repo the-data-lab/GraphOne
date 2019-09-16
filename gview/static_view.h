@@ -58,6 +58,9 @@ class snap_t : public gview_t <T> {
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
+    virtual int  is_unidir() {
+       return ((graph_out != graph_in) && (graph_in ==0));
+    }
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
     void create_degreesnap(onegraph_t<T>* graph, degree_t* degree);

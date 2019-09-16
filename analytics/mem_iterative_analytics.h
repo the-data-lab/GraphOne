@@ -780,8 +780,8 @@ void mem_bfs(gview_t<T>* snaph,
 		     << endl;
 
         //Point is to simulate bottom up bfs, and measure the trade-off    
-        if ((frontier >= 0.002*v_count)){ // || level == 2)
-			top_down = true;
+        if ((frontier >= 0.002*v_count) && ( 0 == snaph->is_unidir())){ // || level == 2)
+			top_down = false;
 		} else {
             top_down = true;
         }

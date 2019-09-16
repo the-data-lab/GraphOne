@@ -27,6 +27,7 @@ class gview_t {
     void    init_view(pgraph_t<T>* pgraph, index_t a_flag);
     virtual bool has_vertex_changed_out(vid_t v) { assert(0); return false;}
     virtual bool has_vertex_changed_in(vid_t v) { assert(0); return false;}
+    virtual int  is_unidir() {assert(0); return 0;}
     
     inline vid_t  get_vcount() { return v_count; }
     inline int    get_snapid() {return snapshot->snap_id;}

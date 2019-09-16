@@ -110,7 +110,6 @@ int main(int argc, char* argv[])
             case 't':
                 //Thread thing
                 THD_COUNT = atoi(optarg);
-	            cout << "Threads Count = " << THD_COUNT << endl;
                 break;
             case 'f':
                 typefile = optarg;
@@ -134,6 +133,7 @@ int main(int argc, char* argv[])
                 return 1;
 		}
 	}
+    cout << "Threads Count = " << THD_COUNT << endl;
     g->set_odir(odir);
     switch (category) {
         case 0:

@@ -1,7 +1,7 @@
 #pragma once
 #include <omp.h>
 #include <iostream>
-#include <libaio.h>
+//#include <libaio.h>
 #include <sys/mman.h>
 #include <asm/mman.h>
 #include <fcntl.h>
