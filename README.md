@@ -347,9 +347,12 @@ Here are the -j values (they can change when we provide more cases) :
             multi_stream_bfs<dst_id_t>(idir, odir, stream_bfs, residue);
             break;
   ```
+# Multi-Stream Graphs
+TODO.
+  
 # Citatation
 If you want to cite our paper, use the following bibtex entries: 
-
+```
 @inproceedings{kumar2019graphone,
   title={GraphOne: A Data Store for Real-Time Analytics on Evolving Graphs},
   author={Kumar, Pradeep and Huang, H Howie},
@@ -359,5 +362,6 @@ If you want to cite our paper, use the following bibtex entries:
 }
 
 Kumar, Pradeep, and H. Howie Huang. "GraphOne: A data store for real-time analytics on evolving graphs." In 17th {USENIX} Conference on File and Storage Technologies ({FAST} 19), pp. 249-263. 2019.  
+```
 
 ACM TOS version comming soon.
