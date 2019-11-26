@@ -659,8 +659,13 @@ void edge_shard_t<T>::classify(vid_t* vid_range, vid_t* vid_range_in, vid_t bit_
         edge = global_range_in[range].edges + vid_range_in[range];
         vid_range_in[range] += 1;
         //assert(edge - global_range_in[range].edges < global_range_in[range].count);
-        edge->src_id = dst;
-        set_dst(edge, src);
+	if (!IS_DEL(src)) {
+            edge->src_id = dst;
+            set_dst(edge, src);
+	} else {
+            edge->src_id = DEL_SID(dst);
+            set_dst(edge, UNDEL_SID(src));
+	}
         set_weight(edge, edges[index].dst_id);
     }
 }
@@ -684,9 +689,14 @@ void edge_shard_t<T>::classify_runi(vid_t* vid_range, vid_t bit_shift, global_ra
         
         range = (vert_id >> bit_shift);
         edge = global_range[range].edges + vid_range[range]++;
-        
-        edge->src_id = dst;
-        set_dst(edge, src);
+       	
+        if (!IS_DEL(src)) {
+            edge->src_id = dst;
+            set_dst(edge, src);
+	} else {	
+            edge->src_id = DEL_SID(dst);
+            set_dst(edge, UNDEL_SID(src));
+	}
         set_weight(edge, edges[index].dst_id);
     }
 }

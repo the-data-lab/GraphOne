@@ -31,7 +31,11 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
         dst = edges[i].dst_id;
         //src_index = TO_TID(src);
         vert1_id = TO_VID(src);
-        add_nebr_noatomic(vert1_id, dst);
+        if (!IS_DEL(src)) { 
+            add_nebr_noatomic(vert1_id, dst);
+	} else {
+	    del_nebr_noatomic(vert1_id, dst);
+	}
     }
 }
 
@@ -118,9 +122,7 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
         adj_list1 = adj_list;
     }
     #endif
-    if (IS_DEL(get_sid(sid))) { 
-        return del_nebr_noatomic(vid, sid);
-    }
+    //if (IS_DEL(get_sid(sid))) { return del_nebr_noatomic(vid, sid); }
     adj_list1->add_nebr_noatomic(sid);
 }
 
