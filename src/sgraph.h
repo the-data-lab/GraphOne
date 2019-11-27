@@ -618,7 +618,7 @@ degree_t pgraph_t<T>::get_degree_out(sid_t sid)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);
-    return sgraph_out[src_index]->get_degree(vid);
+    return get_total(sgraph_out[src_index]->get_degree(vid));
 }
 
 template <class T>
@@ -626,7 +626,7 @@ degree_t pgraph_t<T>::get_degree_in(sid_t sid)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);
-    return sgraph_in[src_index]->get_degree(vid);
+    return get_total(sgraph_in[src_index]->get_degree(vid));
 }
 
 template <class T>
@@ -634,7 +634,7 @@ degree_t pgraph_t<T>::get_nebrs_out(sid_t sid, T* ptr)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);
-    return sgraph_out[src_index]->get_nebrs(vid, ptr);
+    return sgraph_out[src_index]->get_nebrs(vid, ptr, sgraph_out[src_index]->get_degree(vid));
 }
 
 template <class T>
@@ -642,7 +642,7 @@ degree_t pgraph_t<T>::get_nebrs_in(sid_t sid, T* ptr)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);
-    return sgraph_in[src_index]->get_nebrs(vid, ptr);
+    return sgraph_in[src_index]->get_nebrs(vid, ptr, sgraph_in[src_index]->get_degree(vid));
 }
 
 template <class T>
@@ -813,7 +813,7 @@ void pgraph_t<T>::file_open_skv(onekv_t<T>** skv, const string& dir, const strin
 {
     if (skv == 0) return;
 
-    char  name[8];
+    char  name[16];
     vid_t max_vcount;
     tid_t t_count = g->get_total_types();
     

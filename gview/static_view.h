@@ -7,8 +7,8 @@ class snap_t : public gview_t <T> {
  protected: 
     onegraph_t<T>*   graph_out;
     onegraph_t<T>*   graph_in;
-    degree_t*        degree_out;
-    degree_t*        degree_in;
+    sdegree_t*       degree_out;
+    sdegree_t*       degree_in;
 
     edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
@@ -63,11 +63,11 @@ class snap_t : public gview_t <T> {
     }
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
-    void create_degreesnap(onegraph_t<T>* graph, degree_t* degree);
+    void create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree);
 };
 
 template <class T>
-void snap_t<T>::create_degreesnap(onegraph_t<T>* graph, degree_t* degree)
+void snap_t<T>::create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree)
 {
     {
         snapid_t snap_id = 0;
@@ -109,14 +109,14 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     flag = a_flag;
     
     graph_out = ugraph->sgraph_out[0];
-    degree_out = (degree_t*) calloc(v_count, sizeof(degree_t));
+    degree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
     
     if (ugraph->sgraph_in == ugraph->sgraph_out) {
         graph_in   = graph_out;
         degree_in  = degree_out;
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
-        degree_in = (degree_t*) calloc(v_count, sizeof(degree_t));
+        degree_in = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
     }
 }
 
@@ -207,22 +207,31 @@ index_t snap_t<T>::get_nonarchived_edges(edgeT_t<T>*& ptr)
 template <class T>
 degree_t snap_t<T>::get_degree_out(vid_t v)
 {
+#ifdef DEL
+    return degree_out[v].add_count - degree_out[v].del_count;
+#else
     return degree_out[v];
+#endif
+    
 }
 
 template <class T>
 degree_t snap_t<T>::get_degree_in(vid_t v)
 {
+#ifdef DEL
+    return degree_in[v].add_count - degree_in[v].del_count;
+#else
     return degree_in[v];
+#endif
 }
 
 template <class T>
 degree_t snap_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
-    return graph_out->get_nebrs(v, adj_list, get_degree_out(v));
+    return graph_out->get_nebrs(v, adj_list, degree_out[v]);
 }
 template<class T>
 degree_t snap_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_nebrs(v, adj_list, get_degree_in(v));
+    return graph_in->get_nebrs(v, adj_list, degree_in[v]);
 }

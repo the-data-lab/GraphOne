@@ -144,7 +144,7 @@ void pgraph_t<T>::file_open_sgraph(onegraph_t<T>** sgraph, const string& dir, co
 {
     if (sgraph == 0) return;
     
-    char name[8];
+    char name[16];
     string  basefile = dir + col_info[0]->p_name;
     string  filename;
     string  wtfile; 

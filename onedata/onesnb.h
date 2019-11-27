@@ -109,10 +109,10 @@ void  onesnb_t<T>::add_nebr_noatomic(vid_t vid, T sid)
         
         delta_adjlist_t<T>* adj_list = 0;
         snapT_t<T>* curr = v_unit->get_snapblob();
-        degree_t new_count = curr->degree + curr->del_count;
+        degree_t new_count = get_total(curr->degree);
         degree_t max_count = new_count;
         if (curr->prev) {
-            max_count -= curr->prev->degree + curr->prev->del_count; 
+            max_count -= get_total(curr->prev->degree); 
         }
         
         adj_list = this->new_delta_adjlist(max_count, (new_count >= HUB_COUNT));

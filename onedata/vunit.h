@@ -88,14 +88,56 @@ class nebrcount_t {
     degree_t    del_count;
 };
 
+#ifdef DEL
+class sdegree_t {
+ public:
+    degree_t add_count;
+    uint16_t del_count;
+public:
+    inline sdegree_t(degree_t degree = 0) {
+        add_count = 0;
+        del_count = 0;
+    }
+    inline bool operator != (const sdegree_t& sdegree) {
+        return ((add_count != sdegree.add_count) 
+|| (del_count != sdegree.del_count));
+    }
+
+};
+#else 
+typedef degree_t sdegree_t;
+#endif
+
+inline degree_t get_total(sdegree_t sdegree) {
+#ifdef DEL
+	return sdegree.add_count + sdegree.del_count;
+#else
+	return sdegree;
+#endif
+}
+
+inline degree_t get_actual(sdegree_t sdegree) {
+#ifdef DEL
+	return sdegree.add_count - sdegree.del_count;
+#else
+	return sdegree;
+#endif
+}
+
+inline degree_t get_delcount(sdegree_t sdegree) {
+#ifdef DEL
+	return sdegree.del_count;
+#else
+	return 0;
+#endif
+}
 
 template <class T>
 class  snapT_t {
  public:
     snapT_t<T>*     prev;//prev snapshot of this vid 
-    degree_t  degree;
+    sdegree_t  degree;
     uint16_t  snap_id;
-    uint16_t  del_count;
 };
 
 //This will be used as disk write structure
@@ -104,8 +146,7 @@ class  disk_snapT_t {
  public:
     vid_t     vid;
     snapid_t  snap_id;
-    degree_t  degree;
-    degree_t del_count;
+    sdegree_t  degree;
 };
 
 //Special v-unit flags
@@ -130,39 +171,37 @@ class vunit_t {
 		delta_adjlist = 0;
         adj_list = 0;
 	}
-    
-    inline degree_t get_degree() {
+    inline sdegree_t get_degree() {
         snapT_t<T>*   blob = snap_blob;
-        if (blob) return blob->degree - blob->del_count;
-        else  return 0; 
+        sdegree_t sdegree;
+        if (blob) {
+            sdegree = blob->degree; 
+        }
+        return sdegree;
     }
     
-    inline degree_t get_delcount() {
-        if (snap_blob) return snap_blob->del_count;
-        else  return 0; 
-    }
-    inline degree_t get_degree(snapid_t snap_id)
+    inline sdegree_t get_degree(snapid_t snap_id)
     {
         snapT_t<T>*   blob = snap_blob;
+        sdegree_t sdegree;
         if (0 == blob) { 
             return 0;
         }
         
-        degree_t nebr_count = 0;
         if (snap_id >= blob->snap_id) {
-            nebr_count = blob->degree - blob->del_count; 
+			sdegree = blob->degree;
         } else {
             blob = blob->prev;
             while (blob && snap_id < blob->snap_id) {
                 blob = blob->prev;
             }
             if (blob) {
-                nebr_count = blob->degree - blob->del_count; 
+                sdegree = blob->degree;
             }
         }
-        return nebr_count;
+        return sdegree;
     }
-    
+   	 
     /*
     inline index_t get_offset() { return v_unit->offset; }
 	inline void set_offset(index_t adj_list1) { 
@@ -216,7 +255,6 @@ class vunit_t {
 
         snap_blob1->prev = 0;
         snap_blob2->snap_id = snap_id;
-        snap_blob2->del_count = snap_blob->del_count;
         snap_blob2->degree = snap_blob->degree;
         set_snapblob(snap_blob2);
         return snap_blob2;
@@ -226,8 +264,7 @@ class vunit_t {
 //used for offline processing
 class ext_vunit_t {
     public:
-    degree_t  count;
-    degree_t  del_count;
+    sdegree_t  count;
     index_t   offset;
 };
 
@@ -235,8 +272,7 @@ class disk_vtable_t {
     public:
     vid_t    vid;
 	//Length of durable adj list
-    degree_t count;
-    degree_t del_count;
+    sdegree_t count;
     uint64_t file_offset;
 };
 

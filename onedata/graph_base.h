@@ -67,19 +67,14 @@ public:
     
     
     inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}
-    degree_t get_degree(vid_t v, snapid_t snap_id);
-    inline degree_t get_degree(vid_t vid) {
+    sdegree_t get_degree(vid_t v, snapid_t snap_id);
+    inline sdegree_t get_degree(vid_t vid) {
         vunit_t<T>* v_unit = get_vunit(vid);
         if (v_unit) return v_unit->get_degree();
         return 0;
     }
     
-    inline degree_t get_delcount(vid_t vid) {
-        vunit_t<T>* v_unit = get_vunit(vid);
-        return v_unit->get_delcount();
-    }
-
-    degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
+    degree_t get_nebrs(vid_t vid, T* ptr, sdegree_t count /*= -1*/);
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
     degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
     status_t next(header_t<T>& header, T& dst);

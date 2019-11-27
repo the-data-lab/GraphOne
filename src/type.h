@@ -215,9 +215,13 @@ class  edgeT_t {
 //Feel free to name the derived types, but not required.
 typedef edgeT_t<dst_id_t> edge_t;
 
+//deprecated
 typedef dst_weight_t<univ_t> lite_edge_t;
-typedef dst_weight_t<univ_t> weight_sid_t;
 typedef edgeT_t<lite_edge_t> ledge_t;
+
+//These are new typedefs
+typedef dst_weight_t<univ_t> weight_sid_t;
+typedef edgeT_t<weight_sid_t> weight_edge_t;
 
 // Functions on edgeT_t
 inline sid_t get_dst(edge_t* edge) {
@@ -237,6 +241,24 @@ inline void set_dst(edge_t* edge, snb_t dst_id) {
 }
 inline void set_weight(edge_t* edge, dst_id_t dst_id) {
 }
+
+template <class T>
+inline sid_t get_src(edgeT_t<T>* edge) {
+    return edge->src_id;
+}
+template <class T>
+inline sid_t get_src(edgeT_t<T>& edge) {
+    return edge.src_id;
+}
+template <class T>
+inline void set_src(edgeT_t<T>* edge, sid_t src_id) {
+    edge->src_id = src_id;
+}
+template <class T>
+inline void set_src(edgeT_t<T>& edge, sid_t src_id) {
+    edge.src_id = src_id;
+}
+
 template <class T>
 inline sid_t get_dst(edgeT_t<T>* edge) { 
     return edge->dst_id.first.sid;
@@ -256,6 +278,22 @@ inline void set_dst(edgeT_t<T>* edge, sid_t dst_id) {
 template <class T>
 inline void set_dst(edgeT_t<T>& edge, sid_t dst_id) {
     edge.dst_id.first.sid = dst_id;
+}
+template <class T>
+inline void set_weight_int(edgeT_t<T>* edge, int weight) {
+    edge->dst_id.second.value = weight;
+}
+template <class T>
+inline void set_weight_int(edgeT_t<T>& edge, int weight) {
+    edge.dst_id.second.value = weight;
+}
+template <class T>
+inline int get_weight_int(edgeT_t<T>* edge) {
+   return edge->dst_id.second.value;
+}
+template <class T>
+inline int get_weight_int(edgeT_t<T>& edge) {
+    return edge.dst_id.second.value;
 }
 template <class T>
 inline void set_weight(edgeT_t<T>* edge, T dst_id) {
@@ -284,6 +322,10 @@ template <class T>
 inline void set_sid(T& edge, sid_t sid1)
 {
     edge.first.sid = sid1;
+}
+template <class T>
+inline int get_weight_int(T& dst) {
+   return dst.second.value;
 }
 
 //Specialized functions for plain graphs, no weights

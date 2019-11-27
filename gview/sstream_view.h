@@ -75,7 +75,7 @@ void sstream_t<T>::update_degreesnap()
 {
     #pragma omp parallel num_threads(THD_COUNT)
     {
-        degree_t nebr_count = 0;
+        sdegree_t nebr_count = 0;
         snapid_t snap_id = 0;
         if (snapshot) {
             snap_id = snapshot->snap_id;
@@ -92,13 +92,14 @@ void sstream_t<T>::update_degreesnap()
                 //cout << v << " " << degree_out[v] << endl;
             }
         }
+        /*
         if (false == IS_STALE(flag)) {
             #pragma omp for
             for (index_t i = 0; i < edge_count; ++i) {
                 __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
                 __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
             }
-        }
+        }*/
     }
 }
 
@@ -107,7 +108,7 @@ void sstream_t<T>::update_degreesnapd()
 {
     #pragma omp parallel num_threads(THD_COUNT)
     {
-        degree_t      nebr_count = 0;
+        sdegree_t      nebr_count = 0;
         snapid_t snap_id = 0;
         if (snapshot) {
             snap_id = snapshot->snap_id;
@@ -137,13 +138,14 @@ void sstream_t<T>::update_degreesnapd()
                 }
             }
         }
+        /*
         if (false == IS_STALE(flag)) {
             #pragma omp for
             for (index_t i = 0; i < edge_count; ++i) {
                 __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
                 __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
             }
-        }
+        }*/
     }
 
     return;
