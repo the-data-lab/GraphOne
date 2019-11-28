@@ -33,9 +33,9 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
         vert1_id = TO_VID(src);
         if (!IS_DEL(src)) { 
             add_nebr_noatomic(vert1_id, dst);
-	} else {
-	    del_nebr_noatomic(vert1_id, dst);
-	}
+        } else {
+            del_nebr_noatomic(vert1_id, dst);
+        }
     }
 }
 
@@ -171,7 +171,25 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
     degree_t location = find_nebr(vid, actual_sid);
     if (INVALID_DEGREE != location) {
         set_sid(sid, DEL_SID(location));
-        v_unit->adj_list->add_nebr_noatomic(sid);
+        delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
+        #ifndef BULK 
+        if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
+            
+            delta_adjlist_t<T>* adj_list = 0;
+            snapT_t<T>* curr = v_unit->get_snapblob();
+            degree_t new_count = get_total(curr->degree);
+            degree_t max_count = new_count;
+            if (curr->prev) {
+                max_count -= get_total(curr->prev->degree); 
+            }
+            
+            adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
+            v_unit->set_delta_adjlist(adj_list);
+            adj_list1 = adj_list;
+        }
+        #endif
+        adj_list1->add_nebr_noatomic(sid);
+
      } else {
         //Didn't find the old value. decrease del degree count
 	    snapT_t<T>* curr = v_unit->get_snapblob();
@@ -274,7 +292,7 @@ status_t onegraph_t<T>::evict_old_adjlist(vid_t vid, degree_t degree)
 }
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count)
+degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count/*,edgeT_t<T>* edges, index_t marker*/)
 {
     vunit_t<T>* v_unit = get_vunit(vid); 
     if (v_unit == 0) return 0;
@@ -289,6 +307,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count)
     degree_t local_degree = 0;
     degree_t i_count = 0;
     degree_t total_count = 0;
+    vid_t src_vid;
     
     if (0 == del_count) {
         while (delta_adjlist != 0 && delta_degree > 0) {
@@ -301,9 +320,15 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count)
             delta_adjlist = delta_adjlist->get_next();
             delta_degree -= local_degree;
         }
+        /*for (index_t j=1; j <= marker && total_count<delta_degree; ++j){
+            src_vid = TO_VID(get_src(edges[marker-j]));
+            if (src_vid == vid) {
+                ptr[total_count++] = edges[marker-j].dst_id;
+            }
+        }*/
     } else {
         degree_t nebr_count = get_actual(count);
-        degree_t other_count = delta_degree - del_count;
+        degree_t other_count = delta_degree - nebr_count;
         degree_t* del_pos = (degree_t*)calloc(2*del_count, sizeof(degree_t));
         T* others = (T*)calloc(other_count, sizeof(T));
         
@@ -331,11 +356,9 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count)
                     }
                 } 
                 if (total_count < nebr_count) {//normal case
-                    ptr[total_count] = local_adjlist[i];
-                    ++total_count;
+                    ptr[total_count++] = local_adjlist[i];
                 } else {//space is full
-                    others[other_pos] = local_adjlist[i];
-                    ++other_pos;
+                    others[other_pos++] = local_adjlist[i];
                     if (is_del && pos >= total_count) {
                         others[pos-total_count] = local_adjlist[i];
                     }
@@ -345,11 +368,36 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count)
             delta_adjlist = delta_adjlist->get_next();
             delta_degree -= local_degree;
         }
-        for (degree_t i = other_pos; i != 0; --i) {
-            if (IS_DEL(get_sid(others[i-1]))) continue;
+        assert(other_pos <= other_count);
+        assert(idel <= 2*del_count);
+        while (other_pos != 0 && idel !=0) {
+            if (IS_DEL(get_sid(others[--other_pos]))) continue;
             pos = del_pos[--idel];
-            ptr[pos] = others[i-1];    
+            ptr[pos] = others[other_pos];    
         }
+        /*
+        //handle the edge log
+        index_t rem_count = 0;
+        index_t new_del = 0;
+        for (index_t j = 1, k =0; j <= marker && k < rem_count; ++j) {
+            src_vid = TO_VID(get_src(edges[marker-j]));
+            if (src_vid != vid) continue;
+            is_del = IS_DEL(get_src(edges[marker-j])); 
+            if (!is_del && idel !=0) {
+                pos = del_pos[--idel];
+                ptr[pos] = others[other_pos];    
+            } else {
+                new_del += (true == is_del);
+                if (total_count < nebr_count) {//normal case
+                    ptr[total_count++] = edges[marker-j].dst_id;
+                } else {//space is full
+                    others[other_pos++] = edges[marker-j].dst_id;
+                }
+            }
+            ++k;
+        }
+        //Need to handle if more deletion has been observed.
+        if (new_del) { }*/
         free(del_pos);
         free(others);
     }
