@@ -28,6 +28,18 @@ GraphOne offers a set of vertex-centric API to access the data. However differen
 
 GraphView simplifies all this access pattern, and many other stuffs by using `statich` and `sstreamh` for all your later access. Kindly read the papers for different kind of APIs.
 
+**`Graph View Flags`**: There are three important flags in create-\*-view() APIs, STALE_MASK, SIMPLE_MASK, PRIVATE_MASK.
+
+**Neighther STALE nor SIMPLE:** APIs do have access to non-archived edges, but get-nebrs-\*() won't return it. Get the non-archived edges using get-nonarchieved-edges() API, and process yourself. 
+
+**STALE_MASK:** Use this if you do not want access of non-archived edges. The edges are not available internally to the API.
+
+**SIMPLE_MASK:** Use this if you do wnat to access of non-archived edges using get-nebrs-\*() API.
+
+**PRIVATE_MASK:** It will coph the non-archived edges in a buffer. Useful for first option above.
+
+Don't mix stale and simple flags.  
+
 
 This piece of code is an academic prototype, and currently does not have a full-fledged query engine integrated. Your query or analytics need to use the GraphView APIs. We are working to improve the code quality, as well as support more type of analytics and Data. Please let us know if you have found any bug, or need a new feature. **You can also contribute to the code.** 
 
