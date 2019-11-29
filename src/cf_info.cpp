@@ -284,7 +284,7 @@ status_t cfinfo_t::batch_update(const string& src, const string& dst, propid_t p
     return eOK;
 }
 
-void cfinfo_t::waitfor_archive()
+void cfinfo_t::waitfor_archive(index_t marker)
 {   
     return;
 }

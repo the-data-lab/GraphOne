@@ -74,8 +74,8 @@ class pgraph_t: public cfinfo_t {
     status_t move_marker(index_t& snap_marker); 
     
     //Wait for make graph. Be careful on why you calling.
-    void waitfor_archive() {
-        while (blog->blog_tail != blog->blog_head) {
+    void waitfor_archive(index_t marker) {
+        while (blog->blog_tail < marker) {
             usleep(1);
         }
     }

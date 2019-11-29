@@ -675,9 +675,9 @@ void weighted_dtest0(const string& idir, const string& odir)
     
     end = mywtime();
     cout << "batch Edge time = " << end - start << endl;
-    
-    graph->create_marker(0);
-    graph->waitfor_archive();
+    g->waitfor_archive(); 
+    //graph->create_marker(0);
+    //graph->waitfor_archive();
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     cout << "no of actions " << na << endl;
@@ -1095,6 +1095,57 @@ void test_user1(const string& idir, const string& odir)
     dump();
 }
 
+void test_user2(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<weight_sid_t> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    g->create_threads(true, false);
+    
+    p_ugraph_t* pgraph = (p_ugraph_t*) g->get_sgraph(1);
+    
+    vid_t v0 = 0;
+    vid_t v1= 1;
+    vid_t v2 = 2;
+    status_t status;
+
+    // insert two edges
+    weight_edge_t edge;
+    set_src(edge, v0); // src
+    set_dst(edge, v1); // dst
+    set_weight_int(edge, 102);// weight
+    status = pgraph->batch_edge(edge);
+    cout << "insert " << v0 << " - " << v1 << ": " << 102 << "\n";
+
+    set_src(edge, v0); // src
+    set_dst(edge, v2); // dst
+    set_weight_int(edge, 103); // weight
+    status = pgraph->batch_edge(edge);
+    cout << "insert " << v0 << " - " << v2 << ": " << 103 << "\n";
+
+    //g->waitfor_archive();
+    dump_simple();
+
+    set_src(edge, DEL_SID(v0)); // src
+    set_dst(edge, v2); // dst
+    set_weight_int(edge, 104); // weight, not required
+    status = pgraph->batch_edge(edge);
+    cout << "remove " << v0 << " - " << v2 << ": " << 104 << "\n";
+
+    //g->waitfor_archive();
+    dump_simple();
+
+    set_src(edge, v0); // src
+    set_dst(edge, v2); // dst
+    set_weight_int(edge, 1010); // weight
+    status = pgraph->batch_edge(edge);
+    cout << "insert " << v0 << " - " << v2 << ": " << 1010 << "\n";
+
+    //g->waitfor_archive();
+    dump_simple();
+}
+
 template <class T>
 void test_ingestion(const string& idir, const string& odir)
 {
@@ -1319,6 +1370,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
 
 	case 40:
 	    test_user1(idir, odir);
+	    break;
+	case 41:
+	    test_user2(idir, odir);
 	    break;
         case 50:
             paper_test_pr(idir, odir);

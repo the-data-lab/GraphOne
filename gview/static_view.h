@@ -13,9 +13,6 @@ class snap_t : public gview_t <T> {
     edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
     
-    //For edge-centric
-    edgeT_t<T>*      new_edges;//New edges
-    index_t          new_edge_count;//Their count
 
  
  public:
@@ -29,19 +26,19 @@ class snap_t : public gview_t <T> {
  
  public:
     inline snap_t() {
-        new_edges = 0;
-        new_edge_count = 0;
         graph_out = 0;
         graph_in = 0;
         degree_out = 0;
         degree_in = 0;
+        edges = 0;
+        edge_count = 0;
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
-            delete degree_out;
+            if(degree_out !=0) delete degree_out;
         } else {
-            delete degree_out;
-            delete degree_in;
+            if(degree_out !=0) delete degree_out;
+            if (degree_in !=0) delete degree_in;
         }
     }
 
@@ -64,38 +61,114 @@ class snap_t : public gview_t <T> {
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
     void create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree);
+    void handle_flagu();
+    void handle_flagd();
+    void handle_flaguni();
 };
 
 template <class T>
 void snap_t<T>::create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree)
 {
-    {
-        snapid_t snap_id = 0;
-        if (snapshot) {
-            snap_id = snapshot->snap_id;
+    snapid_t snap_id = 0;
+    if (snapshot) {
+        snap_id = snapshot->snap_id;
 
-            #pragma omp for nowait 
-            for (vid_t v = 0; v < v_count; ++v) {
-                degree[v] = graph->get_degree(v, snap_id);
-                //cout << v << " " << degree_out[v] << endl;
-            }
+        #pragma omp for 
+        for (vid_t v = 0; v < v_count; ++v) {
+            degree[v] = graph->get_degree(v, snap_id);
+            //cout << v << " " << degree_out[v] << endl;
         }
     }
-    /*
-    if (false == IS_STALE(flag)) {
+}
+
+template <class T>
+void snap_t<T>::handle_flagu()
+{
+    sid_t src, dst;
+    vid_t src_vid, dst_vid;
+    bool is_del = false;
+    bool is_stale = IS_STALE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if (false == is_stale && (true == is_simple)) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
-            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-            __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_out+dst_vid, 1);
+#endif
         }
     }
-    if (false == IS_STALE(flag)) {
-    #pragma omp for
-    for (index_t i = 0; i < edge_count; ++i) {
-        __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-        __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
+}
+
+template <class T>
+void snap_t<T>::handle_flagd()
+{
+    sid_t src, dst;
+    vid_t src_vid, dst_vid;
+    bool is_del = false;
+    bool is_stale = IS_STALE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if ((false == is_stale) && (true == is_simple)) {
+        #pragma omp for
+        for (index_t i = 0; i < edge_count; ++i) {
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0)};
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_in+dst_vid, 1);
+#endif
+        }
     }
-    }*/
+}
+
+template <class T>
+void snap_t<T>::handle_flaguni()
+{
+    sid_t src, dst;
+    vid_t src_vid, dst_vid;
+    bool is_del = false;
+    bool is_stale = IS_STALE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if (false == is_stale && (true == is_simple)) {
+        #pragma omp for
+        for (index_t i = 0; i < edge_count; ++i) {
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+#endif
+        }
+    }
 }
 
 template <class T>
@@ -133,9 +206,16 @@ status_t snap_t<T>::update_view()
     }
     //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
     //need to copy it. TODO
-    edges     = blog->blog_beg + (old_marker & blog->blog_mask);
-    edge_count = marker - old_marker;
-    //if (stale)  edge_count = 0;
+    if (IS_STALE(flag)) { 
+        edge_count = 0;
+    } else if (IS_PRIVATE(flag)) {
+        edge_count = marker - old_marker;
+        realloc(edges, edge_count*sizeof(edgeT_t<T>));
+        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
+    } else {
+        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
+        edge_count = marker - old_marker;
+    }
     
     //Degree and actual edge arrays
     #pragma omp parallel num_threads(THD_COUNT)
@@ -144,6 +224,19 @@ status_t snap_t<T>::update_view()
     if (graph_in != graph_out && graph_in != 0) {
         create_degreesnap(graph_in, degree_in);
     }
+    if (graph_in != graph_out && graph_in != 0) {
+        handle_flagd();
+    } else if (graph_in == graph_out) {
+        handle_flagu();
+    } else {
+        handle_flaguni();
+    }
+    }
+
+    //wait for archiving to complete
+    if (IS_SIMPLE(flag)) {
+        g->waitfor_archive();
+        //while(pgraph->get_archived_marker() < marker) usleep(1);
     }
     return eOK;
 }

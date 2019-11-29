@@ -665,6 +665,57 @@ void dump()
     uint64_t neighbours_sz = 0;
 
     for(sid_t vertex_id = 0; vertex_id < view->get_vcount(); vertex_id++) {
+        uint64_t degree_out = view->get_degree_out(vertex_id);
+        if (degree_out == 0) continue;
+
+        cout << "[vertex_id: " << vertex_id << "]\n";
+        cout << degree_out << "    outgoing edges: ";
+        if(degree_out > neighbours_sz){
+            neighbours_sz = degree_out;
+            neighbours = (weight_sid_t*) realloc(neighbours, sizeof(neighbours[0]) * degree_out);
+        }
+
+        view->get_nebrs_out(vertex_id, neighbours);
+        for (uint64_t edge_id = 0; edge_id < degree_out; edge_id++) {
+            if (edge_id > 0) cout << ", ";
+            cout << get_sid(neighbours[edge_id]) << " [w=" << get_weight_int(neighbours[edge_id]) << "]";
+        }
+        cout << endl;
+        /*
+        uint64_t degree_in = view->get_degree_in(vertex_id);
+        cout << degree_in << "    incoming edges: ";
+        if(degree_in > neighbours_sz){
+            neighbours_sz = degree_in;
+            neighbours = (lite_edge_t*) realloc(neighbours, sizeof(neighbours[0]) * degree_in);
+        }
+        view->get_nebrs_in(vertex_id, neighbours);
+        for(uint64_t edge_id = 0; edge_id < degree_in; edge_id++){
+            if(edge_id > 0) cout << ", ";
+            cout << get_sid(neighbours[edge_id]) << " [w=" << get_weight_int(neighbours[edge_id]) << "]";
+        }
+        cout << endl;
+        */
+    }
+
+    free(neighbours); 
+    neighbours = nullptr; 
+    neighbours_sz = 0;
+
+    delete_static_view(view);
+}
+
+void dump_simple() 
+{
+    p_ugraph_t* pgraph = (p_ugraph_t*) g->get_sgraph(1);
+    //pgraph->compress_graph_baseline();
+    auto view = create_static_view(pgraph, SIMPLE_MASK); 
+
+    cout << "Vertex count: " << view->get_vcount() << "\n";
+
+    weight_sid_t* neighbours = nullptr;
+    uint64_t neighbours_sz = 0;
+
+    for(sid_t vertex_id = 0; vertex_id < view->get_vcount(); vertex_id++) {
         cout << "[vertex_id: " << vertex_id << "]\n";
         uint64_t degree_out = view->get_degree_out(vertex_id);
 

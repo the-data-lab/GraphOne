@@ -116,7 +116,7 @@ class cfinfo_t {
     virtual index_t update_marker() {return 0;};    
     virtual status_t move_marker(index_t& snap_marker);
     virtual void prep_graph_baseline(egraph_t egraph_type=eADJ);
-    virtual void waitfor_archive();
+    virtual void waitfor_archive(index_t marker);
     virtual void make_graph_baseline();
     virtual status_t write_edgelog();
     virtual void compress_graph_baseline();

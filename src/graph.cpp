@@ -254,11 +254,12 @@ void graph::swap_log_buffer()
 
 void graph::waitfor_archive()
 {
+    index_t* markers = (index_t*)calloc(cf_count, sizeof(index_t));
     for (int i = 0; i < cf_count; i++) {
-        cf_info[i]->create_marker(0);
+        markers[i] = cf_info[i]->create_marker(0);
     }
     for (int i = 0; i < cf_count; i++) {
-        cf_info[i]->waitfor_archive();
+        cf_info[i]->waitfor_archive(markers[i]);
     }
 }
 

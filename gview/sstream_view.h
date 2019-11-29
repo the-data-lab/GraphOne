@@ -15,10 +15,11 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::snapshot;
     using snap_t<T>::edges;
     using snap_t<T>::edge_count;
-    using snap_t<T>::new_edges;
-    using snap_t<T>::new_edge_count;
     using snap_t<T>::v_count;
     using snap_t<T>::flag;
+    //For edge-centric
+    edgeT_t<T>*      new_edges;//New edges
+    index_t          new_edge_count;//Their count
 
  public:   
     Bitmap*  bitmap_in;
@@ -28,6 +29,8 @@ class sstream_t : public snap_t<T> {
     inline sstream_t(): snap_t<T>() {
         bitmap_in = 0;
         bitmap_out = 0;
+        new_edges = 0;
+        new_edge_count = 0;
     }
     inline ~sstream_t() {
         if (bitmap_in != bitmap_out) {
