@@ -210,7 +210,7 @@ status_t snap_t<T>::update_view()
         edge_count = 0;
     } else if (IS_PRIVATE(flag)) {
         edge_count = marker - old_marker;
-        realloc(edges, edge_count*sizeof(edgeT_t<T>));
+        edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
         edges     = blog->blog_beg + (old_marker & blog->blog_mask);
     } else {
         edges     = blog->blog_beg + (old_marker & blog->blog_mask);
