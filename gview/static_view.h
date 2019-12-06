@@ -35,10 +35,10 @@ class snap_t : public gview_t <T> {
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
-            if(degree_out !=0) delete degree_out;
+            free(degree_out);
         } else {
-            if(degree_out !=0) delete degree_out;
-            if (degree_in !=0) delete degree_in;
+            free(degree_out);
+            free(degree_in);
         }
     }
 
