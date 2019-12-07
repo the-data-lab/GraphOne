@@ -470,12 +470,21 @@ void edge_shard_t<T>::estimate_classify(vid_t* vid_range, vid_t* vid_range_in, v
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
     index_t index;
+    bool rewind1, rewind2;
 
     #pragma omp for schedule(static)
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
         index = (i & blog->blog_mask);
+        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
+        rewind2 = IS_DEL(get_dst(edges[index]));
+	while (rewind1 != rewind2) {
+	    usleep(10);
+            rewind2 = IS_DEL(get_dst(edges[index]));
+	}
+	
         src = edges[index].src_id;
-        dst = get_dst(edges[index]);
+        dst = TO_SID(get_dst(edges[index]));
+
         
         vert1_id = TO_VID(src);
         vert2_id = TO_VID(dst);
@@ -500,10 +509,18 @@ void edge_shard_t<T>::estimate_classify_uni(vid_t* vid_range, vid_t bit_shift)
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
     index_t index;
+    bool rewind1, rewind2;
 
     #pragma omp for
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
         index = (i & blog->blog_mask);
+        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
+        rewind2 = IS_DEL(get_dst(edges[index]));
+	while (rewind1 != rewind2) {
+	    usleep(10);
+            rewind2 = IS_DEL(get_dst(edges[index]));
+	}
+	
         src = edges[index].src_id;
         vert1_id = TO_VID(src);
 
@@ -549,11 +566,18 @@ void edge_shard_t<T>::estimate_classify_runi(vid_t* vid_range, vid_t bit_shift)
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
     index_t index;
+    bool rewind1, rewind2;
 
     #pragma omp for
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
         index = (i & blog->blog_mask);
-        dst = get_dst(edges[index]);
+        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
+        rewind2 = IS_DEL(get_dst(edges[index]));
+	while (rewind1 != rewind2) {
+	    usleep(10);
+            rewind2 = IS_DEL(get_dst(edges[index]));
+	}
+        dst = TO_SID(get_dst(edges[index]));
         vert_id = TO_VID(dst);
 
         //gather high level info for 1
@@ -643,7 +667,7 @@ void edge_shard_t<T>::classify(vid_t* vid_range, vid_t* vid_range_in, vid_t bit_
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
         index = (i & blog->blog_mask);
         src = edges[index].src_id;
-        dst = get_dst(edges[index]);
+        dst = TO_SID(get_dst(edges[index]));
        
         vert1_id = TO_VID(src);
         vert2_id = TO_VID(dst);
@@ -653,7 +677,8 @@ void edge_shard_t<T>::classify(vid_t* vid_range, vid_t* vid_range_in, vid_t bit_
         vid_range[range] += 1;
         //assert(edge - global_range[range].edges < global_range[range].count);
         edge->src_id = src;
-        edge->dst_id = edges[index].dst_id;
+        set_dst(edge, dst);
+        set_weight(edge, edges[index].dst_id);
         
         range = (vert2_id >> bit_shift_in);
         edge = global_range_in[range].edges + vid_range_in[range];
@@ -684,7 +709,7 @@ void edge_shard_t<T>::classify_runi(vid_t* vid_range, vid_t bit_shift, global_ra
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
         index = (i & blog->blog_mask);
         src = edges[index].src_id;
-        dst = get_dst(edges[index]);
+        dst = TO_SID(get_dst(edges[index]));
         vert_id = TO_VID(dst);
         
         range = (vert_id >> bit_shift);
@@ -721,6 +746,7 @@ void edge_shard_t<T>::classify_uni(vid_t* vid_range, vid_t bit_shift, global_ran
         edge = global_range[range].edges + vid_range[range]++;
         edge->src_id = src;
         edge->dst_id = edges[index].dst_id;
+	set_dst(edge, TO_SID(get_dst(edge)));
     }
 }
 

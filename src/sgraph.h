@@ -150,6 +150,7 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
     status_t ret = eOK;
     
     index_t index = __sync_fetch_and_add(&blog->blog_head, 1L);
+    bool rewind = !((index >> BLOG_SHIFT) & 0x1);
 
     //Check if we are overwritting the unarchived data, if so sleep
     while (index + 1 - blog->blog_tail > blog->blog_count) {
@@ -159,7 +160,12 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
     }
     
     index_t index1 = (index & blog->blog_mask);
-    blog->blog_beg[index1] = edge;
+    if (rewind) {
+        blog->blog_beg[index1] = edge;
+        set_dst(blog->blog_beg[index1], DEL_SID(get_dst(edge)));
+    } else {
+        blog->blog_beg[index1] = edge;
+    }
 
     index += 1;
     index_t size = ((index - blog->blog_marker) & BATCH_MASK);
