@@ -629,25 +629,51 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
     if (0 == v_unit) return INVALID_DEGREE;
 
     //degree_t  durable_degree = v_unit->count;
+    degree_t      ret_degree = INVALID_DEGREE;
     degree_t    local_degree = 0;
     degree_t          degree = 0;
     sid_t               nebr = 0;
     T*         local_adjlist = 0;
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
-    //delta_adjlist_t<T>* next = delta_adjlist->get_next();
+    delta_adjlist_t<T>* last = v_unit->adj_list;
+
+    {
+        local_adjlist = last->get_adjlist();
+        local_degree  = last->get_nebrcount();
+        for (degree_t i = local_degree; i != 0; --i) {
+            nebr = get_sid(local_adjlist[i-1]);
+            if (nebr == sid) {
+		ret_degree = i-1;
+		break;
+            }
+        }
+	//XXX A better way to do this calculation is possible
+	if (ret_degree != INVALID_DEGREE) {
+    	    while (delta_adjlist != last) {
+        	local_degree  = delta_adjlist->get_nebrcount();
+        	degree += local_degree;
+        	delta_adjlist = delta_adjlist->get_next();
+	    }
+	    return ret_degree + degree;
+	}
+    }
     
-    while (delta_adjlist != 0) {
+    delta_adjlist = v_unit->delta_adjlist;
+    degree = 0;
+    while (delta_adjlist != last) {
         local_adjlist = delta_adjlist->get_adjlist();
         local_degree  = delta_adjlist->get_nebrcount();
         for (degree_t i = 0; i < local_degree; ++i) {
             nebr = get_sid(local_adjlist[i]);
             if (nebr == sid) {
-                return i + degree;
+		ret_degree = i+degree;
             }
         }
         degree += local_degree;
         delta_adjlist = delta_adjlist->get_next();
     }
+                
+    return ret_degree;
 
     /*
     //Durable adj list 
@@ -664,7 +690,6 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
             return i;
         }
     }*/
-    return INVALID_DEGREE;
 }
 
 template <class T>
