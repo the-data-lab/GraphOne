@@ -108,8 +108,8 @@ void snap_t<T>::handle_flagu()
             __sync_fetch_and_add(&degree_out+src_vid, 1);
             __sync_fetch_and_add(&degree_out+dst_vid, 1);
             }
-        }
 #endif
+        }
     }
 }
 
@@ -140,8 +140,8 @@ void snap_t<T>::handle_flagd()
             __sync_fetch_and_add(&degree_out+src_vid, 1);
             __sync_fetch_and_add(&degree_in+dst_vid, 1);
             }
-        }
 #endif
+        }
     }
 }
 
@@ -169,8 +169,8 @@ void snap_t<T>::handle_flaguni()
             if (is_del) {assert(0);
             __sync_fetch_and_add(&degree_out+src_vid, 1);
             }
-        }
 #endif
+        }
     }
 }
 
