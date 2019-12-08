@@ -98,8 +98,9 @@ class thd_mem_t {
         }
         degree_t max_count = (size - sizeof(delta_adjlist_t<T>))/sizeof(T);
 
-        #ifdef MALLOC 
+        #if defined(DEL) || defined(MALLOC) 
 		adj_list =  (delta_adjlist_t<T>*)malloc(size);
+        assert(adj_list!=0);
         #else 
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
         index_t tmp = 0;
@@ -121,21 +122,19 @@ class thd_mem_t {
 	}
 
     void free_adjlist(delta_adjlist_t<T>* adj_list, bool chain) {
+        #if defined(DEL) || defined(MALLOC)
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
         if(chain) {
             delta_adjlist_t<T>* adj_list1 = adj_list;
             while (adj_list != 0) {
                 adj_list1 = adj_list->get_next();
-                #ifdef MALLOC
                 free(adj_list);
-                #endif
                 adj_list = adj_list1;
             }
         } else {
-            #ifdef MALLOC
             free(adj_list);
-            #endif
         }
+        #endif
     }
     
     inline status_t delta_adjlist_bulk(index_t size) {

@@ -107,8 +107,9 @@ void snap_t<T>::handle_flagu()
             if (is_del) {assert(0);
             __sync_fetch_and_add(&degree_out+src_vid, 1);
             __sync_fetch_and_add(&degree_out+dst_vid, 1);
-#endif
+            }
         }
+#endif
     }
 }
 
@@ -135,11 +136,12 @@ void snap_t<T>::handle_flagd()
             __sync_fetch_and_add(&degree_in[dst_vid].add_count, 1);
             }
 #else
-            if (is_del) {assert(0)};
+            if (is_del) {assert(0);
             __sync_fetch_and_add(&degree_out+src_vid, 1);
             __sync_fetch_and_add(&degree_in+dst_vid, 1);
-#endif
+            }
         }
+#endif
     }
 }
 
@@ -166,8 +168,9 @@ void snap_t<T>::handle_flaguni()
 #else
             if (is_del) {assert(0);
             __sync_fetch_and_add(&degree_out+src_vid, 1);
-#endif
+            }
         }
+#endif
     }
 }
 

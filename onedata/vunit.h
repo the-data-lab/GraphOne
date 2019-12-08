@@ -89,6 +89,7 @@ class nebrcount_t {
 };
 
 #ifdef DEL
+#define MAX_DEL_DEGREE UINT16_MAX
 class sdegree_t {
  public:
     degree_t add_count;
@@ -179,7 +180,13 @@ class vunit_t {
         }
         return sdegree;
     }
-    
+    inline void compress_degree() {
+#ifdef DEL
+        snapT_t<T>*   blob = snap_blob;
+        blob->degree.add_count -= blob->degree.del_count;
+        blob->degree.del_count = 0;
+#endif
+    } 
     inline sdegree_t get_degree(snapid_t snap_id)
     {
         snapT_t<T>*   blob = snap_blob;

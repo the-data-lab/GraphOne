@@ -5,8 +5,8 @@ project(graphone)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_CXX_EXTENSIONS ON)
 
-set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -g -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -DDEL -fopenmp")
-#set(COMPILE_FLAGS_COMMON "-std=gnu++1z -g -DOVER_COMMIT -DPLAIN_GRAPH -DDEL -fopenmp")
+set(COMPILE_FLAGS_COMMON "-std=c++1y -O3 -g -DOVER_COMMIT -DTBB -DPLAIN_GRAPH -Wno-unused-result -fopenmp")
+#set(COMPILE_FLAGS_COMMON "-std=gnu++1z -g -DOVER_COMMIT -DPLAIN_GRAPH -fopenmp")
 
 set(COMPILE_FLAGS32 "${COMPILE_FLAGS_COMMON} -DB32")
 set(COMPILE_FLAGS64 "${COMPILE_FLAGS_COMMON} -DB64")
@@ -17,6 +17,7 @@ include_directories(src)
 include_directories(gview)
 include_directories(onedata)
 include_directories(analytics)
+include_directories(test)
 
 add_subdirectory(src)
 add_subdirectory(onedata)

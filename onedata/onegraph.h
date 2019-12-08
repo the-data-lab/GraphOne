@@ -95,6 +95,7 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/)
 	
 	}
 #ifdef DEL
+    assert((curr->degree.del_count < MAX_DEL_DEGREE) && (curr->degree.del_count + count) >= count);
 	curr->degree.del_count += count;
 #else
 	assert(0);
@@ -226,7 +227,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     degree_t del_count = get_delcount(sdegree);
     
 	//Only 1 chain, and no deletion data,then no compaction required
-    if (del_count == 0 && (v_unit->delta_adjlist == v_unit->adj_list)) {
+    if (del_count == 0 /*&& (v_unit->delta_adjlist == v_unit->adj_list)*/) {
         return eOK;
     }
 
@@ -239,14 +240,15 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     degree_t ret = get_nebrs(vid, ptr, sdegree);
     assert(ret == nebr_count);
 
-    //replace the edge array atomically
     delta_adjlist_t<T>* old_adjlist = v_unit->delta_adjlist;
-    
+    //replace the edge array atomically
+    /*
     if(true != __sync_bool_compare_and_swap(&v_unit->delta_adjlist, old_adjlist, adj_list)) {
         assert(0);
-    }
-    //v_unit->delta_adjlist = adj_list;
+    }*/
+    v_unit->delta_adjlist = adj_list;
     v_unit->adj_list = adj_list;
+    v_unit->compress_degree();
     delete_delta_adjlist(old_adjlist, true);//chain free
     return eOK;
 }
