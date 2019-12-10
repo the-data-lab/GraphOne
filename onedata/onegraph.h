@@ -241,15 +241,16 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     assert(ret == nebr_count);
 
     delta_adjlist_t<T>* old_adjlist = v_unit->delta_adjlist;
-    //replace the edge array atomically
-    /*
-    if(true != __sync_bool_compare_and_swap(&v_unit->delta_adjlist, old_adjlist, adj_list)) {
-        assert(0);
-    }*/
-    v_unit->delta_adjlist = adj_list;
-    v_unit->adj_list = adj_list;
-    v_unit->compress_degree();
-    delete_delta_adjlist(old_adjlist, true);//chain free
+    vunit_t<T>* v_unit1 = thd_mem->alloc_vunit();
+    v_unit1->delta_adjlist = adj_list;
+    v_unit1->adj_list = adj_list;
+    v_unit1->snap_blob = v_unit->snap_blob;
+    v_unit1->compress_degree();
+    //delete_delta_adjlist(old_adjlist, true);//chain free
+    
+    //replace v-unit atomically
+    set_vunit(vid, v_unit1); 
+    thd_mem->retire_vunit(v_unit);
     return eOK;
 }
 
@@ -294,11 +295,20 @@ status_t onegraph_t<T>::evict_old_adjlist(vid_t vid, degree_t degree)
 }
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count/*,edgeT_t<T>* edges, index_t marker*/)
+degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count, int reg_id/*,edgeT_t<T>* edges, index_t marker*/)
 {
-    vunit_t<T>* v_unit = get_vunit(vid); 
-    if (v_unit == 0) return 0;
+    vunit_t<T>* v_unit;
 
+    while (true) {
+        v_unit = get_vunit(vid); 
+        if (v_unit == 0) return 0;
+
+        //Add to hazard pointer list.
+        thd_mem->add_hp(v_unit, reg_id);
+        
+        //Check if v_unit is still good.
+        if (v_unit == get_vunit(vid)) break; 
+    }
     degree_t del_count = get_delcount(count);
     
     //traverse the delta adj list this far
@@ -403,6 +413,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count/*,edgeT_t<T
         free(del_pos);
         free(others);
     }
+    thd_mem->rem_hp(v_unit, reg_id);
     return total_count;
 }
 

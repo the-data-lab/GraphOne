@@ -64,7 +64,8 @@ public:
     void  handle_write(bool clean = false);
     void  read_vtable();
     void  file_open(const string& filename, bool trunc);
-    
+    inline int register_reader() {return thd_mem->register_reader();}
+    inline void unregister_reader(int reg_id) {return thd_mem->unregister_reader(reg_id);}
     
     inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}
     sdegree_t get_degree(vid_t v, snapid_t snap_id);
@@ -74,7 +75,7 @@ public:
         return 0;
     }
     
-    degree_t get_nebrs(vid_t vid, T* ptr, sdegree_t count /*= -1*/);
+    degree_t get_nebrs(vid_t vid, T* ptr, sdegree_t count, int reg_id = -1);//XXX remove default
     degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
     degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
     status_t next(header_t<T>& header, T& dst);

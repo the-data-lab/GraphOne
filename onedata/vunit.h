@@ -162,7 +162,10 @@ class vunit_t {
  public:
 	//uint16_t      vflag;
 	//uint16_t    max_size; //max count in delta adj list
-    snapT_t<T>*   snap_blob;
+    union {
+        snapT_t<T>*   snap_blob;
+        vunit_t<T>*   next;
+    };
 	delta_adjlist_t<T>* delta_adjlist;
 	delta_adjlist_t<T>* adj_list;//Last chain
 

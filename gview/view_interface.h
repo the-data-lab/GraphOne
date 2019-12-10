@@ -12,6 +12,7 @@ class gview_t {
     void*           algo_meta;//algorithm specific data
     vid_t           v_count;
     int             flag;
+    int             reg_id;
     typename callback<T>::sfunc   sstream_func; 
  public: 
     virtual degree_t get_nebrs_out(vid_t vid, T* ptr) {assert(0); return 0;}
@@ -24,7 +25,7 @@ class gview_t {
     virtual index_t get_nonarchived_edges(edgeT_t<T>*& ptr) {assert(0); return 0;}
     
     virtual status_t    update_view() {assert(0); return eOK;}
-    void    init_view(pgraph_t<T>* pgraph, index_t a_flag);
+    //void    init_view(pgraph_t<T>* pgraph, index_t a_flag);
     virtual bool has_vertex_changed_out(vid_t v) { assert(0); return false;}
     virtual bool has_vertex_changed_in(vid_t v) { assert(0); return false;}
     virtual int  is_unidir() {assert(0); return 0;}

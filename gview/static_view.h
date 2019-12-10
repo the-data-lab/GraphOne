@@ -35,10 +35,15 @@ class snap_t : public gview_t <T> {
     }
     inline ~snap_t() {
         if (degree_in ==  degree_out) {
+            graph_out->unregister_reader(this->reg_id);
             free(degree_out);
+            
         } else {
             free(degree_out);
-            free(degree_in);
+            if (degree_in) {
+                graph_in->unregister_reader(this->reg_id);
+                free(degree_in);
+            }
         }
     }
 
@@ -186,6 +191,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     
     graph_out = ugraph->sgraph_out[0];
     degree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
+    this->reg_id = graph_out->register_reader();
     
     if (ugraph->sgraph_in == ugraph->sgraph_out) {
         graph_in   = graph_out;
@@ -193,6 +199,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
         degree_in = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
+        this->reg_id = graph_in->register_reader();
     }
 }
 
@@ -324,10 +331,10 @@ degree_t snap_t<T>::get_degree_in(vid_t v)
 template <class T>
 degree_t snap_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
-    return graph_out->get_nebrs(v, adj_list, degree_out[v]);
+    return graph_out->get_nebrs(v, adj_list, degree_out[v], this->reg_id);
 }
 template<class T>
 degree_t snap_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_nebrs(v, adj_list, degree_in[v]);
+    return graph_in->get_nebrs(v, adj_list, degree_in[v], this->reg_id);
 }

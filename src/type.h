@@ -137,6 +137,9 @@ extern int      THD_COUNT;
 extern index_t  LOCAL_VUNIT_COUNT;
 extern index_t  LOCAL_DELTA_SIZE;
 
+//Concurrent View allowed.
+#define VIEW_COUNT 32
+
 void free_buf(void* buf);
 void* alloc_buf();
 

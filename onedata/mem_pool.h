@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 #include <algorithm>
+#include "view_interface.h"
 using std::cout;
 using std::endl;
 using std::max;
@@ -31,11 +32,15 @@ struct mem_t {
     vunit_t<T>* vunit_beg;
     snapT_t<T>* dlog_beg;
     char*       adjlog_beg;
-	
+
+    vunit_t<T>** vunit_retired;
+    vunit_t<T>* vunit_free;
+    	
 	public:
     index_t    	delta_size1;
 	uint32_t    vunit_count;
 	uint32_t    dsnap_count;
+    uint32_t    vunit_retired_count;
 #ifdef BULK
     index_t     degree_count;
 #endif
@@ -44,14 +49,25 @@ struct mem_t {
     char*       adjlog_beg1;
 };
 
+struct reader_t {
+   void** hp;//THD_COUNT is the array size
+};
+
 template <class T>
 class thd_mem_t {
     mem_t<T>* mem;  
+    reader_t reader[VIEW_COUNT];
  
  public:	
     inline vunit_t<T>* alloc_vunit() {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
-		if (mem1->vunit_count == 0) {
+		vunit_t<T>* v_unit;
+        if (mem1->vunit_free) {
+            v_unit = mem1->vunit_free;
+            mem1->vunit_free->next;
+            return v_unit;
+        }
+        if (mem1->vunit_count == 0) {
             vunit_bulk(1L << LOCAL_VUNIT_COUNT);
 		}
 		mem1->vunit_count--;
@@ -67,9 +83,72 @@ class thd_mem_t {
             assert(mem1->vunit_beg);
         }
         return eOK;
-	}	
+	}
+    
+    inline int register_reader() {
+        int reg_id = 0;
+        for (; reg_id < VIEW_COUNT; ++reg_id) { 
+            if (reader[reg_id].hp == 0) {
+                reader[reg_id].hp = (void**)calloc(sizeof(void*),THD_COUNT);
+                return reg_id;
+            }
+        }
+        assert(0);
+        return reg_id;
+    }
 
-	inline snapT_t<T>* alloc_snapdegree() {
+    inline void unregister_reader(int reg_id) {
+        free(reader[reg_id].hp);
+        reader[reg_id].hp = 0;
+    }
+
+    inline void retire_vunit(vunit_t<T>* v_unit1) {
+        mem_t<T>* mem1 = mem + omp_get_thread_num();  
+        mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit1;
+        if (1024 == mem1->vunit_retired_count) {
+            vunit_t<T>* v_unit;
+            vunit_t<T>** vunit_retired = mem1->vunit_retired;
+            int    vunit_retired_count = mem1->vunit_retired_count;
+            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
+            mem1->vunit_retired_count = 0;
+            for (int i = 0; i < vunit_retired_count; i++) {
+                v_unit = vunit_retired[i];
+                free_vunit(v_unit);
+            }
+            free(vunit_retired);
+        }
+    }
+
+    inline void free_vunit(vunit_t<T>* v_unit) {
+        mem_t<T>* mem1 = mem + omp_get_thread_num();
+        vunit_t<T>** hp;
+        for (int j = 0; j < VIEW_COUNT; ++j) {
+            hp = (vunit_t<T>**)reader[j].hp;
+            if (0 == hp) continue;
+            for (int k = 0; k < THD_COUNT; ++k) {
+                if (v_unit == hp[k]) {
+                    //insert it back
+                    mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit;
+                    return;
+                }
+            }
+        }
+        //free it;
+        free_adjlist(v_unit->delta_adjlist, true);
+        v_unit->next = mem1->vunit_free->next;
+        mem1->vunit_free = v_unit;
+        return;
+    }
+
+    inline void add_hp(vunit_t<T>* v_unit, int reg_id) {
+        reader[reg_id].hp[omp_get_thread_num()]= v_unit;
+    }
+
+    inline void rem_hp(vunit_t<T>* v_unit, int reg_id) {
+        reader[reg_id].hp[omp_get_thread_num()] = 0;
+    }
+	
+    inline snapT_t<T>* alloc_snapdegree() {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
 		if (mem1->dsnap_count == 0) {
             snapdegree_bulk(1L << LOCAL_VUNIT_COUNT);
