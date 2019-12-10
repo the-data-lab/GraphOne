@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <atomic>
+
+#include "list.h"
 #include "bitmap.h"
 
 using std::map;
@@ -388,10 +391,32 @@ inline sid_t get_nebr<sid_t>(sid_t* adj, vid_t k) {
 
 class snapshot_t {
  public:
+    list_head list;
+    //snapshot_t* next;
     snapid_t snap_id;
+    std::atomic<int> ref_count;
     index_t marker;
     index_t durable_marker;
-    snapshot_t* next;
+
+    snapshot_t() {
+        snap_id = 0;
+        ref_count = 1;
+        marker = 0;
+        durable_marker = 0;
+    }
+    inline snapshot_t* take_ref() {
+        ++ref_count;
+        return this;
+    }
+    inline void drop_ref() {
+        if (0 == --ref_count) {
+            list_del(&list);
+            delete this;
+        }
+    }
+    ~snapshot_t() {
+        
+    }
 };
 
 class disk_snapshot_t {

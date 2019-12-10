@@ -45,6 +45,7 @@ class snap_t : public gview_t <T> {
                 free(degree_in);
             }
         }
+        if (snapshot) snapshot->drop_ref();
     }
 
     degree_t get_nebrs_out(vid_t vid, T* ptr);
@@ -208,14 +209,15 @@ status_t snap_t<T>::update_view()
 {
     blog_t<T>*  blog = pgraph->blog;
     index_t marker = blog->blog_head;
+    
+    if (snapshot) snapshot->drop_ref();
     snapshot = pgraph->get_snapshot();
     
     index_t old_marker = 0;
     if (snapshot) {
         old_marker = snapshot->marker;
     }
-    //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
-    //need to copy it. TODO
+
     if (IS_STALE(flag)) { 
         edge_count = 0;
     } else if (IS_PRIVATE(flag)) {

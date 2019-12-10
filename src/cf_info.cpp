@@ -79,6 +79,7 @@ void cfinfo_t::add_edge_property(const char* longname, prop_encoder_t* a_prop_en
 
 cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
+    INIT_LIST_HEAD(&snapshot);
     global_snapmarker = -1L;
     snap_id = 0;
     gtype = type;
@@ -99,7 +100,6 @@ cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
     q_head = 0;
     q_tail = 0;
     
-    snapshot = 0;
     snap_f = 0;
     wtf = 0;
 }
@@ -207,11 +207,13 @@ status_t cfinfo_t::create_snapshot()
 void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 */)
 {
     snapshot_t* next = new snapshot_t;
+    snapshot_t* last = 0;
     next->snap_id = snap_id + 1;
     
-    if (snapshot) {
+    if (!list_empty(&snapshot)) {
+        last = (snapshot_t*)snapshot.next;
         if (durable_marker == 0) {
-            next->durable_marker = snapshot->durable_marker;
+            next->durable_marker = last->durable_marker;
         } else {
             next->durable_marker = durable_marker;
         }
@@ -220,9 +222,11 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
     }
 
     next->marker = snap_marker;
-    next->next = snapshot;
-    snapshot = next;
+    list_add(&next->list, &snapshot);
+
     ++snap_id;
+    if (last) last->drop_ref();
+    //last->leave_ref();
 }
 
 void cfinfo_t::read_snapshot()
@@ -239,23 +243,22 @@ void cfinfo_t::read_snapshot()
     fread(disk_snapshot, sizeof(disk_snapshot_t), count, snap_f);
     
     snapshot_t* next = 0;
-    for (snapid_t i = 0; i < count; ++i) {
-        next = new snapshot_t;
-        next->snap_id = disk_snapshot[i].snap_id;
-        next->marker = disk_snapshot[i].marker;
-        next->durable_marker = disk_snapshot[i].durable_marker;
-        next->next = snapshot;
-        snapshot = next;
-    }
+    next = new snapshot_t;
+    next->snap_id = disk_snapshot[count-1].snap_id;
+    next->marker = disk_snapshot[count-1].marker;
+    next->durable_marker = disk_snapshot[count-1].durable_marker;
+    list_add(&next->list, &snapshot);
 }
 
 void cfinfo_t::write_snapshot()
 {
     disk_snapshot_t* disk_snapshot = (disk_snapshot_t*)malloc(sizeof(disk_snapshot_t));
-    disk_snapshot->snap_id= snapshot->snap_id;
-    disk_snapshot->marker = snapshot->marker;
-    disk_snapshot->durable_marker = snapshot->durable_marker;
+    snapshot_t* last = get_snapshot();
+    disk_snapshot->snap_id= last->snap_id;
+    disk_snapshot->marker = last->marker;
+    disk_snapshot->durable_marker = last->durable_marker;
     fwrite(disk_snapshot, sizeof(disk_snapshot_t), 1, snap_f);
+    last->drop_ref();
 }
 
 status_t cfinfo_t::batch_update(const string& src, const string& dst, propid_t pid /* = 0*/)

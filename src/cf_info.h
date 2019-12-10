@@ -75,8 +75,11 @@ class cfinfo_t {
     pthread_t       w_thread;
     pthread_mutex_t w_mutex;
     pthread_cond_t  w_condition;
-    
-    snapshot_t*  snapshot;
+   
+   private:
+    //snapshot_t*  snapshot;
+    list_head  snapshot;
+    public:
     string       snapfile;
     FILE*        snap_f;
     int          wtf;   //edge log file
@@ -91,14 +94,15 @@ class cfinfo_t {
     
     status_t create_snapshot();
     void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
-    inline snapshot_t* get_snapshot() {return snapshot;}
+    inline snapshot_t* get_snapshot() {
+        if (list_empty(&snapshot)) {
+            return 0;
+        } else { 
+            return ((snapshot_t*) snapshot.next)->take_ref();
+        }
+    }
     void read_snapshot();
     void write_snapshot();
-
-    inline index_t get_snapshot_marker() {
-        if (snapshot) return snapshot->marker;
-        return 0;
-    }
 
  public:
     void create_columns(propid_t prop_count);
