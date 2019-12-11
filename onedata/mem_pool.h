@@ -58,7 +58,8 @@ struct reader_t {
 
 template <class T>
 class thd_mem_t {
-    mem_t<T>* mem;  
+    mem_t<T>* mem;
+    public:
     reader_t<T> reader[VIEW_COUNT];
  
  public:	
@@ -68,6 +69,7 @@ class thd_mem_t {
         if (mem1->vunit_free) {
             v_unit = mem1->vunit_free;
             mem1->vunit_free->next;
+            memset(v_unit, 0, sizeof(vunit_t<T>));
             return v_unit;
         }
         if (mem1->vunit_count == 0) {
@@ -111,6 +113,9 @@ class thd_mem_t {
 
     inline void retire_vunit(vunit_t<T>* v_unit1) {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
+        if (mem1->vunit_retired == 0) {
+            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
+        }
         mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit1;
         if (1024 == mem1->vunit_retired_count) {
             vunit_t<T>* v_unit;
@@ -154,7 +159,23 @@ class thd_mem_t {
     inline void rem_hp(vunit_t<T>* v_unit, int reg_id) {
         reader[reg_id].hp[omp_get_thread_num()] = 0;
     }
-	
+
+    inline sdegree_t get_degree_min(vid_t vid) {
+        sdegree_t sdegree(INVALID_DEGREE);
+        snapid_t snap_id = 0;
+        int j = 0;
+        for (int j = 0; j < VIEW_COUNT; ++j) {
+            if (reader[j].viewh == 0) {
+                ++j;
+                continue;
+            }
+            do {
+                snap_id = reader[j].viewh->snapshot->snap_id;
+                sdegree = reader[j].degree[vid];
+            } while (snap_id != reader[j].viewh->snapshot->snap_id);
+        }
+        return sdegree;
+    }
     inline snapT_t<T>* alloc_snapdegree() {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
 		if (mem1->dsnap_count == 0) {

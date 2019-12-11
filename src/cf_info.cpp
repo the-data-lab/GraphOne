@@ -225,8 +225,7 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
     list_add(&next->list, &snapshot);
 
     ++snap_id;
-    if (last) last->drop_ref();
-    //last->leave_ref();
+    //if (last) last->drop_ref();
 }
 
 void cfinfo_t::read_snapshot()

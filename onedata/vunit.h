@@ -96,12 +96,16 @@ class sdegree_t {
     uint16_t del_count;
 public:
     inline sdegree_t(degree_t degree = 0) {
-        add_count = 0;
-        del_count = 0;
+        add_count = degree;
+        del_count = degree;
     }
     inline bool operator != (const sdegree_t& sdegree) {
         return ((add_count != sdegree.add_count) 
-|| (del_count != sdegree.del_count));
+                || (del_count != sdegree.del_count));
+    }
+    //use it for INVALID degree comparison only
+    inline bool operator == (const degree_t degree) {
+        return ((add_count == degree)); 
     }
 
 };
@@ -169,11 +173,16 @@ class vunit_t {
 	delta_adjlist_t<T>* delta_adjlist;
 	delta_adjlist_t<T>* adj_list;//Last chain
 
+    snapid_t    snap_id;
+    uint16_t    del_count;
+public:
 	inline void reset() {
 		//vflag = 0;
         snap_blob = 0;
 		delta_adjlist = 0;
         adj_list = 0;
+        del_count = 0;
+        snap_id = 0;
 	}
     inline sdegree_t get_degree() {
         snapT_t<T>*   blob = snap_blob;
@@ -183,11 +192,11 @@ class vunit_t {
         }
         return sdegree;
     }
-    inline void compress_degree() {
+    inline void compress_degree(degree_t del_count) {
 #ifdef DEL
         snapT_t<T>*   blob = snap_blob;
-        blob->degree.add_count -= blob->degree.del_count;
-        blob->degree.del_count = 0;
+        blob->degree.add_count -= del_count;
+        blob->degree.del_count -= del_count;
 #endif
     } 
     inline sdegree_t get_degree(snapid_t snap_id)

@@ -95,7 +95,10 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/)
 	
 	}
 #ifdef DEL
-    assert((curr->degree.del_count < MAX_DEL_DEGREE) && (curr->degree.del_count + count) >= count);
+    if (!((curr->degree.del_count < MAX_DEL_DEGREE) 
+        && (curr->degree.del_count + count) >= count)) {
+        compress_nebrs(vid);
+    }
 	curr->degree.del_count += count;
 #else
 	assert(0);
@@ -117,7 +120,12 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
         degree_t new_count = get_total(curr->degree);
         degree_t max_count = new_count;
         if (curr->prev) {
-            max_count -= get_total(curr->prev->degree); 
+            max_count = get_total(curr->prev->degree);
+            if (max_count > new_count) {
+                max_count = new_count + v_unit->del_count + v_unit->del_count - max_count;
+            } else {
+                max_count = new_count - max_count; 
+            }
         }
         
         adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
@@ -153,7 +161,12 @@ void onegraph_t<T>::add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count)
         degree_t new_count = get_total(curr->degree);
         degree_t max_count = new_count;
         if (curr->prev) {
-            max_count -= get_total(curr->prev->degree);
+            max_count = get_total(curr->prev->degree);
+            if (max_count > new_count) {
+                max_count = new_count + v_unit->del_count + v_unit->del_count - max_count;
+            } else {
+                max_count = new_count - max_count; 
+            }
         }
         
         adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
@@ -181,7 +194,12 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
             degree_t new_count = get_total(curr->degree);
             degree_t max_count = new_count;
             if (curr->prev) {
-                max_count -= get_total(curr->prev->degree); 
+                max_count = get_total(curr->prev->degree);
+                if (max_count > new_count) {
+                    max_count = new_count + v_unit->del_count + v_unit->del_count - max_count;
+                } else {
+                    max_count = new_count - max_count; 
+                }
             }
             
             adj_list = new_delta_adjlist(max_count, (new_count >= HUB_COUNT));
@@ -196,6 +214,7 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
 	    snapT_t<T>* curr = v_unit->get_snapblob();
 #ifdef DEL
 		curr->degree.del_count--;
+		//assert(0);
 #else
 		assert(0);
 #endif
@@ -219,13 +238,16 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     vunit_t<T>* v_unit = get_vunit(vid); 
     if (v_unit == 0) return eOK;
     
-   
+    //Get the new count XXX
+    sdegree_t sdegree = thd_mem->get_degree_min(vid);
+    if (sdegree == INVALID_DEGREE) {
+	    sdegree = v_unit->get_degree(snap_id-1);
+    } else {
+        assert(0);
+    }
 
-    //Get the new count
-	sdegree_t sdegree = v_unit->get_degree();
 	degree_t nebr_count = get_actual(sdegree);
     degree_t del_count = get_delcount(sdegree);
-    
 	//Only 1 chain, and no deletion data,then no compaction required
     if (del_count == 0 /*&& (v_unit->delta_adjlist == v_unit->adj_list)*/) {
         return eOK;
@@ -245,7 +267,10 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     v_unit1->delta_adjlist = adj_list;
     v_unit1->adj_list = adj_list;
     v_unit1->snap_blob = v_unit->snap_blob;
-    v_unit1->compress_degree();
+    v_unit1->compress_degree(del_count);
+    v_unit1->del_count = del_count;
+    v_unit1->snap_id = snap_id;
+    assert(v_unit1->snap_id != 0);
     //delete_delta_adjlist(old_adjlist, true);//chain free
     
     //replace v-unit atomically
@@ -295,26 +320,34 @@ status_t onegraph_t<T>::evict_old_adjlist(vid_t vid, degree_t degree)
 }
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count, int reg_id/*,edgeT_t<T>* edges, index_t marker*/)
+degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_id/*,edgeT_t<T>* edges, index_t marker*/)
 {
-    vunit_t<T>* v_unit;
+    vunit_t<T>* v_unit = get_vunit(vid);
+    if (v_unit == 0) return 0;
 
-    while (true) {
-        v_unit = get_vunit(vid); 
-        if (v_unit == 0) return 0;
-
+    while (true && reg_id != -1) {
         //Add to hazard pointer list.
         thd_mem->add_hp(v_unit, reg_id);
         
         //Check if v_unit is still good.
-        if (v_unit == get_vunit(vid)) break; 
+        if (v_unit == get_vunit(vid)) {
+            break; 
+        }
+        v_unit = get_vunit(vid); 
     }
-    degree_t del_count = get_delcount(count);
+
+    sdegree_t count = sdegree;
+    //See if we need adjustment in the sdegree;
+    if (reg_id != -1 && thd_mem->reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
+        count.add_count -= v_unit->del_count;
+        count.del_count -= v_unit->del_count;
+    }
     
     //traverse the delta adj list this far
     degree_t delta_degree = get_total(count); 
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
     
+    degree_t del_count = get_delcount(count);
     T* local_adjlist = 0;
     degree_t local_degree = 0;
     degree_t i_count = 0;
@@ -413,7 +446,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t count, int reg_id
         free(del_pos);
         free(others);
     }
-    thd_mem->rem_hp(v_unit, reg_id);
+    if (reg_id != -1) thd_mem->rem_hp(v_unit, reg_id);
     return total_count;
 }
 
