@@ -192,7 +192,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     
     graph_out = ugraph->sgraph_out[0];
     degree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
-    this->reg_id = graph_out->register_reader();
+    this->reg_id = graph_out->register_reader(this, degree_out);
     
     if (ugraph->sgraph_in == ugraph->sgraph_out) {
         graph_in   = graph_out;
@@ -200,7 +200,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
         degree_in = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
-        this->reg_id = graph_in->register_reader();
+        this->reg_id = graph_in->register_reader(this, degree_in);
     }
 }
 

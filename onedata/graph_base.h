@@ -64,7 +64,9 @@ public:
     void  handle_write(bool clean = false);
     void  read_vtable();
     void  file_open(const string& filename, bool trunc);
-    inline int register_reader() {return thd_mem->register_reader();}
+    inline int register_reader(gview_t<T>* viewh, sdegree_t* degree) {
+        return thd_mem->register_reader(viewh, degree);
+    }
     inline void unregister_reader(int reg_id) {return thd_mem->unregister_reader(reg_id);}
     
     inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}

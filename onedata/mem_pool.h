@@ -49,14 +49,17 @@ struct mem_t {
     char*       adjlog_beg1;
 };
 
+template <class T>
 struct reader_t {
    void** hp;//THD_COUNT is the array size
+   sdegree_t* degree;
+   gview_t<T>* viewh;
 };
 
 template <class T>
 class thd_mem_t {
     mem_t<T>* mem;  
-    reader_t reader[VIEW_COUNT];
+    reader_t<T> reader[VIEW_COUNT];
  
  public:	
     inline vunit_t<T>* alloc_vunit() {
@@ -85,11 +88,13 @@ class thd_mem_t {
         return eOK;
 	}
     
-    inline int register_reader() {
+    inline int register_reader(gview_t<T>* viewh, sdegree_t* degree) {
         int reg_id = 0;
         for (; reg_id < VIEW_COUNT; ++reg_id) { 
             if (reader[reg_id].hp == 0) {
                 reader[reg_id].hp = (void**)calloc(sizeof(void*),THD_COUNT);
+                reader[reg_id].degree = degree;
+                reader[reg_id].viewh = viewh;
                 return reg_id;
             }
         }
@@ -100,6 +105,8 @@ class thd_mem_t {
     inline void unregister_reader(int reg_id) {
         free(reader[reg_id].hp);
         reader[reg_id].hp = 0;
+        reader[reg_id].degree = 0;
+        reader[reg_id].viewh = 0;
     }
 
     inline void retire_vunit(vunit_t<T>* v_unit1) {
