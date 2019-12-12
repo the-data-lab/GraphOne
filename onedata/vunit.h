@@ -89,11 +89,11 @@ class nebrcount_t {
 };
 
 #ifdef DEL
-#define MAX_DEL_DEGREE UINT16_MAX
+//UINT16_MAX
 class sdegree_t {
  public:
     degree_t add_count;
-    uint16_t del_count;
+    degree_t del_count;
 public:
     inline sdegree_t(degree_t degree = 0) {
         add_count = degree;
@@ -103,10 +103,11 @@ public:
         return ((add_count != sdegree.add_count) 
                 || (del_count != sdegree.del_count));
     }
-    //use it for INVALID degree comparison only
+    /*
+    //use it for 0 degree comparison only
     inline bool operator == (const degree_t degree) {
         return ((add_count == degree)); 
-    }
+    }*/
 
 };
 #else 
@@ -174,7 +175,7 @@ class vunit_t {
 	delta_adjlist_t<T>* adj_list;//Last chain
 
     snapid_t    snap_id;
-    uint16_t    del_count;
+    uint32_t    del_count;
 public:
 	inline void reset() {
 		//vflag = 0;

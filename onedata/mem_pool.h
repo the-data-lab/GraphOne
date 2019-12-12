@@ -68,7 +68,7 @@ class thd_mem_t {
 		vunit_t<T>* v_unit;
         if (mem1->vunit_free) {
             v_unit = mem1->vunit_free;
-            mem1->vunit_free->next;
+            mem1->vunit_free = v_unit->next;
             memset(v_unit, 0, sizeof(vunit_t<T>));
             return v_unit;
         }
@@ -105,10 +105,10 @@ class thd_mem_t {
     }
 
     inline void unregister_reader(int reg_id) {
+        reader[reg_id].viewh = 0;
         free(reader[reg_id].hp);
         reader[reg_id].hp = 0;
         reader[reg_id].degree = 0;
-        reader[reg_id].viewh = 0;
     }
 
     inline void retire_vunit(vunit_t<T>* v_unit1) {
@@ -147,7 +147,11 @@ class thd_mem_t {
         }
         //free it;
         free_adjlist(v_unit->delta_adjlist, true);
-        v_unit->next = mem1->vunit_free->next;
+        if (mem1->vunit_free) {
+            v_unit->next = mem1->vunit_free->next;
+        } else {
+            v_unit->next = 0;
+        }
         mem1->vunit_free = v_unit;
         return;
     }
@@ -160,13 +164,12 @@ class thd_mem_t {
         reader[reg_id].hp[omp_get_thread_num()] = 0;
     }
 
-    inline sdegree_t get_degree_min(vid_t vid) {
-        sdegree_t sdegree(INVALID_DEGREE);
+    inline snapid_t get_degree_min(vid_t vid, sdegree_t degree) {
+        sdegree_t sdegree = 0;
         snapid_t snap_id = 0;
         int j = 0;
         for (int j = 0; j < VIEW_COUNT; ++j) {
             if (reader[j].viewh == 0) {
-                ++j;
                 continue;
             }
             do {
@@ -174,7 +177,8 @@ class thd_mem_t {
                 sdegree = reader[j].degree[vid];
             } while (snap_id != reader[j].viewh->snapshot->snap_id);
         }
-        return sdegree;
+        degree = sdegree;
+        return snap_id;
     }
     inline snapT_t<T>* alloc_snapdegree() {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
@@ -263,6 +267,7 @@ class thd_mem_t {
         } else {
             memset(mem, 0, THD_COUNT*sizeof(mem_t<T>));
         } 
+        memset(reader, 0, VIEW_COUNT*sizeof(reader_t<T>));
     } 
 };
 

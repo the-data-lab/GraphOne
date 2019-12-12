@@ -173,7 +173,9 @@ status_t sstream_t<T>::update_view()
         new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
         memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
     }
-    snapshot->drop_ref();
+    if (snapshot) {
+        snapshot->drop_ref();
+    }
     snapshot = new_snapshot;
     
     //for stale

@@ -36,7 +36,7 @@ typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
 typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
-typedef int32_t degree_t;
+typedef uint32_t degree_t;
 #elif B32
 typedef uint8_t propid_t;
 typedef uint32_t vid_t;
@@ -55,6 +55,7 @@ typedef uint16_t vflag_t;
 
 
 #define HUB_COUNT  8192
+#define MAX_DEL_DEGREE 500
 
 #ifndef PLAIN_GRAPH 
 #ifdef B64
