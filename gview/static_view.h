@@ -13,11 +13,10 @@ class snap_t : public gview_t <T> {
     edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
     
-
- 
  public:
     using gview_t<T>::pgraph;
     using gview_t<T>::snapshot;
+    using gview_t<T>::prev_snapshot;
     using gview_t<T>::sstream_func;
     using gview_t<T>::thread;
     using gview_t<T>::algo_meta;
@@ -210,7 +209,6 @@ status_t snap_t<T>::update_view()
     blog_t<T>*  blog = pgraph->blog;
     index_t marker = blog->blog_head;
     
-    if (snapshot) snapshot->drop_ref();
     snapshot = pgraph->get_snapshot();
     
     index_t old_marker = 0;
@@ -244,6 +242,11 @@ status_t snap_t<T>::update_view()
         handle_flaguni();
     }
     }
+    if (prev_snapshot) prev_snapshot->drop_ref();
+    
+    //update complete
+    prev_snapshot = snapshot;
+
 
     //wait for archiving to complete
     if (IS_SIMPLE(flag)) {

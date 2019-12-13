@@ -50,17 +50,9 @@ struct mem_t {
 };
 
 template <class T>
-struct reader_t {
-   void** hp;//THD_COUNT is the array size
-   sdegree_t* degree;
-   gview_t<T>* viewh;
-};
-
-template <class T>
 class thd_mem_t {
-    mem_t<T>* mem;
     public:
-    reader_t<T> reader[VIEW_COUNT];
+    mem_t<T>* mem;
  
  public:	
     inline vunit_t<T>* alloc_vunit() {
@@ -89,97 +81,9 @@ class thd_mem_t {
         }
         return eOK;
 	}
-    
-    inline int register_reader(gview_t<T>* viewh, sdegree_t* degree) {
-        int reg_id = 0;
-        for (; reg_id < VIEW_COUNT; ++reg_id) { 
-            if (reader[reg_id].hp == 0) {
-                reader[reg_id].hp = (void**)calloc(sizeof(void*),THD_COUNT);
-                reader[reg_id].degree = degree;
-                reader[reg_id].viewh = viewh;
-                return reg_id;
-            }
-        }
-        assert(0);
-        return reg_id;
-    }
 
-    inline void unregister_reader(int reg_id) {
-        reader[reg_id].viewh = 0;
-        free(reader[reg_id].hp);
-        reader[reg_id].hp = 0;
-        reader[reg_id].degree = 0;
-    }
 
-    inline void retire_vunit(vunit_t<T>* v_unit1) {
-        mem_t<T>* mem1 = mem + omp_get_thread_num();  
-        if (mem1->vunit_retired == 0) {
-            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
-        }
-        mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit1;
-        if (1024 == mem1->vunit_retired_count) {
-            vunit_t<T>* v_unit;
-            vunit_t<T>** vunit_retired = mem1->vunit_retired;
-            int    vunit_retired_count = mem1->vunit_retired_count;
-            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
-            mem1->vunit_retired_count = 0;
-            for (int i = 0; i < vunit_retired_count; i++) {
-                v_unit = vunit_retired[i];
-                free_vunit(v_unit);
-            }
-            free(vunit_retired);
-        }
-    }
 
-    inline void free_vunit(vunit_t<T>* v_unit) {
-        mem_t<T>* mem1 = mem + omp_get_thread_num();
-        vunit_t<T>** hp;
-        for (int j = 0; j < VIEW_COUNT; ++j) {
-            hp = (vunit_t<T>**)reader[j].hp;
-            if (0 == hp) continue;
-            for (int k = 0; k < THD_COUNT; ++k) {
-                if (v_unit == hp[k]) {
-                    //insert it back
-                    mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit;
-                    return;
-                }
-            }
-        }
-        //free it;
-        free_adjlist(v_unit->delta_adjlist, true);
-        if (mem1->vunit_free) {
-            v_unit->next = mem1->vunit_free->next;
-        } else {
-            v_unit->next = 0;
-        }
-        mem1->vunit_free = v_unit;
-        return;
-    }
-
-    inline void add_hp(vunit_t<T>* v_unit, int reg_id) {
-        reader[reg_id].hp[omp_get_thread_num()]= v_unit;
-    }
-
-    inline void rem_hp(vunit_t<T>* v_unit, int reg_id) {
-        reader[reg_id].hp[omp_get_thread_num()] = 0;
-    }
-
-    inline snapid_t get_degree_min(vid_t vid, sdegree_t degree) {
-        sdegree_t sdegree = 0;
-        snapid_t snap_id = 0;
-        int j = 0;
-        for (int j = 0; j < VIEW_COUNT; ++j) {
-            if (reader[j].viewh == 0) {
-                continue;
-            }
-            do {
-                snap_id = reader[j].viewh->snapshot->snap_id;
-                sdegree = reader[j].degree[vid];
-            } while (snap_id != reader[j].viewh->snapshot->snap_id);
-        }
-        degree = sdegree;
-        return snap_id;
-    }
     inline snapT_t<T>* alloc_snapdegree() {
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
 		if (mem1->dsnap_count == 0) {
@@ -267,7 +171,6 @@ class thd_mem_t {
         } else {
             memset(mem, 0, THD_COUNT*sizeof(mem_t<T>));
         } 
-        memset(reader, 0, VIEW_COUNT*sizeof(reader_t<T>));
     } 
 };
 

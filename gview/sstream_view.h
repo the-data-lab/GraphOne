@@ -13,6 +13,7 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::graph_out;
     using snap_t<T>::graph_in;
     using snap_t<T>::snapshot;
+    using snap_t<T>::prev_snapshot;
     using snap_t<T>::edges;
     using snap_t<T>::edge_count;
     using snap_t<T>::v_count;
@@ -160,11 +161,11 @@ status_t sstream_t<T>::update_view()
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
     
-    snapshot_t* new_snapshot = pgraph->get_snapshot();
+    snapshot = pgraph->get_snapshot();
     
-    if (new_snapshot == 0|| (new_snapshot == snapshot)) return eNoWork;
-    index_t old_marker = snapshot? snapshot->marker: 0;
-    index_t new_marker = new_snapshot->marker;
+    if (snapshot == 0|| (snapshot == prev_snapshot)) return eNoWork;
+    index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
+    index_t new_marker = snapshot->marker;
     
     //Get the edge copies for edge centric computation
     if (IS_E_CENTRIC(flag)) { 
@@ -173,10 +174,6 @@ status_t sstream_t<T>::update_view()
         new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
         memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
     }
-    if (snapshot) {
-        snapshot->drop_ref();
-    }
-    snapshot = new_snapshot;
     
     //for stale
     edges = blog->blog_beg + (new_marker & blog->blog_mask);
@@ -187,6 +184,11 @@ status_t sstream_t<T>::update_view()
     } else {
         update_degreesnapd();
     }
+    
+    if (prev_snapshot) {
+        prev_snapshot->drop_ref();
+    }
+    prev_snapshot = snapshot;
 
     return eOK;
 }

@@ -282,7 +282,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 
     //Get the new count XXX
     sdegree_t sdegree = 0;
-    snapid_t c_snapid = thd_mem->get_degree_min(vid, sdegree);
+    snapid_t c_snapid = get_degree_min(vid, sdegree);
     if (c_snapid == 0) { //No readers
 	    sdegree = v_unit->get_degree(snap_id-1);
         compressed_count = get_actual(sdegree); 
@@ -417,7 +417,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     
     //replace v-unit atomically
     set_vunit(vid, v_unit1); 
-    thd_mem->retire_vunit(v_unit);
+    retire_vunit(v_unit);
     return eOK;
 }
 
@@ -430,7 +430,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_
 
     while (true && reg_id != -1) {
         //Add to hazard pointer list.
-        thd_mem->add_hp(v_unit, reg_id);
+        add_hp(v_unit, reg_id);
         
         //Check if v_unit is still good.
         if (v_unit == get_vunit(vid)) {
@@ -441,7 +441,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_
 
     sdegree_t count = sdegree;
     //See if we need adjustment in the sdegree;
-    if (reg_id != -1 && thd_mem->reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
+    if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
         count.add_count -= v_unit->del_count;
         count.del_count -= v_unit->del_count;
     }
@@ -549,7 +549,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_
         free(del_pos);
         free(others);
     }
-    if (reg_id != -1) thd_mem->rem_hp(v_unit, reg_id);
+    if (reg_id != -1) rem_hp(v_unit, reg_id);
     return total_count;
 }
 
@@ -763,6 +763,7 @@ void onegraph_t<T>::setup(tid_t t, vid_t a_max_vcount)
         //log_beg = (index_t*)calloc(sizeof(index_t), log_count);
         perror("posix memalign edge log");
     }
+    memset(reader, 0, VIEW_COUNT*sizeof(reader_t<T>));
 
 #ifdef BULK
     nebr_count = (nebrcount_t*)calloc(sizeof(nebrcount_t), max_vcount);

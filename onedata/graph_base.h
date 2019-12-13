@@ -20,6 +20,13 @@ class vert_table_t {
     inline vert_table_t() { v_unit = 0;}
 };
 
+template <class T>
+struct reader_t {
+   void** hp;//THD_COUNT is the array size
+   sdegree_t* degree;
+   gview_t<T>* viewh;
+};
+
 //one type's graph
 template <class T>
 class onegraph_t {
@@ -40,6 +47,7 @@ class onegraph_t {
 	
 	//Thread local memory data structures
 	thd_mem_t<T>* thd_mem;
+    reader_t<T> reader[VIEW_COUNT];
 
  private:
     //vertex table file related log
@@ -64,11 +72,12 @@ public:
     void  handle_write(bool clean = false);
     void  read_vtable();
     void  file_open(const string& filename, bool trunc);
+    /*
     inline int register_reader(gview_t<T>* viewh, sdegree_t* degree) {
         return thd_mem->register_reader(viewh, degree);
     }
     inline void unregister_reader(int reg_id) {return thd_mem->unregister_reader(reg_id);}
-    
+   */ 
     inline void set_snapid(snapid_t a_snapid) { snap_id = a_snapid;}
     sdegree_t get_degree(vid_t v, snapid_t snap_id);
     inline sdegree_t get_degree(vid_t vid) {
@@ -96,6 +105,113 @@ public:
             return v_unit->get_delta_adjlist();
         }
         return 0;
+    }
+
+    inline int register_reader(gview_t<T>* viewh, sdegree_t* degree) {
+        int reg_id = 0;
+        for (; reg_id < VIEW_COUNT; ++reg_id) { 
+            if (reader[reg_id].hp == 0) {
+                reader[reg_id].hp = (void**)calloc(sizeof(void*),THD_COUNT);
+                reader[reg_id].degree = degree;
+                reader[reg_id].viewh = viewh;
+                return reg_id;
+            }
+        }
+        assert(0);
+        return reg_id;
+    }
+
+    inline void unregister_reader(int reg_id) {
+        reader[reg_id].viewh = 0;
+        free(reader[reg_id].hp);
+        reader[reg_id].hp = 0;
+        reader[reg_id].degree = 0;
+    }
+protected:
+    
+    inline void add_hp(vunit_t<T>* v_unit, int reg_id) {
+        reader[reg_id].hp[omp_get_thread_num()]= v_unit;
+    }
+
+    inline void rem_hp(vunit_t<T>* v_unit, int reg_id) {
+        reader[reg_id].hp[omp_get_thread_num()] = 0;
+    }
+    
+    inline snapid_t get_degree_min(vid_t vid, sdegree_t degree) {
+        sdegree_t sdegree = 0;
+        snapid_t snap_id1 = 0;
+        snapid_t prev_snapid = snap_id;//as a max initialization
+        for (int j = 0; j < VIEW_COUNT; ++j) {
+            if (reader[j].viewh == 0) { 
+                continue;
+            }
+            snap_id1 = reader[j].viewh->get_snapid();
+            if (0 == snap_id1 || prev_snapid < snap_id1) {
+                continue;
+            }
+            snapid_t prev_backup = reader[j].viewh->get_prev_snapid();
+            snapid_t backup = snap_id1;
+            if (snap_id1 == reader[j].viewh->get_prev_snapid()) {
+                sdegree = reader[j].degree[vid];
+                if (snap_id1 == reader[j].viewh->get_snapid()) {
+                    prev_snapid = snap_id1;
+                    degree = sdegree;
+                    continue;
+                }
+            } 
+            //We came here beacuse view may be getting updated
+            snap_id1 = reader[j].viewh->get_snapid();
+            sdegree = get_degree(vid, snap_id1);
+            prev_snapid = snap_id1;
+            degree = sdegree;
+        }
+        degree = sdegree;
+        return snap_id1;
+    }
+    
+    inline void free_vunit(vunit_t<T>* v_unit) {
+        mem_t<T>* mem1 = thd_mem->mem + omp_get_thread_num();
+        vunit_t<T>** hp;
+        for (int j = 0; j < VIEW_COUNT; ++j) {
+            hp = (vunit_t<T>**)reader[j].hp;
+            if (0 == hp) continue;
+            for (int k = 0; k < THD_COUNT; ++k) {
+                if (v_unit == hp[k]) {
+                    //insert it back
+                    mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit;
+                    return;
+                }
+            }
+        }
+        //free it;
+        thd_mem->free_adjlist(v_unit->delta_adjlist, true);
+        if (mem1->vunit_free) {
+            v_unit->next = mem1->vunit_free->next;
+        } else {
+            v_unit->next = 0;
+        }
+        mem1->vunit_free = v_unit;
+        return;
+    }
+    
+    inline void retire_vunit(vunit_t<T>* v_unit1) {
+        mem_t<T>* mem1 = thd_mem->mem + omp_get_thread_num();  
+        if (mem1->vunit_retired == 0) {
+            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
+        }
+        mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit1;
+        if (1024 == mem1->vunit_retired_count) {
+            vunit_t<T>* v_unit;
+            vunit_t<T>** vunit_retired = mem1->vunit_retired;
+            int    vunit_retired_count = mem1->vunit_retired_count;
+            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
+            mem1->vunit_retired_count = 0;
+            for (int i = 0; i < vunit_retired_count; i++) {
+                v_unit = vunit_retired[i];
+                free_vunit(v_unit);
+            }
+            free(vunit_retired);
+        }
     }
 
 protected:

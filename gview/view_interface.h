@@ -6,8 +6,9 @@
 template <class T>
 class gview_t {
  public:
-    pgraph_t<T>*    pgraph;  
+    pgraph_t<T>*    pgraph; 
     snapshot_t*     snapshot;
+    snapshot_t*     prev_snapshot;
     pthread_t       thread;
     void*           algo_meta;//algorithm specific data
     vid_t           v_count;
@@ -31,7 +32,8 @@ class gview_t {
     virtual int  is_unidir() {assert(0); return 0;}
     
     inline vid_t  get_vcount() { return v_count; }
-    inline int    get_snapid() {return snapshot->snap_id;}
+    inline int    get_snapid() { if(snapshot) return snapshot->snap_id; else return 0;}
+    inline int    get_prev_snapid() { if(prev_snapshot) return prev_snapshot->snap_id; else return 0;}
     inline void   set_algometa(void* a_meta) {algo_meta = a_meta;}
     inline void*  get_algometa() {return algo_meta;}
     inline index_t get_snapmarker() {
@@ -41,6 +43,7 @@ class gview_t {
     inline gview_t() {
         pgraph = 0;
         snapshot = 0;
+        prev_snapshot = 0;
         algo_meta = 0;
         v_count = 0;
         flag = 0;
