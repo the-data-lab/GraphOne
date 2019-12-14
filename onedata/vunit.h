@@ -257,27 +257,40 @@ public:
         snap_blob = snap_blob1; 
     } 
     
-    inline snapT_t<T>* recycle_snapblob(snapid_t snap_id) { 
-        if (0 == snap_blob || 0 == snap_blob->prev) return 0;
+    inline snapT_t<T>* recycle_snapblob(snapshot_t* snapshot1) { 
+        if (0 == snap_blob || 0 == snap_blob->prev || snapshot1 == 0) return 0;
         
-        index_t snap_count = 2;
         snapT_t<T>* snap_blob1 = snap_blob;
-        snapT_t<T>* snap_blob2 = snap_blob->prev;
+        snapT_t<T>* snap_blob2 = snap_blob1->prev;
+        snapshot_t* snapshot = (snapshot_t*)snapshot1->list.next;
 
-        while (snap_blob2->prev != 0) {
-            snap_blob1 = snap_blob2;
-            snap_blob2 = snap_blob2->prev;
-            ++snap_count;
+        while (snap_blob2 != 0 && snapshot != 0) {
+            if(snap_blob2->snap_id == snapshot->snap_id) {
+                if (snapshot->get_ref() == 1) {
+                    //free it
+                    snap_blob1->prev = snap_blob2->prev;
+                    snap_blob2->degree = snap_blob->degree;
+                    set_snapblob(snap_blob2);
+                    return snap_blob2;
+                } else {
+                    //both++
+                    snapshot = (snapshot_t*)snapshot->list.next;
+                    snap_blob1 = snap_blob2;
+                    snap_blob2 = snap_blob2->prev;
+                }
+            } else if (snap_blob2->snap_id < snapshot->snap_id) {
+                //snapshot++
+                snapshot = (snapshot_t*)snapshot->list.next;
+            } else {
+                //free it
+                snap_blob1->prev = snap_blob2->prev;
+                snap_blob2->degree = snap_blob->degree;
+                set_snapblob(snap_blob2);
+                return snap_blob2;
+            }
         }
-        if (snap_count < SNAP_COUNT) {
-            return 0;
-        }
+        return 0;
 
-        snap_blob1->prev = 0;
-        snap_blob2->snap_id = snap_id;
-        snap_blob2->degree = snap_blob->degree;
-        set_snapblob(snap_blob2);
-        return snap_blob2;
     } 
 };
 

@@ -67,7 +67,7 @@ public:
 public:
     onegraph_t(); 
     virtual void  setup(tid_t tid, vid_t a_max_vcount);
-    virtual void  archive(edgeT_t<T>* edge, index_t count, snapid_t a_snapid);
+    virtual void  archive(edgeT_t<T>* edge, index_t count, snapshot_t* snapshot);
     void  compress();
     void  handle_write(bool clean = false);
     void  read_vtable();
@@ -91,8 +91,8 @@ public:
     degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
     status_t next(header_t<T>& header, T& dst);
 
-	void increment_count_noatomic(vid_t vid, degree_t count = 1);
-    void decrement_count_noatomic(vid_t vid, degree_t count = 1);
+	void increment_count_noatomic(vid_t vid, snapshot_t* snapshot, degree_t count = 1);
+    void decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, degree_t count = 1);
     
     void del_nebr_noatomic(vid_t vid, T sid);
     void add_nebr_noatomic(vid_t vid, T sid);

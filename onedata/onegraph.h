@@ -7,22 +7,22 @@
 using std::min;
 
 template <class T>
-void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
+void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapshot_t* snapshot)
 {
     tid_t src_index;
     sid_t src;
     T dst;
     vid_t vert1_id;
-    snap_id = a_snapid;
+    snap_id = snapshot? snapshot->snap_id + 1 : 1;//snapshot starts at 1
     for (index_t i = 0; i < count; ++i) {
         src = edges[i].src_id;
         //src_index = TO_TID(src);
         vert1_id = TO_VID(src);
 
         if (!IS_DEL(src)) { 
-            increment_count_noatomic(vert1_id);
+            increment_count_noatomic(vert1_id, snapshot);
         } else { 
-            decrement_count_noatomic(vert1_id);
+            decrement_count_noatomic(vert1_id, snapshot);
         }
     }
     
@@ -40,7 +40,7 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapid_t a_snapid)
 }
 
 template <class T>
-void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) 
+void onegraph_t<T>::increment_count_noatomic(vid_t vid, snapshot_t* snapshot, degree_t count /*=1*/) 
 {
     //allocate v-unit
     vunit_t<T>* v_unit = get_vunit(vid);
@@ -52,7 +52,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/)
 	snapT_t<T>* curr = v_unit->get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
-		snapT_t<T>* next = v_unit->recycle_snapblob(snap_id);
+		snapT_t<T>* next = v_unit->recycle_snapblob(snapshot);
 		if (next == 0) {
 			next = new_snapdegree();
             next->snap_id       = snap_id;
@@ -71,7 +71,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/)
 }
 
 template <class T>
-void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/) 
+void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, degree_t count /*=1*/) 
 {
     //allocate v-unit
     vunit_t<T>* v_unit = get_vunit(vid);
@@ -82,7 +82,7 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, degree_t count /*=1*/)
 	snapT_t<T>* curr = v_unit->get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
-		snapT_t<T>* next = v_unit->recycle_snapblob(snap_id);
+		snapT_t<T>* next = v_unit->recycle_snapblob(snapshot);
 		if (next == 0) {
 			next = new_snapdegree();
             next->snap_id       = snap_id;
@@ -440,11 +440,13 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_
     }
 
     sdegree_t count = sdegree;
+    #ifdef DEL
     //See if we need adjustment in the sdegree;
     if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
         count.add_count -= v_unit->del_count;
         count.del_count -= v_unit->del_count;
     }
+    #endif
     
     //traverse the delta adj list this far
     degree_t delta_degree = get_total(count); 

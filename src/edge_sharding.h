@@ -93,7 +93,7 @@ class edge_shard_t {
 
  private:
     void archive(onegraph_t<T>** sgraph, global_range_t<T>* global_range, 
-                 vid_t j_start, vid_t j_end, snapid_t snap_id);
+                 vid_t j_start, vid_t j_end, snapshot_t* snapshot);
     void estimate_classify(vid_t* vid_range, vid_t* vid_range_in, vid_t bit_shift, vid_t bit_shift_in);
     void estimate_classify_uni(vid_t* vid_range, vid_t bit_shift);
     void estimate_classify_runi(vid_t* vid_range, vid_t bit_shift);
@@ -211,7 +211,7 @@ void edge_shard_t<T>::classify_u(pgraph_t<T>* pgraph)
     }
     j_end = thd_local[tid].range_end;
     
-    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->snap_id);
+    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->get_snapshot());
     #pragma omp barrier 
     cleanup();
 }
@@ -268,7 +268,7 @@ void edge_shard_t<T>::classify_uni(pgraph_t<T>* pgraph)
     j_end = thd_local[tid].range_end;
     
     //actual work
-    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->snap_id);
+    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->get_snapshot());
     #pragma omp barrier 
     cleanup();
 }
@@ -325,7 +325,7 @@ void edge_shard_t<T>::classify_snb(pgraph_t<T>* pgraph)
     j_end = thd_local[tid].range_end;
     
     //actual work
-    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->snap_id);
+    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->get_snapshot());
     #pragma omp barrier 
     cleanup();
 }
@@ -456,8 +456,8 @@ void edge_shard_t<T>::classify_d(pgraph_t<T>* pgraph)
     j_end_in = thd_local_in[THD_COUNT - 1 - tid].range_end;
 
     //actual work
-    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->snap_id);
-    archive(pgraph->sgraph_in, global_range_in, j_start_in, j_end_in, pgraph->snap_id);
+    archive(pgraph->sgraph, global_range, j_start, j_end, pgraph->get_snapshot());
+    archive(pgraph->sgraph_in, global_range_in, j_start_in, j_end_in, pgraph->get_snapshot());
     #pragma omp barrier 
     cleanup();
 }
@@ -783,7 +783,7 @@ void edge_shard_t<T>::classify_snb(vid_t* vid_range, vid_t bit_shift, global_ran
 }
 
 template <class T>
-void edge_shard_t<T>::archive(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end, snapid_t snap_id) 
+void edge_shard_t<T>::archive(onegraph_t<T>** sgraph, global_range_t<T>* global_range, vid_t j_start, vid_t j_end, snapshot_t* snapshot) 
 {
     index_t total = 0;
     edgeT_t<T>* edges = 0;
@@ -796,7 +796,7 @@ void edge_shard_t<T>::archive(onegraph_t<T>** sgraph, global_range_t<T>* global_
         edges = global_range[j].edges;
         if (total != 0) {
             src_index = TO_TID(edges[0].src_id);
-            sgraph[src_index]->archive(edges, total, snap_id + 1);
+            sgraph[src_index]->archive(edges, total, snapshot);
         }
     }
 }

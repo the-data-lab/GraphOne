@@ -415,6 +415,9 @@ class snapshot_t {
             delete this;
         }
     }
+    inline int get_ref() {
+        return ref_count;
+    }
     ~snapshot_t() {
         
     }

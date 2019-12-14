@@ -541,6 +541,7 @@ void estimate_IO(const string& idirname, const string& odirname)
 //template <class T>
 void weighted_dtest0(const string& idir, const string& odir)
 {
+#ifdef DEL
     string graph_file = idir + "g.bin";
     string action_file = idir + "a.bin"; 
     //string graph_file = idir + "small_basegraph";
@@ -594,7 +595,7 @@ void weighted_dtest0(const string& idir, const string& odir)
         for (int64_t v = 0; v < nv; ++v) {
             nebr_count = v_offset[v+1] - v_offset[v];
             #ifndef BULK
-            sgraph->increment_count_noatomic(v, nebr_count);
+            sgraph->increment_count_noatomic(v, 0, nebr_count);
             #else
             sgraph->increment_count(v, nebr_count);
             #endif
@@ -703,7 +704,9 @@ void weighted_dtest0(const string& idir, const string& odir)
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     //manager.run_bfs(0);
+#endif
     return;
+
 }
 
 template <class T>
