@@ -21,7 +21,6 @@ index_t  BLOG_SHIFT = 27;
 
 vid_t RANGE_COUNT = 256;
 vid_t RANGE_2DSHIFT = 4;
-index_t  SNAP_COUNT  = (3);
 index_t  LOCAL_VUNIT_COUNT = 20;
 index_t  LOCAL_DELTA_SIZE = 28;
 index_t  DURABLE_SIZE = (1L << 28);//Durable adj-list
@@ -81,7 +80,7 @@ cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
     INIT_LIST_HEAD(&snapshot);
     global_snapmarker = -1L;
-    snap_id = 0;
+    //snap_id = 0;
     gtype = type;
     egtype = eADJ;
     flag1 = 0;
@@ -208,24 +207,32 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
 {
     snapshot_t* next = new snapshot_t;
     snapshot_t* last = 0;
-    next->snap_id = snap_id + 1;
     
     if (!list_empty(&snapshot)) {
         last = (snapshot_t*)snapshot.next;
+        next->snap_id = last->snap_id + 1;
         if (durable_marker == 0) {
             next->durable_marker = last->durable_marker;
         } else {
             next->durable_marker = durable_marker;
         }
     } else {
+        next->snap_id = 1;//snapshot starts at 1
         next->durable_marker = 0;
     }
 
     next->marker = snap_marker;
     list_add(&next->list, &snapshot);
 
-    ++snap_id;
     //if (last) last->drop_ref();
+    snapshot_t* oldest = (snapshot_t*)snapshot.prev;
+    while (oldest->snap_id + 5 < next->snap_id) {
+        //let us delete some snapshopts
+        if (1 == oldest->get_ref()) {
+            oldest->drop_ref(); //deleted
+            oldest = (snapshot_t*)snapshot.prev;
+        } else { break;}
+    }
 }
 
 void cfinfo_t::read_snapshot()

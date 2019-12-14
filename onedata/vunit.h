@@ -264,7 +264,7 @@ public:
         snapT_t<T>* snap_blob2 = snap_blob1->prev;
         snapshot_t* snapshot = (snapshot_t*)snapshot1->list.next;
 
-        while (snap_blob2 != 0 && snapshot != 0) {
+        while (snap_blob2 != 0 && !list_empty(&snapshot->list)) {
             if(snap_blob2->snap_id == snapshot->snap_id) {
                 if (snapshot->get_ref() == 1) {
                     //free it
