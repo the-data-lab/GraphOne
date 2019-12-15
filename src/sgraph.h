@@ -128,8 +128,8 @@ class pgraph_t: public cfinfo_t {
     degree_t get_degree_in(sid_t sid);
     degree_t get_nebrs_out(sid_t sid, T* ptr);
     degree_t get_nebrs_in(sid_t sid, T* ptr);
-    degree_t get_wnebrs_out(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
-    degree_t get_wnebrs_in(sid_t sid, T* ptr, index_t start_offset, index_t end_offset);
+    degree_t get_wnebrs_out(sid_t sid, T* ptr, sdegree_t start_offset, sdegree_t end_offset);
+    degree_t get_wnebrs_in(sid_t sid, T* ptr, sdegree_t start_offset, sdegree_t end_offset);
 
     //making historic views
     void create_degree(sdegree_t* degree_out, sdegree_t* degree_in, index_t start_offset, index_t end_offset);
@@ -652,7 +652,7 @@ degree_t pgraph_t<T>::get_nebrs_in(sid_t sid, T* ptr)
 }
 
 template <class T>
-degree_t pgraph_t<T>::get_wnebrs_out(sid_t sid, T* ptr, index_t start_offset, index_t end_offset)
+degree_t pgraph_t<T>::get_wnebrs_out(sid_t sid, T* ptr, sdegree_t start_offset, sdegree_t end_offset)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);
@@ -660,7 +660,7 @@ degree_t pgraph_t<T>::get_wnebrs_out(sid_t sid, T* ptr, index_t start_offset, in
 }
 
 template <class T>
-degree_t pgraph_t<T>::get_wnebrs_in(sid_t sid, T* ptr, index_t start_offset, index_t end_offset)
+degree_t pgraph_t<T>::get_wnebrs_in(sid_t sid, T* ptr, sdegree_t start_offset, sdegree_t end_offset)
 {
     vid_t vid = TO_VID(sid);
     tid_t src_index = TO_TID(sid);

@@ -17,28 +17,23 @@ struct wsstream_t : public sstream_t<T> {
     //end  of the window
     using sstream_t<T>::snapshot;
     using sstream_t<T>::prev_snapshot;
-    using sstream_t<T>::degree_out;
-    using sstream_t<T>::degree_in;
-    //using sstream_t<T>::edges;
-    //using sstream_t<T>::edge_count;
-    
-    //start of the window
-    index_t          wmarker;
     degree_t*        wdegree_out;
     degree_t*        wdegree_in;
-    //Edges at the begining of the window,
-    edgeT_t<T>*      wedges; //old edges
-    index_t          wedge_count; //their count
+    
+    //beginning of the the window
+    using sstream_t<T>::degree_out;
+    using sstream_t<T>::degree_in;
+    using sstream_t<T>::edges;
+    using sstream_t<T>::edge_count;
+    index_t          marker;
     
     index_t          window_sz;
 
  public:
     inline wsstream_t() {
-        wmarker = 0;
+        marker = 0;
         wdegree_out = 0;
         wdegree_in = 0;
-        wedges = 0;
-        wedge_count = 0;
     }
     inline ~wsstream_t() {
         if (wdegree_in == wdegree_out && wdegree_out != NULL) {
@@ -60,10 +55,10 @@ struct wsstream_t : public sstream_t<T> {
 };
 
 template <class T>
-void wsstream_t<T>::init_view(pgraph_t<T>* ugraph, index_t window_sz1, 
+void wsstream_t<T>::init_view(pgraph_t<T>* pgraph, index_t window_sz1, 
                                        index_t a_flag)
 {
-    sstream_t<T>::init_view(ugraph, window_sz1, a_flag);
+    sstream_t<T>::init_view(pgraph, window_sz1, a_flag);
     wdegree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
     if (graph_in == graph_out) {
         //u
@@ -84,17 +79,17 @@ status_t wsstream_t<T>::update_view()
     
     index_t new_marker = new_snapshot->marker;
     
-    if(new_marker - wmarker < window_sz) {
+    if(new_marker - marker < window_sz) {
             return eNoWork;
     }
     
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
-    wedge_count = new_marker - old_marker;
+    edge_count = new_marker - old_marker;
 
     snapshot = new_snapshot;
     
-    wedges = pgraph->get_prior_edges(wmarker, wmarker + wedge_count);
-    wmarker += wedge_count;
+    edges = pgraph->get_prior_edges(marker, marker + edge_count);
+    marker += edge_count;
     
     if (pgraph->sgraph_in == 0) {
         update_degreesnap();
@@ -119,8 +114,8 @@ void wsstream_t<T>::update_degreesnap()
         #pragma omp for 
         for (vid_t v = 0; v < v_count; ++v) {
             nebr_count = graph_out->get_degree(v, snap_id);
-            if (degree_out[v] != nebr_count) {
-                degree_out[v] = nebr_count;
+            if (wdegree_out[v] != nebr_count) {
+                wdegree_out[v] = nebr_count;
                 bitmap_out->set_bit(v);
             } else {
                 bitmap_out->reset_bit(v);
@@ -131,9 +126,9 @@ void wsstream_t<T>::update_degreesnap()
         // 1. fetch the durable degree edges
         // 2. compute the degree
         #pragma omp for
-        for (index_t i = 0; i < wedge_count; ++i) {
-            __sync_fetch_and_add(wdegree_out + wedges[i].src_id, 1);
-            __sync_fetch_and_add(wdegree_out + get_dst(wedges + i), 1);
+        for (index_t i = 0; i < edge_count; ++i) {
+            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+            __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
         }
     }
 }
@@ -149,15 +144,15 @@ void wsstream_t<T>::update_degreesnapd()
         #pragma omp for  
         for (vid_t v = 0; v < v_count; ++v) {
             nebr_count = graph_out->get_degree(v, snap_id);
-            if (degree_out[v] != nebr_count) {
-                degree_out[v] = nebr_count;
+            if (wdegree_out[v] != nebr_count) {
+                wdegree_out[v] = nebr_count;
                 bitmap_out->set_bit(v);
             } else {
                 bitmap_out->reset_bit(v);
             }
             nebr_count = graph_in->get_degree(v, snap_id);
-            if (degree_in[v] != nebr_count) {
-                degree_in[v] = nebr_count;
+            if (wdegree_in[v] != nebr_count) {
+                wdegree_in[v] = nebr_count;
                 bitmap_in->set_bit(v);
             } else {
                 bitmap_in->reset_bit(v);
@@ -168,10 +163,11 @@ void wsstream_t<T>::update_degreesnapd()
         // 1. fetch the durable degree edges
         // 2. compute the degree
         #pragma omp for
-        for (index_t i = 0; i < wedge_count; ++i) {
-            __sync_fetch_and_add(wdegree_out + wedges[i].src_id, 1);
-            __sync_fetch_and_add(wdegree_in + get_dst(wedges + i), 1);
+        for (index_t i = 0; i < edge_count; ++i) {
+            __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
+            __sync_fetch_and_add(degree_in + get_dst(edges + i), 1);
         }
+        //reversing the order will help in bitmap.
     }
 
     return;
@@ -180,23 +176,23 @@ void wsstream_t<T>::update_degreesnapd()
 template <class T>
 degree_t wsstream_t<T>::get_degree_out(vid_t v)
 {
-    return degree_out[v] - wdegree_out[v];
+    return wdegree_out[v] - degree_out[v];
 }
 
 template <class T>
 degree_t wsstream_t<T>::get_degree_in(vid_t v)
 {
-    return degree_in[v] - wdegree_in[v];
+    return wdegree_in[v] - degree_in[v];
 }
 
 template <class T>
 degree_t wsstream_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
-    return graph_out->get_wnebrs(v, adj_list, wdegree_out[v], get_degree_out(v));
+    return graph_out->get_wnebrs(v, adj_list, degree_out[v], get_degree_out(v));
 }
 
 template<class T>
 degree_t wsstream_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_wnebrs(v, adj_list, wdegree_in[v], get_degree_in(v));
+    return graph_in->get_wnebrs(v, adj_list, degree_in[v], get_degree_in(v));
 }

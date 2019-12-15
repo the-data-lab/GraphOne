@@ -276,7 +276,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     
     degree_t compressed_count =0;
 
-    //Get the new count XXX
+    //Get the new count 
 	degree_t nebr_count = 0;
     degree_t del_count = 0;
     sdegree_t sdegree = 0;
@@ -333,7 +333,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     v_unit1->snap_blob = v_unit->snap_blob;
     v_unit1->compress_degree(del_count);
     v_unit1->del_count = del_count;
-    v_unit1->snap_id = snap_id;
+    v_unit1->snap_id = snap_id;//store the lastest one.
     
     //replace v-unit atomically
     set_vunit(vid, v_unit1); 
@@ -343,7 +343,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_id/*,edgeT_t<T>* edges, index_t marker*/)
+degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_id)
 {
     vunit_t<T>* v_unit = get_vunit(vid);
     if (v_unit == 0) return 0;
@@ -459,9 +459,29 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
 }
 
 template <class T>
-degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count)
+degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_t count1, int reg_id)
 {
-    vunit_t<T>* v_unit = get_vunit(vid); 
+    vunit_t<T>* v_unit = get_vunit(vid);
+    if (v_unit == 0) return 0;
+
+    while (true && reg_id != -1) {
+        //Add to hazard pointer list.
+        add_hp(v_unit, reg_id);
+        
+        //Check if v_unit is still good.
+        if (v_unit == get_vunit(vid)) {
+            break; 
+        }
+        v_unit = get_vunit(vid); 
+    }
+    sdegree_t start = start1;
+    sdegree_t count = count1;
+    //See if we need adjustment in the sdegree;
+    if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
+        start = start - v_unit->del_count;
+        count = count - v_unit->del_count;
+    }
+    
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
     T* local_adjlist = 0;
     degree_t local_degree = 0;
@@ -469,7 +489,7 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t c
     degree_t total_count = 0;
             
     //traverse the delta adj list
-    degree_t delta_degree = start; 
+    degree_t delta_degree = get_total(start); 
     
     while (delta_adjlist != 0 && delta_degree > 0) {
         local_adjlist = delta_adjlist->get_adjlist();
@@ -487,18 +507,19 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t c
         }
     }
     
-    delta_degree = count;
-    while (delta_adjlist !=0 && total_count < count) {
+    //Now, lets copy
+    total_count = 0;
+    delta_degree = get_total(count);
+    while (delta_adjlist !=0 && delta_degree > 0) {
         local_adjlist = delta_adjlist->get_adjlist();
         local_degree = delta_adjlist->get_nebrcount();
         i_count = min(local_degree, delta_degree);
         memcpy(ptr+total_count, local_adjlist, sizeof(T)*i_count);
         total_count+=i_count;
-        
         delta_adjlist = delta_adjlist->get_next();
         delta_degree -= i_count;
-        
     }
+    if (reg_id != -1) rem_hp(v_unit, reg_id);
     return total_count;
 }
 
