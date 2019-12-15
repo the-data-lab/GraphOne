@@ -63,11 +63,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, snapshot_t* snapshot, de
         }
 		curr = next;
 	}
-#ifdef DEL	
-	curr->degree.add_count += count;
-#else
-	curr->degree += count;
-#endif
+    curr->degree = curr->degree + count;
 }
 
 template <class T>
@@ -95,15 +91,15 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
 	
 	}
 #ifdef DEL
-    if (!((curr->degree.del_count < MAX_DEL_DEGREE) 
-        && (curr->degree.del_count + count) >= count)) {
+    if (((curr->degree.del_count >= MAX_DEL_DEGREE) 
+        || (curr->degree.del_count + count) < count)) {
         compress_nebrs(vid);
     }
+    assert(curr->degree.del_count + count >= count);
 	curr->degree.del_count += count;
 #else
 	assert(0);
 #endif
-    //assert(curr->del_count <= curr->degree);
 }
 
     
@@ -297,7 +293,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 	degree_t nebr_count = get_actual(sdegree);
     degree_t del_count = get_delcount(sdegree);
 	//Only 1 chain, and no deletion data,then no compaction required
-    if (del_count == 0 /*&& (v_unit->delta_adjlist == v_unit->adj_list)*/) {
+    if (del_count == 0 && (v_unit->delta_adjlist == v_unit->adj_list)) {
         return eOK;
     }
 

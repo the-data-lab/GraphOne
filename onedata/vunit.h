@@ -103,7 +103,15 @@ public:
         return ((add_count != sdegree.add_count) 
                 || (del_count != sdegree.del_count));
     }
+    inline sdegree_t  operator + (const degree_t& degree) {
+        add_count += degree;
+        return *this;
+    }
     /*
+    inline sdegree_t  operator - (const degree_t& degree) {
+        del_count += degree;
+        return *this;
+    }
     //use it for 0 degree comparison only
     inline bool operator == (const degree_t degree) {
         return ((add_count == degree)); 
