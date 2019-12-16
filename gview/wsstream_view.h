@@ -109,16 +109,23 @@ void wsstream_t<T>::update_degreesnap()
     #pragma omp parallel
     {
         snapid_t    snap_id = snapshot->snap_id;
+        snapid_t    prev_snapid = prev_snapshot->snap_id;
+        snapid_t    snap_id1 = 0;
         degree_t    nebr_count = 0;
-        
+        degree_t    evict_count = 0;; 
         #pragma omp for 
         for (vid_t v = 0; v < v_count; ++v) {
             nebr_count = graph_out->get_degree(v, snap_id);
+            snap_id1 = graph_out->get_eviction(v, evict_count);
             if (wdegree_out[v] != nebr_count) {
                 wdegree_out[v] = nebr_count;
                 bitmap_out->set_bit(v);
             } else {
                 bitmap_out->reset_bit(v);
+            }
+
+            if (prev_snapid < snap_id1 && snap_id >= snap_id1) {
+                degree_out[v] -= evict_count; 
             }
         }
 
@@ -129,6 +136,8 @@ void wsstream_t<T>::update_degreesnap()
         for (index_t i = 0; i < edge_count; ++i) {
             __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
+            bitmap_out->set_bit_atomic(edges[i].src_id);
+            bitmap_out->set_bit_atomic(get_dst(edges + i));
         }
     }
 }
@@ -139,23 +148,35 @@ void wsstream_t<T>::update_degreesnapd()
     #pragma omp parallel
     {
         degree_t nebr_count = 0;
-        snapid_t snap_id = snapshot->snap_id;
+        degree_t evict_count = 0;; 
+        snapid_t    snap_id = snapshot->snap_id;
+        snapid_t    prev_snapid = prev_snapshot->snap_id;
+        snapid_t    snap_id1 = 0;
 
         #pragma omp for  
         for (vid_t v = 0; v < v_count; ++v) {
             nebr_count = graph_out->get_degree(v, snap_id);
+            snap_id1 = graph_out->get_eviction(v, evict_count);
             if (wdegree_out[v] != nebr_count) {
                 wdegree_out[v] = nebr_count;
                 bitmap_out->set_bit(v);
             } else {
                 bitmap_out->reset_bit(v);
             }
+            if (prev_snapid < snap_id1 && snap_id >= snap_id1) {
+                degree_out[v] -= evict_count; 
+            }
+            
             nebr_count = graph_in->get_degree(v, snap_id);
+            snap_id1 = graph_in->get_eviction(v, evict_count);
             if (wdegree_in[v] != nebr_count) {
                 wdegree_in[v] = nebr_count;
                 bitmap_in->set_bit(v);
             } else {
                 bitmap_in->reset_bit(v);
+            }
+            if (prev_snapid < snap_id1 && snap_id >= snap_id1) {
+                degree_in[v] -= evict_count; 
             }
         }
 
@@ -166,8 +187,9 @@ void wsstream_t<T>::update_degreesnapd()
         for (index_t i = 0; i < edge_count; ++i) {
             __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
             __sync_fetch_and_add(degree_in + get_dst(edges + i), 1);
+            bitmap_out->set_bit_atomic(edges[i].src_id);
+            bitmap_in->set_bit_atomic(get_dst(edges + i));
         }
-        //reversing the order will help in bitmap.
     }
 
     return;

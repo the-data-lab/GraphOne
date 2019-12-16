@@ -127,6 +127,15 @@ public:
         reader[reg_id].hp = 0;
         reader[reg_id].degree = 0;
     }
+    inline snapid_t get_eviction(vid_t vid, degree_t& evict_count) {
+        vunit_t<T>* v_unit = get_vunit(vid);
+        if (v_unit) {
+            evict_count = v_unit->del_count;
+            return v_unit->snap_id;
+        }
+        return 0;
+    }
+
 protected:
     degree_t get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, delta_adjlist_t<T>*& delta_adjlist, degree_t& i_count);
 
@@ -226,8 +235,9 @@ protected:
         assert(v_unit);
         return v_unit->set_delta_adjlist(adj_list);
     } 
-    status_t evict_old_adjlist(vid_t vid, degree_t degree);
+    //status_t evict_old_adjlist(vid_t vid, degree_t degree);
     
+    status_t window_nebrs(vid_t vid);
     status_t compress_nebrs(vid_t vid);
 	
     inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}

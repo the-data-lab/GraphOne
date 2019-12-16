@@ -215,45 +215,6 @@ void onegraph_t<T>::del_nebr_noatomic(vid_t vid, T sid)
      }
 }
 
-//Freeing happens upto
-template <class T>
-status_t onegraph_t<T>::evict_old_adjlist(vid_t vid, degree_t degree)
-{
-    vunit_t<T>* v_unit = get_vunit(vid); 
-    if (v_unit == 0) return eOK;;
-
-    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
-    degree_t delta_degree = degree;//nebr_count + del_count; 
-    
-    delta_adjlist_t<T>* old_adjlist = 0;
-    degree_t local_degree = 0;
-    degree_t total_count = 0;
-
-    while (delta_adjlist != 0 && delta_degree > 0) {
-        local_degree = delta_adjlist->get_nebrcount();
-        total_count += local_degree;
-        if (total_count >= degree) {
-           break; 
-        }
-        old_adjlist = delta_adjlist;
-        delta_adjlist = delta_adjlist->get_next();
-        delta_degree -= local_degree;
-        delete_delta_adjlist(old_adjlist);
-    }
-
-    v_unit->delta_adjlist = delta_adjlist;
-    if (delta_adjlist == 0) {
-        v_unit->adj_list = 0;
-    }
-    
-    //reduce the degree count
-    snapT_t<T>* snap_blob = v_unit->get_snapblob();
-    snap_blob->degree -= degree;
-    //snap_blob->del_count = 0; 
-    
-    //v_unit->offset = degree;//XXX
-    return eOK;
-}
 
 template <class T>
 void onegraph_t<T>::compress()
@@ -338,6 +299,67 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     //replace v-unit atomically
     set_vunit(vid, v_unit1); 
     retire_vunit(v_unit);
+    return eOK;
+}
+
+template <class T>
+status_t onegraph_t<T>::window_nebrs(vid_t vid)
+{
+    vunit_t<T>* v_unit = get_vunit(vid); 
+    if (v_unit == 0) return eOK;
+
+    if (snap_id == 1 ||  v_unit->snap_id == snap_id) return eOK;
+    
+    degree_t evict_count =0;
+
+    //Get the new count 
+    sdegree_t sdegree = 0;
+    snapid_t c_snapid = get_degree_min(vid, sdegree);
+    if (c_snapid == 0) { //No readers
+	    sdegree = v_unit->get_degree(snap_id-1);
+        evict_count = get_actual(sdegree); 
+    } else if (c_snapid > v_unit->snap_id) {
+	    evict_count = get_actual(sdegree);
+        //assert(0);
+    } else {
+        return eOK;
+    }
+
+	//Only 1 chain, and no deletion data,then no compaction required
+    if (evict_count == 0) {
+        return eOK;
+    }
+    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
+    degree_t delta_degree = evict_count;//nebr_count + del_count; 
+    
+    delta_adjlist_t<T>* old_adjlist = 0;
+    degree_t local_degree = 0;
+    degree_t total_count = 0;
+
+    while (delta_adjlist != 0 && delta_degree > 0) {
+        local_degree = delta_adjlist->get_nebrcount();
+        total_count += local_degree;
+        if (total_count >= evict_count) {
+           break; 
+        }
+        old_adjlist = delta_adjlist;
+        delta_adjlist = delta_adjlist->get_next();
+        delta_degree -= local_degree;
+        delete_delta_adjlist(old_adjlist);
+    }
+
+    //-----------
+    vunit_t<T>* v_unit1 = thd_mem->alloc_vunit();
+    v_unit1->delta_adjlist = delta_adjlist;
+    v_unit1->adj_list = delta_adjlist? v_unit->adj_list: 0;
+    v_unit1->snap_blob = v_unit->snap_blob;
+    v_unit1->compress_degree(evict_count);
+    v_unit1->del_count = evict_count;//offset
+    v_unit1->snap_id = snap_id;//store the lastest one.
+    
+    //replace v-unit atomically
+    set_vunit(vid, v_unit1); 
+    retire_vunit(v_unit);//how many links in adj_list
     return eOK;
 }
 
@@ -478,8 +500,8 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
     sdegree_t count = count1;
     //See if we need adjustment in the sdegree;
     if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
-        start = start - v_unit->del_count;
-        count = count - v_unit->del_count;
+        start -= v_unit->del_count;
+        count -= v_unit->del_count;
     }
     
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
