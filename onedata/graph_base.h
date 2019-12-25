@@ -147,7 +147,7 @@ protected:
         reader[reg_id].hp[omp_get_thread_num()] = 0;
     }
     
-    inline snapid_t get_degree_min(vid_t vid, sdegree_t degree) {
+    inline snapid_t get_degree_min(vid_t vid, sdegree_t& degree) {
         sdegree_t sdegree = 0;
         snapid_t snap_id1 = 0;
         snapid_t prev_snapid = snap_id;//as a max initialization

@@ -118,8 +118,8 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
         || (curr->degree.del_count + count) < count)) {
         compress_nebrs(vid);
     }
-    assert(curr->degree.del_count + count >= count);
 	curr->degree.del_count += count;
+    assert(curr->degree.del_count >= count);
 #else
 	assert(0);
 #endif
@@ -294,7 +294,9 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     
     //---------- copy the data from older edge arrays to new edge array
     degree_t total_count = get_nebrs_internal(vid, ptr, sdegree, delta_adjlist, i_count);
-    
+    if(c_snapid == 0) {
+        assert(total_count == compressed_count); 
+    }
     //Let's copy the rest of current and rest of the chains
     //Let's only link rest of the chains instead of copying. XXX
     T* local_adjlist = 0;
@@ -473,6 +475,7 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
                 if (is_del) {
                     pos = UNDEL_SID(get_sid(local_adjlist[i]));
                     if (total_count < nebr_count){
+                        assert(idel + 2 <= 2*del_count);
                         del_pos[idel++] = pos;
                         del_pos[idel++] = total_count;
                     } else {
