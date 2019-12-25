@@ -5,6 +5,29 @@
 #include "onesnb.h"
 
 using std::min;
+template <class T>
+degree_t print_nebrs_internal(delta_adjlist_t<T>* delta_adjlist)
+{
+    T* local_adjlist = 0;
+    degree_t local_degree = 0;
+    degree_t total_count = 0;
+    sid_t sid = 0;
+    while (delta_adjlist != 0) {
+        local_adjlist = delta_adjlist->get_adjlist();
+        local_degree = delta_adjlist->get_nebrcount();
+        for (degree_t i = 0; i < local_degree; ++i) {
+            sid = get_sid(local_adjlist[i]);
+            if (IS_DEL(sid)) {
+                cout << "-" <<UNDEL_SID(sid) << ", ";
+            } else {
+                cout << sid << ", ";
+            }
+        }
+        total_count += local_degree;
+        delta_adjlist = delta_adjlist->get_next();
+    }
+    return total_count;
+}
 
 template <class T>
 void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapshot_t* snapshot)
@@ -55,12 +78,12 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, snapshot_t* snapshot, de
 		snapT_t<T>* next = v_unit->recycle_snapblob(snapshot);
 		if (next == 0) {
 			next = new_snapdegree();
-            next->snap_id       = snap_id;
             if (curr) {
                 next->degree = curr->degree;
             }
             v_unit->set_snapblob(next);
         }
+        next->snap_id       = snap_id;
 		curr = next;
 	}
     curr->degree = curr->degree + count;
@@ -81,12 +104,12 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
 		snapT_t<T>* next = v_unit->recycle_snapblob(snapshot);
 		if (next == 0) {
 			next = new_snapdegree();
-            next->snap_id       = snap_id;
             if (curr) {
                 next->degree = curr->degree;
             }
             v_unit->set_snapblob(next);
         }
+        next->snap_id       = snap_id;
 		curr = next;
 	
 	}
@@ -420,10 +443,14 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
             local_degree = delta_adjlist->get_nebrcount();
             i_count = min(local_degree, delta_degree);
             memcpy(ptr+total_count, local_adjlist, sizeof(T)*i_count);
-            total_count+=i_count;
             
-            delta_adjlist = delta_adjlist->get_next();
+            total_count+=i_count;
             delta_degree -= i_count;
+            if (delta_degree == 0 && local_degree != i_count) {
+                break;
+            }
+            delta_adjlist = delta_adjlist->get_next();
+            i_count = 0;
         }
     } else {
         degree_t nebr_count = get_actual(count);
@@ -463,9 +490,12 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
                     }
                 }
             }
-            
-            delta_adjlist = delta_adjlist->get_next();
             delta_degree -= i_count;
+            if (delta_degree == 0 && local_degree != i_count) {
+                break;
+            }
+            delta_adjlist = delta_adjlist->get_next();
+            i_count = 0;
         }
         assert(other_pos <= other_count);
         assert(idel <= 2*del_count);

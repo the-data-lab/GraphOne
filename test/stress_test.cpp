@@ -73,10 +73,46 @@ static void validate(uint64_t num_vertices);
 [[maybe_unused]]
 static std::mutex g_cout_lock;
 #define LOG(message) { auto thread_id = syscall(SYS_gettid); std::scoped_lock<std::mutex> lock{ g_cout_lock }; std::cout << "[Thread #" << thread_id << "] " << message << endl; }
-
-int main(int argc, char* argv[]){
     const uint64_t num_threads = 16; // thread::hardware_concurrency(); // =8
     const uint64_t num_vertices = 33; //1ull << 14;
+
+void sstream_print(gview_t<lite_edge_t>* view) {
+    auto labels = g->get_typekv();
+    lite_edge_t* neighbours = new lite_edge_t[num_vertices];
+
+    while (true) {
+        if (eOK != view->update_view()) {
+            usleep(100000);
+            continue;
+        }
+
+
+        for(uint64_t source_name = 1; source_name <= num_vertices; source_name++){
+            string str_source_name = to_string(source_name);
+            uint64_t source_id = labels->get_sid(str_source_name.c_str());
+
+            uint64_t degree = view->get_degree_out(source_id);
+            assert(degree < num_vertices);
+            view->get_nebrs_out(source_id, neighbours);
+
+            // replace the internal ids with the vertex names
+            for(uint64_t i = 0; i < degree; i++){
+                uint64_t destination_id = get_sid(neighbours[i].first);
+                string str_destination_name = g->get_typekv()->get_vertex_name(destination_id);
+                set_sid(neighbours[i], stoull(str_destination_name));
+            }
+
+            // sort them by vertex name
+            std::sort(neighbours, neighbours + degree, [](const lite_edge_t& l1, const lite_edge_t& l2){
+                return get_sid(l1) < get_sid(l2);
+            });
+            
+            //dump_vertex(source_name, neighbours, degree);
+        }
+    }
+}
+
+int main(int argc, char* argv[]){
 
     uint64_t seed = random_device{}(); // random seed
     cout << "Random seed: " << seed << "\n";
@@ -113,10 +149,13 @@ int main(int argc, char* argv[]){
     
     auto partitions = generate_partitions(num_edges, num_threads);
     assert(partitions.size() == num_threads);
+    
+    auto* view = reg_sstream_view((pgraph_t<lite_edge_t>*) g->get_sgraph(1), sstream_print, C_THREAD|STALE_MASK); // global
 
     //---
     int count = 0;
     do {
+		g_keep_going = true;
 		cout << "Updating " << num_edges << " edges with " << num_threads << " threads ... " << endl;
 		uint64_t partition_start = 0;
 		vector<thread> workers;
@@ -129,7 +168,7 @@ int main(int argc, char* argv[]){
 
 		// let it run for a bit
 		LOG("ZzZ ... ");
-		this_thread::sleep_for(0.1s);
+		this_thread::sleep_for(100s);
 
 		LOG("Waiting for all threads to terminate ...");
 		g_keep_going = false;
@@ -142,13 +181,15 @@ int main(int argc, char* argv[]){
 		//-----
     	cout << "Validate ..." << endl;
     	validate(num_vertices);
-		weighted_edges->compress_graph_baseline();
+		//weighted_edges->compress_graph_baseline();
 		++count;
-    } while (count <= 400);
+    } while (0);
     
 
     // It's enough it does not end with a seg fault...
     cout << "Done" << endl;
+    delta_adjlist_t<weight_sid_t> * ptr11 = 0;
+    print_nebrs_internal(ptr11);
 
     return 0;
 }
@@ -170,14 +211,14 @@ void worker_main(Edge* edges, uint64_t edges_sz){
         for( /* nop */ ; delete_index < edges_sz; delete_index++){
             remove_edge(edges[delete_index].m_source, edges[delete_index].m_destination);
         }
-
-		/*
+    }
+		
         // insert them again
-        for(uint64_t insert_index = 0; insert_index < delete_index; insert_index++){
+        for(uint64_t insert_index = 0; insert_index < edges_sz; insert_index++){
             double weight = distribution(rand);
             add_edge(edges[insert_index].m_source, edges[insert_index].m_destination, weight);
-        }*/
-    }
+        }
+    
 }
 
 static
@@ -200,7 +241,7 @@ void dump_vertex(uint64_t source_name, lite_edge_t* neighbours, uint64_t neighbo
 static
 void validate(uint64_t num_vertices){
     auto labels = g->get_typekv();
-    auto* view = create_static_view((pgraph_t<lite_edge_t>*) g->get_sgraph(1), SIMPLE_MASK); // global
+    auto* view = create_static_view((pgraph_t<lite_edge_t>*) g->get_sgraph(1), STALE_MASK); // global
     lite_edge_t* neighbours = new lite_edge_t[num_vertices];
 
 
@@ -223,6 +264,8 @@ void validate(uint64_t num_vertices){
         std::sort(neighbours, neighbours + degree, [](const lite_edge_t& l1, const lite_edge_t& l2){
             return get_sid(l1) < get_sid(l2);
         });
+        
+        dump_vertex(source_name, neighbours, degree);
 
         // finally check all edges are present
         uint64_t expected = 2*source_name;
@@ -252,7 +295,7 @@ void validate(uint64_t num_vertices){
             }
         }
         if(expected < num_vertices){
-            //throw "Validation error (expected)";
+            throw "Validation error (expected)";
         }
     }
 

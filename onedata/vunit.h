@@ -93,7 +93,7 @@ class nebrcount_t {
 class sdegree_t {
  public:
     degree_t add_count;
-    uint16_t del_count;
+    degree_t del_count;
 public:
     inline sdegree_t(degree_t degree = 0) {
         add_count = degree;
@@ -272,7 +272,7 @@ public:
         snapT_t<T>* snap_blob2 = snap_blob1->prev;
         snapshot_t* snapshot = (snapshot_t*)snapshot1->list.next;
 
-        while (snap_blob2 != 0 && !list_empty(&snapshot->list)) {
+        while (snap_blob2 != 0 && snapshot != (snapshot_t*)snapshot1->list.prev) {
             if(snap_blob2->snap_id == snapshot->snap_id) {
                 if (snapshot->get_ref() == 1) {
                     //free it
