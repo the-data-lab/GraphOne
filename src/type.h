@@ -168,23 +168,23 @@ enum status_t {
 };
 
 typedef union __univeral_type {
-    uint8_t  value_8b;
-    uint16_t value16b;
+    //uint8_t  value_8b;
+    //uint16_t value16b;
     tid_t    value_tid;
-    vid_t    value_vid;
-    sid_t    value_sid;
+    //vid_t    value_vid;
+    //sid_t    value_sid;
     float    value_float;
-    sid_t    value_offset;
+    //sid_t    value_offset;
     sid_t    value;
 
 #ifdef B32   
-    char     value_string[4];
-    sid_t    value_charp;
+    //char     value_string[4];
+    //sid_t    value_charp;
 #else     
-    char     value_string[8];
+    //char     value_string[8];
     //int64_t  value_64b;
     //eid_t    value_eid;
-    time_t   value_time;
+    //time_t   value_time;
     //char*    value_charp;
     double   value_double;
 #endif

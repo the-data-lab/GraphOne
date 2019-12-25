@@ -98,6 +98,7 @@ public:
     void add_nebr_noatomic(vid_t vid, T sid);
     void add_nebr_bulk(vid_t vid, T* adj_list2, degree_t count);
     degree_t find_nebr(vid_t vid, sid_t sid); 
+    T* find_nebr_bypos(vid_t vid, degree_t pos); 
 	
     inline delta_adjlist_t<T>* get_delta_adjlist(vid_t vid) {
         vunit_t<T>* v_unit = get_vunit(vid);

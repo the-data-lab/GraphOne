@@ -300,14 +300,39 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     //Let's copy the rest of current and rest of the chains
     //Let's only link rest of the chains instead of copying. XXX
     T* local_adjlist = 0;
-    delta_adjlist_t<T>* last_chain = delta_adjlist;
     degree_t local_degree = 0;
+    sid_t sid = 0;
+    degree_t pos = INVALID_DEGREE;
+    degree_t new_pos = INVALID_DEGREE;
+    T*    dst = 0;
     while(delta_adjlist !=0) {
         local_adjlist = delta_adjlist->get_adjlist() + i_count;
         local_degree  = delta_adjlist->get_nebrcount() - i_count;
-        memcpy(ptr+total_count, local_adjlist, sizeof(T)*local_degree);
-        
-        total_count+=local_degree;
+
+        for(degree_t i = 0; i < local_degree; ++i) {
+            ptr[total_count] = local_adjlist[i];
+            sid = get_sid(local_adjlist[i]);
+            if (IS_DEL(sid)) {
+                pos = UNDEL_SID(sid);//older position
+                dst = find_nebr_bypos(vid, pos);
+                assert(dst);
+                sid = get_sid(*dst);
+                //pos = find_nebr(vid, get_sid(*dst));//new position
+                new_pos = INVALID_DEGREE;
+                for (int j = total_count; j != 0; --j) {
+                    if (get_sid(ptr[j-1]) == sid) {
+                        new_pos = j - 1;
+                        break;
+                    }
+                }
+                assert(new_pos != INVALID_DEGREE);
+                assert(new_pos < compressed_count);
+                set_sid(ptr[total_count], DEL_SID(new_pos));
+                //assert(pos >= del_count + del_count);
+                //set_sid(ptr[total_count], dst - del_count - del_count); 
+            }
+            total_count++;
+        }
         i_count = 0;
         delta_adjlist = delta_adjlist->get_next();
     }
@@ -350,27 +375,22 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
         return eOK;
     }
 
-	//Only 1 chain, and no deletion data,then no compaction required
     if (evict_count == 0) {
         return eOK;
     }
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
-    degree_t delta_degree = evict_count;//nebr_count + del_count; 
-    
-    delta_adjlist_t<T>* old_adjlist = 0;
+    degree_t delta_degree = 0;
     degree_t local_degree = 0;
     degree_t total_count = 0;
 
-    while (delta_adjlist != 0 && delta_degree > 0) {
+    
+    while (delta_adjlist != 0) {
         local_degree = delta_adjlist->get_nebrcount();
-        total_count += local_degree;
-        if (total_count >= evict_count) {
+        if (total_count + local_degree >= evict_count) {
            break; 
         }
-        old_adjlist = delta_adjlist;
+        total_count += local_degree;
         delta_adjlist = delta_adjlist->get_next();
-        delta_degree -= local_degree;
-        delete_delta_adjlist(old_adjlist);
     }
 
     //-----------
@@ -378,8 +398,8 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
     v_unit1->delta_adjlist = delta_adjlist;
     v_unit1->adj_list = delta_adjlist? v_unit->adj_list: 0;
     v_unit1->snap_blob = v_unit->snap_blob;
-    v_unit1->compress_degree(evict_count);
-    v_unit1->del_count = evict_count;//offset
+    v_unit1->compress_degree(total_count);
+    v_unit1->del_count = total_count;//offset
     v_unit1->snap_id = snap_id;//store the lastest one.
     
     //replace v-unit atomically
@@ -751,6 +771,27 @@ void onegraph_t<T>::setup(tid_t t, vid_t a_max_vcount)
 #endif
 }
 
+template <class T>
+T* onegraph_t<T>::find_nebr_bypos(vid_t vid, degree_t pos)
+{
+    vunit_t<T>* v_unit = get_vunit(vid);
+    if (0 == v_unit) return 0;
+    
+    degree_t i_count = 0;
+    delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
+    degree_t local_degree = delta_adjlist->get_nebrcount();
+    while(i_count + local_degree <= pos) {
+        i_count += local_degree;
+        delta_adjlist = delta_adjlist->get_next();
+        local_degree = delta_adjlist->get_nebrcount();
+    };
+
+    i_count = pos - i_count;
+    T* local_adjlist = delta_adjlist->get_adjlist();
+
+    return local_adjlist + i_count;
+}
+
 //returns the location of the found value
 template <class T>
 degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid) 
@@ -774,21 +815,32 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
         for (degree_t i = local_degree; i != 0; --i) {
             nebr = get_sid(local_adjlist[i-1]);
             if (nebr == sid) {
-		ret_degree = i-1;
-		break;
+                ret_degree = i-1;
+                break;
             }
         }
-	//XXX A better way to do this calculation is possible
-	if (ret_degree != INVALID_DEGREE) {
-    	    while (delta_adjlist != last) {
-        	local_degree  = delta_adjlist->get_nebrcount();
-        	degree += local_degree;
-        	delta_adjlist = delta_adjlist->get_next();
-	    }
-	    return ret_degree + degree;
-	}
+        //XXX A better way to do this calculation is possible
+        if (ret_degree != INVALID_DEGREE) {
+            while (delta_adjlist != last) {
+                local_degree  = delta_adjlist->get_nebrcount();
+                degree += local_degree;
+                delta_adjlist = delta_adjlist->get_next();
+            }
+            return ret_degree + degree;
+        }
     }
     
+    //searching from last is required in case of add, del, add and del. 
+    //so that last delete should find its place correctly.
+    /*
+    vector<delta_adjlist_t<t>*> pointers;
+    pointers.reserve(256);
+
+    while(delta_adjlist != last) {
+        pointers.push_back(delta_adjlist);
+        delta_adjlist = delta_adjlist->get_next();
+    }*/
+
     delta_adjlist = v_unit->delta_adjlist;
     degree = 0;
     while (delta_adjlist != last) {
@@ -797,7 +849,7 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
         for (degree_t i = 0; i < local_degree; ++i) {
             nebr = get_sid(local_adjlist[i]);
             if (nebr == sid) {
-		ret_degree = i+degree;
+                ret_degree = i+degree;
             }
         }
         degree += local_degree;
