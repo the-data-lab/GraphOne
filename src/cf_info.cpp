@@ -79,8 +79,6 @@ void cfinfo_t::add_edge_property(const char* longname, prop_encoder_t* a_prop_en
 cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
 {
     INIT_LIST_HEAD(&snapshot);
-    global_snapmarker = -1L;
-    //snap_id = 0;
     gtype = type;
     egtype = eADJ;
     flag1 = 0;
@@ -99,6 +97,8 @@ cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
     q_head = 0;
     q_tail = 0;
     
+    snap_thread = 0;
+
     snap_f = 0;
     wtf = 0;
 }
@@ -149,12 +149,12 @@ void* cfinfo_t::w_func(void* arg)
     return 0;
 }
 
-void cfinfo_t::create_snapthread()
+void cfinfo_t::create_snapthread(bool snap_thd)
 {
     if (egraph != gtype) {
         return;
     }
-
+    snap_create = snap_thd; 
     pthread_mutex_init(&snap_mutex, 0);
     pthread_cond_init(&snap_condition, 0);
     if (0 != pthread_create(&snap_thread, 0, cfinfo_t::snap_func, (void*)this)) {
@@ -167,16 +167,17 @@ void* cfinfo_t::snap_func(void* arg)
     cfinfo_t* ptr = (cfinfo_t*)(arg);
     
     do {
-        //struct timeval tp;
+        ///*
         struct timespec ts;
         int rc = clock_gettime(CLOCK_REALTIME, &ts);
 
         //ts.tv_sec = tp.tv_sec;
         //ts.tv_nsec = tp.tv_usec * 1000;
-        ts.tv_nsec += 100 * 1000000;  //30 is my milliseconds
+        ts.tv_nsec += 10 * 1000000;  //30 is my milliseconds
         pthread_mutex_lock(&ptr->snap_mutex);
         pthread_cond_timedwait(&ptr->snap_condition, &ptr->snap_mutex, &ts);
         pthread_mutex_unlock(&ptr->snap_mutex);
+        //*/
         while (eOK == ptr->create_snapshot());
     } while(1);
 
@@ -186,18 +187,11 @@ void* cfinfo_t::snap_func(void* arg)
 status_t cfinfo_t::create_snapshot()
 {
     index_t snap_marker = 0;
-    int work_done = 0;
-    //index_t last_durable_marker = 0;
     //create_marker(0);
     if (eOK == move_marker(snap_marker)) {
         make_graph_baseline();
         update_marker();
-        if (global_snapmarker == snap_marker || global_snapmarker == -1L) {
-            new_snapshot(snap_marker);
-        }
-        ++work_done;
-    }
-    if (work_done != 0) {
+        new_snapshot(snap_marker);
         return eOK;
     }
     return eNoWork;

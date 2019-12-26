@@ -26,6 +26,7 @@ class gview_t {
     virtual index_t get_nonarchived_edges(edgeT_t<T>*& ptr) {assert(0); return 0;}
     
     virtual status_t    update_view() {assert(0); return eOK;}
+    virtual void        update_view_done() {assert(0);}
     //void    init_view(pgraph_t<T>* pgraph, index_t a_flag);
     virtual bool has_vertex_changed_out(vid_t v) { assert(0); return false;}
     virtual bool has_vertex_changed_in(vid_t v) { assert(0); return false;}
@@ -47,6 +48,7 @@ class gview_t {
         algo_meta = 0;
         v_count = 0;
         flag = 0;
+        reg_id = -1;
     } 
     inline virtual ~gview_t() {} 
 };

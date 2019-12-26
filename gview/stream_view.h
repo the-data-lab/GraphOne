@@ -3,28 +3,19 @@
 template <class T>
 class stream_t : public gview_t<T> {
  public:
-    index_t          snap_marker;//Compute starting offset
-    edgeT_t<T>*      edges; //new edges
-    index_t          edge_count;//their count
-    
     using gview_t<T>::pgraph;
     using gview_t<T>::v_count;
+    using gview_t<T>::reg_id;
+    blog_reader_t<T> reader;
     
  public:
-    stream_t(){
-        edges = 0;
-        edge_count = 0;
-        snap_marker = 0;
+    stream_t(){}
+    ~stream_t() {
+        if (reg_id != -1) reader.blog->unregister_reader(reg_id);
     }
- public:
-    inline edgeT_t<T>* get_edges() { return edges;}
-    inline index_t     get_edgecount() { return edge_count;}
-    
-    inline void        set_edges(edgeT_t<T>*a_edges) {edges = a_edges;}
-    inline void        set_edgecount(index_t a_edgecount){edge_count = a_edgecount;}
-    inline index_t     get_snapmarker() {return snap_marker;}
-    
-
+    inline edgeT_t<T>* get_edges() { return reader.blog->blog_beg;}
+    inline index_t     get_snapmarker() {return reader.marker;}
+    inline void        update_view_done() { reader.tail = reader.marker;}
  public:   
     status_t update_view();
     void init_view(pgraph_t<T>* pgraph, index_t a_flag);
@@ -36,30 +27,24 @@ void stream_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     pgraph = ugraph;
     this->flag = a_flag;
     v_count = g->get_type_scount();
-    
-    blog_t<T>* blog = ugraph->blog;
-    snap_marker = 0;
-    edges      = 0;
-    edge_count = 0;
-
+    reader.blog = pgraph->blog;
+    reg_id = reader.blog->register_reader(&reader);
 }
 
 template <class T>
 status_t stream_t<T>::update_view()
 {
-    blog_t<T>* blog = pgraph->blog;
-    index_t  marker = blog->blog_head;
-    edgeT_t<T>* edge = blog->blog_beg + marker  - 1;
-    if (marker > 0 && edge->src_id == get_dst(edge)) {
-        --marker;
-    }
+    index_t  marker = reader.blog->blog_head;
+
+    if (marker - reader.marker < 65536) { usleep(100000); }
    
-    if (marker > snap_marker) {
+    marker = reader.blog->blog_head;
+    if (marker > reader.marker) {
         //XXX need to copy it
-        edges = blog->blog_beg + snap_marker;
-        edge_count = marker - snap_marker;
-        snap_marker = marker;
+        reader.tail = reader.marker;
+        reader.marker = marker;
+
         return eOK;
-    } 
+    }
     return eNoWork;
 }

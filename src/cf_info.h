@@ -50,14 +50,11 @@ class cfinfo_t {
 
     prop_encoder_t* prop_encoder;
 
-    index_t     global_snapmarker;
-    //snapid_t    snap_id;
     gtype_t     gtype;
     egraph_t    egtype;
+    
     sflag_t     flag1;
     sflag_t     flag2;
-    
-    
     uint8_t     flag1_count;
     uint8_t     flag2_count;
         
@@ -71,29 +68,29 @@ class cfinfo_t {
     pthread_t       snap_thread;
     pthread_mutex_t snap_mutex;
     pthread_cond_t  snap_condition;
+    bool            snap_create;
     
     pthread_t       w_thread;
     pthread_mutex_t w_mutex;
     pthread_cond_t  w_condition;
+    int          wtf;   //edge log file
+    
+    string       snapfile;
+    FILE*        snap_f;
    
    private:
     //snapshot_t*  snapshot;
     list_head  snapshot;
-    public:
-    string       snapfile;
-    FILE*        snap_f;
-    int          wtf;   //edge log file
 
  public: 
     cfinfo_t(gtype_t type = evlabel);   
     
     void create_wthread();
     static void* w_func(void* arg);
-    void create_snapthread();
+    void create_snapthread(bool a_snap_create);
     static void* snap_func(void* arg);
     
-    status_t create_snapshot();
-    void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
+    virtual status_t create_snapshot();
     inline snapshot_t* get_snapshot() {
         if (list_empty(&snapshot)) {
             return 0;
@@ -103,6 +100,8 @@ class cfinfo_t {
     }
     void read_snapshot();
     void write_snapshot();
+    
+    void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
 
  public:
     void create_columns(propid_t prop_count);

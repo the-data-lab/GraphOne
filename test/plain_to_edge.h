@@ -653,7 +653,7 @@ void plaingraph_manager_t<T>::prep_graph_and_compute(const string& idirname, con
     cout << "Make graph time = " << end - start << endl;
 }
 
-void dump() 
+static void dump() 
 {
     p_ugraph_t* pgraph = (p_ugraph_t*) g->get_sgraph(1);
     //pgraph->compress_graph_baseline();
@@ -704,7 +704,7 @@ void dump()
     delete_static_view(view);
 }
 
-void dump_simple() 
+static void dump_simple() 
 {
     p_ugraph_t* pgraph = (p_ugraph_t*) g->get_sgraph(1);
     //pgraph->compress_graph_baseline();

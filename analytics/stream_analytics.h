@@ -138,6 +138,17 @@ void print_wcc_summary(stream_t<T>* streamh)
     
     cout << "WCC count = " << count << endl;
     cout << "wcc_group used <debug> =" << wcc->c_count << endl;
+    /*
+    vid_t v_count = streamh->get_vcount();
+    for (int l = 0; l < 100; ++l) {
+        vid_t vid_count = 0;
+        for (vid_t v = 0; v < v_count; ++v) {
+                if (wcc->v_cid[v] == l) ++vid_count;
+        }
+        if (vid_count > 0) {
+            cout << " cid = " << l << " count = " << vid_count << endl;
+        }
+    }*/
 }
 
 template <class T>
@@ -145,14 +156,15 @@ void stream_wcc(gview_t<T>* viewh)
 {
     stream_t<T>* streamh = (stream_t<T>*)viewh;
     edgeT_t<T>* edges = streamh->get_edges();
-    index_t edge_count = streamh->get_edgecount();
     vid_t src, dst;
-    
+    index_t e = 0;
+
     wcc_t* wcc = (wcc_t*)streamh->get_algometa();
 
-    for (index_t i = 0; i < edge_count; ++i) {
-        src = edges[i].src_id;
-        dst = get_dst(edges+i);
+    for (index_t i = streamh->reader.tail; i < streamh->reader.marker; ++i) {
+        e = (i & streamh->reader.blog->blog_mask);
+        src = edges[e].src_id;
+        dst = get_dst(edges+e);
         wcc_edge<T>(src, dst, wcc);
     }
 }
@@ -173,6 +185,7 @@ void do_stream_wcc(gview_t<T>* viewh)
 
 inline void do_stream_netflow_aggr(gview_t<netflow_dst_t>* viewh)
 {
+    /*
     stream_t<netflow_dst_t>* streamh = (stream_t<netflow_dst_t>*)viewh;
     edgeT_t<netflow_dst_t>* edges = streamh->get_edges();
     index_t edge_count = streamh->get_edgecount();
@@ -194,6 +207,7 @@ inline void do_stream_netflow_aggr(gview_t<netflow_dst_t>* viewh)
         //aggr_flow[src].src_bytes += edges[i].dst_id.second.src_bytes;
         //aggr_flow[src].dst_bytes += edges[i].dst_id.second.dst_bytes;
     }
+    */
 }
 
 //void do_sstream_netflow_aggr(sstream_t<netflow_dst_t>* sstreamh)

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <atomic>
+#include <algorithm>
+
+using std::min;
 
 template <class T>
 class tmp_blog_t {
@@ -19,6 +22,23 @@ class tmp_blog_t {
     }
 };
 
+template <class T>
+class blog_t;
+
+template <class T>
+class blog_reader_t {
+ public:
+    blog_t<T>* blog;
+    //from tail to marker in blog_beg
+    index_t tail;
+    index_t marker;
+    inline blog_reader_t() {
+        blog = 0;
+        tail = 0;
+        marker = 0;
+    }
+};
+
 //edge batching buffer
 template <class T>
 class blog_t {
@@ -32,9 +52,14 @@ class blog_t {
     //current batching position
     index_t     blog_head;
     //Make adj list from this point
-    std::atomic<index_t>   blog_tail;
+    std::atomic<index_t>  blog_tail;
     //Make adj list upto this point
     index_t     blog_marker;
+    //Due to rewind, head should not go beyond
+    index_t     blog_free;
+
+    blog_reader_t<T>* reader[VIEW_COUNT];
+
     //Make edge durable from this point
     index_t     blog_wtail;
     //Make edge durable upto this point
@@ -46,8 +71,26 @@ class blog_t {
         blog_head = 0;
         blog_tail = 0;
         blog_marker = 0;
+        blog_free = 0;
         blog_wtail = 0;
         blog_wmarker = 0;
+        
+        memset(reader, 0, VIEW_COUNT*sizeof(blog_reader_t<T>*));
+    }
+
+    inline int register_reader(blog_reader_t<T>* a_reader) {
+        int reg_id = 0;
+        for (; reg_id < VIEW_COUNT; ++reg_id) { 
+            if (reader[reg_id] == 0) {
+                reader[reg_id] = a_reader;
+                return reg_id;
+            }
+        }
+        assert(0);
+        return reg_id;
+    }
+    inline void unregister_reader(int reg_id) {
+        reader[reg_id] = 0;
     }
 
     void alloc_edgelog(index_t count);
@@ -63,8 +106,17 @@ class blog_t {
         blog_wtail = global_snapshot->durable_marker;
         blog_wmarker = global_snapshot->durable_marker; 
     }
+
+    inline void free_blog() {
+        index_t min_marker = blog_tail;
+        for (int reg_id = 0; reg_id < VIEW_COUNT; ++reg_id) {
+            if (reader[reg_id] == 0) continue;
+            min_marker = min(min_marker, reader[reg_id]->tail);
+        }
+        blog_free = min_marker;
+    }
 };
-    
+
 template <class T>
 void blog_t<T>::alloc_edgelog(index_t count) {
     if (blog_beg) {

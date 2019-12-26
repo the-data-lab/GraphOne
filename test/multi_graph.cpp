@@ -76,10 +76,11 @@ void wls_setup()
     g->file_open(true);
 
     //Create threads. Remember the index in schema
-    g->cf_info[1]->create_snapthread();
-    g->cf_info[1]->create_wthread();
-    g->cf_info[2]->create_snapthread();
-    g->cf_info[2]->create_wthread();
+    g->create_threads(true, true);
+    //g->cf_info[1]->create_snapthread();
+    //g->cf_info[1]->create_wthread();
+    //g->cf_info[2]->create_snapthread();
+    //g->cf_info[2]->create_wthread();
     usleep(1000);
 }
 

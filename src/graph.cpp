@@ -279,7 +279,7 @@ void graph::make_graph_baseline()
 void graph::create_threads(bool snap_thd, bool w_thd)
 {
     for (int i = 1; i < cf_count; i++) {
-        if (snap_thd) cf_info[i]->create_snapthread();
+        cf_info[i]->create_snapthread(snap_thd);
         if (w_thd) cf_info[i]->create_wthread();
     }
 }

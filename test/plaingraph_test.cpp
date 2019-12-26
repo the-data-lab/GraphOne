@@ -1196,6 +1196,7 @@ void ingestion(const string& idir, const string& odir)
 
 void stream_netflow_aggregation(const string& idir, const string& odir)
 {
+    /*
     plaingraph_manager_t<netflow_dst_t> manager;
     manager.schema(_dir);
     //do some setup for plain graphs
@@ -1207,6 +1208,7 @@ void stream_netflow_aggregation(const string& idir, const string& odir)
     netflow_post_reg(streamh); 
     manager.prep_graph_and_compute(idir, odir, streamh); 
     //netflow_finalize(streamh); 
+    */
 }
 
 void test_stream_wcc(const string& idir, const string& odir)

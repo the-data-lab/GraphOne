@@ -40,7 +40,7 @@ class many2one: public pgraph_t<T> {
     void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    void create_snapshot();
+    //void create_snapshot();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
     void file_open(const string& odir,  bool trunc);
@@ -73,7 +73,7 @@ class one2one: public pgraph_t<T> {
     void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    void create_snapshot();
+    //void create_snapshot();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
     void file_open(const string& odir,  bool trunc);
@@ -110,7 +110,7 @@ class one2many: public pgraph_t<T> {
     void add_nebr(sid_t src, sid_t dst, int del = 0);
     void prep_graph_baseline();
     void make_graph_baseline();
-    void create_snapshot();
+    //void create_snapshot();
     void store_graph_baseline(bool clean = false);
     void read_graph_baseline();
     void file_open(const string& odir,  bool trunc);
@@ -449,13 +449,12 @@ void many2one<T>::incr_count(sid_t src, sid_t dst, int del /*= 0*/)
         sgraph_in[src_index]->decrement_count(vert1_id);
     }
 }
-
+/*
 template <class T> 
 void one2one<T>::create_snapshot()
 {
     return;
 }
-
 template <class T> 
 void one2many<T>::create_snapshot()
 {
@@ -467,6 +466,7 @@ void many2one<T>::create_snapshot()
 {
     update_count(sgraph_in);
 }
+*/
 
 template <class T> 
 void one2one<T>::add_nebr(sid_t src, sid_t dst, int del /*= 0*/)
