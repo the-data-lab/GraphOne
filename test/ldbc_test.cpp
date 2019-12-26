@@ -2,6 +2,7 @@
 #include <list>
 #include "all.h"
 #include "csv_to_edge.h"
+#include "skv.h"
 //#include "query.h"
 //#include "iterative_analytics.h"
 

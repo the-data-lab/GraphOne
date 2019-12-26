@@ -3,7 +3,7 @@
 #include "graph.h"
 
 #include "sgraph.h"
-#include "sgraph2.h"
+#include "skv.h"
 /*----------- labels ------------------ */
 //#include "labelkv.h"
 #include "typekv.h"

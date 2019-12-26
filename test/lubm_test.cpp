@@ -1,5 +1,6 @@
 #include "all.h"
 #include "nt_to_edge.h"
+#include "skv.h"
 //#include "query.h"
 
 void fill_lubm_inference_type()
