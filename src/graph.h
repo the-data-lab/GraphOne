@@ -5,12 +5,6 @@
 
 class typekv_t;
 
-//For many purpose. Will be removed ultimately
-extern index_t residue;
-extern vid_t _global_vcount;
-//Required for exiting from the streaming computation
-extern index_t _edge_count;
-extern int _dir, _persist, _source;
 
 ////////////main class/////////////////////
 class graph {

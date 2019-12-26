@@ -5,6 +5,13 @@
 #include "prop_encoder.h"
 //#include "rset.h"
 
+//For many purpose. Will be removed ultimately
+extern index_t residue;
+extern vid_t _global_vcount;
+//Required for exiting from the streaming computation
+extern index_t _edge_count;
+extern int _dir, _persist, _source;
+
 extern void* alloc_buf();
 
 inline char* gstrdup(const char* str) 

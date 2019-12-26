@@ -291,6 +291,7 @@ void plaingraph_manager_t<T>::split_files(const string& idirname, const string& 
     free(blog->blog_beg);
     blog->blog_beg = 0;
     blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
+    _edge_count = blog->blog_head; 
     
     //Upper align this, and create a mask for it
     index_t new_count = upper_power_of_two(blog->blog_head);
@@ -331,7 +332,7 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     free(blog->blog_beg);
     blog->blog_beg = 0;
     blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
-    
+    _edge_count = blog->blog_head; 
     //Upper align this, and create a mask for it
     index_t new_count = upper_power_of_two(blog->blog_head);
     blog->blog_mask = new_count -1;
@@ -361,6 +362,7 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     free(blog->blog_beg);
     blog->blog_beg = 0;
     blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
+    _edge_count = blog->blog_head; 
     
     //Upper align this, and create a mask for it
     index_t new_count = upper_power_of_two(blog->blog_head);
@@ -401,9 +403,9 @@ void plaingraph_manager_t<T>::prep_graph_edgelog2(const string& idirname,
     //Batch and Make Graph
     double start = mywtime();
     if (0 == _source) {//text
-        read_idir_text2(idirname, odirname, pgraph, parsebuf_and_insert);
+        _edge_count = read_idir_text2(idirname, odirname, pgraph, parsebuf_and_insert);
     } else {//binary
-        read_idir_text2(idirname, odirname, pgraph, buf_and_insert);
+        _edge_count = read_idir_text2(idirname, odirname, pgraph, buf_and_insert);
     }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
@@ -426,9 +428,9 @@ void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname,
     //Batch and Make Graph
     double start = mywtime();
     if (0 == _source) {//text
-        read_idir_text(idirname, odirname, pgraph, parsefile_and_insert);
+        _edge_count = read_idir_text(idirname, odirname, pgraph, parsefile_and_insert);
     } else {//binary
-        read_idir_text(idirname, odirname, pgraph, file_and_insert);
+        _edge_count = read_idir_text(idirname, odirname, pgraph, file_and_insert);
     }
     double end = mywtime();
     cout << "Batch Update Time = " << end - start << endl;
@@ -450,12 +452,12 @@ void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& o
     //Batch and Make Graph
     double start = mywtime();
     if(0==_source) {//text
-        read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);
+        _edge_count = read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);
     } else {//binary
-        read_idir_text(idirname, odirname, ugraph, file_and_insert);
+        _edge_count = read_idir_text(idirname, odirname, ugraph, file_and_insert);
     } 
     double end = mywtime();
-    cout << "Batch Update Time = " << end - start << endl;
+    cout << "Batch Update Time = " << end - start << " edges = " << _edge_count << endl;
     
     if (_persist) {
         //Wait for make and durable graph
@@ -483,12 +485,12 @@ void plaingraph_manager_t<T>::prep_graph2(const string& idirname, const string& 
     //Batch and Make Graph
     double start = mywtime();
     if (0 == _source) {//text
-        read_idir_text2(idirname, odirname, ugraph, parsebuf_and_insert);
+        _edge_count = read_idir_text2(idirname, odirname, ugraph, parsebuf_and_insert);
     } else {//binary
-        read_idir_text2(idirname, odirname, ugraph, buf_and_insert);
+        _edge_count = read_idir_text2(idirname, odirname, ugraph, buf_and_insert);
     }
     double end = mywtime();
-    cout << "Batch Update Time = " << end - start << endl;
+    cout << "Batch Update Time = " << end - start << " edges =" << _edge_count << endl;
     
     if (_persist) {
         //Wait for make and durable graph
@@ -632,6 +634,7 @@ void plaingraph_manager_t<T>::prep_graph_and_compute(const string& idirname, con
     blog_t<T>*     blog = ugraph->blog;
     
     blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
+    _edge_count = blog->blog_head; 
     
     double start = mywtime();
     

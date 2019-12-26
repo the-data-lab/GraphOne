@@ -132,7 +132,7 @@ index_t read_bin_dir(const string& idirname, edgeT_t<T>* edges)
 
 //------- The APIs to use by higher level function -------//
 template <class T>
-void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
+index_t read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
                     typename callback<T>::parse_fn_t parse_and_insert)
 {
     struct dirent *ptr;
@@ -175,11 +175,11 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
     cout <<" Batching Time = "<< end - start;
     vid_t vid = g->get_type_scount();
     cout << " vertex count = " << vid << endl;
-    return;
+    return edge_count;
 }
 
 template <class T>
-void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
+index_t read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>* pgraph,
                     typename callback<T>::parse_fn2_t parse_and_insert)
 {
     
@@ -199,7 +199,7 @@ void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>
     //vid_t vid = g->get_type_scount();
     //cout << "vertex count " << vid << endl;
     cout << "  Batching time = " << end - start << " Edges = " << line << endl;
-    return;
+    return line;
 }
 
 template <class T>

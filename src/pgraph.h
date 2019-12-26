@@ -68,7 +68,7 @@ class pgraph_t: public cfinfo_t {
     status_t batch_edge(edgeT_t<T>& edge);
     status_t batch_edge(tmp_blog_t<T>* tmp, edgeT_t<T>& edge);
     status_t batch_edges(tmp_blog_t<T>* tmp);
-    
+    status_t create_snapshot();
     index_t create_marker(index_t marker); 
     //called from snap thread 
     status_t move_marker(index_t& snap_marker); 
@@ -153,7 +153,7 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
     bool rewind = !((index >> BLOG_SHIFT) & 0x1);
 
     //Check if we are overwritting the unarchived data, if so sleep
-    while (index + 1 - blog->blog_tail > blog->blog_count) {
+    while (index + 1 - blog->blog_free > blog->blog_count) {
         //cout << "Sleeping for edge log" << endl;
         //assert(0);
         usleep(10);
@@ -167,6 +167,7 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
         blog->blog_beg[index1] = edge;
     }
 
+    /*
     index += 1;
     index_t size = ((index - blog->blog_marker) & BATCH_MASK);
     
@@ -175,7 +176,7 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
         create_marker(index);
         //cout << "Will create a snapshot now " << endl;
         ret = eEndBatch;
-    } 
+    }*/ 
     return ret; 
 }
 
@@ -267,6 +268,33 @@ status_t pgraph_t<T>::move_marker(index_t& snap_marker)
     
     pthread_mutex_unlock(&snap_mutex);
     //cout << "Marker dequeue. Position = " << m_index % q_count << " " << marker << endl;
+    return eOK;
+}
+
+template <class T> 
+status_t pgraph_t<T>::create_snapshot()
+{
+    int work_done = 0;
+    index_t snap_marker = blog->blog_head;
+    
+    //Do we have new data
+    if (snap_marker <= blog->blog_tail) {
+        eNoWork;
+    }
+
+    if (snap_marker < blog->blog_tail + 65536) {
+        usleep(100000);//One time sleep
+    }
+    
+    snap_marker = blog->blog_head;
+    blog->blog_marker = snap_marker;
+    make_graph_baseline();
+    blog->update_marker();
+    new_snapshot(snap_marker);
+    blog->free_blog();
+    if (blog->blog_marker == _edge_count) {
+        return eEndBatch;
+    }
     return eOK;
 }
 

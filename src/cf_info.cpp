@@ -41,6 +41,14 @@ sid_t    INVALID_SID  = 0xFFFFFFFF;
 
 degree_t INVALID_DEGREE = 0xFFFFFFFF;
 
+index_t residue = 0;
+int THD_COUNT = 2;
+vid_t _global_vcount = 0;
+index_t _edge_count = -1L;
+int _dir = 0;//undirected
+int _persist = 0;//no
+int _source = 0;//text
+
 using std::swap;
 
 void* alloc_buf()
@@ -165,9 +173,10 @@ void cfinfo_t::create_snapthread(bool snap_thd)
 void* cfinfo_t::snap_func(void* arg)
 {
     cfinfo_t* ptr = (cfinfo_t*)(arg);
-    
+
+    while(eEndBatch != ptr->create_snapshot());
+    /*
     do {
-        ///*
         struct timespec ts;
         int rc = clock_gettime(CLOCK_REALTIME, &ts);
 
@@ -177,9 +186,9 @@ void* cfinfo_t::snap_func(void* arg)
         pthread_mutex_lock(&ptr->snap_mutex);
         pthread_cond_timedwait(&ptr->snap_condition, &ptr->snap_mutex, &ts);
         pthread_mutex_unlock(&ptr->snap_mutex);
-        //*/
         while (eOK == ptr->create_snapshot());
     } while(1);
+    */
 
     return 0;
 }

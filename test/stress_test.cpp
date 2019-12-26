@@ -23,7 +23,6 @@ using namespace std;
 
 // globals
 graph* g;
-int THD_COUNT = (omp_get_max_threads() -1);
 volatile bool g_keep_going = true; // flag to stop all workers
 
 struct Edge {
@@ -113,7 +112,7 @@ void sstream_print(gview_t<lite_edge_t>* view) {
 }
 
 int main(int argc, char* argv[]){
-
+    THD_COUNT = 4;
     uint64_t seed = random_device{}(); // random seed
     cout << "Random seed: " << seed << "\n";
 

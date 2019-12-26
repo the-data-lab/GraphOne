@@ -16,14 +16,6 @@ void lubm_test(const string& typefile, const string& idir, const string& odir, i
 void ldbc_test(const string& conf_file, const string& idir, const string& odir, int job);
 void darshan_test0(const string& conf_file, const string& idir, const string& odir);
 
-index_t residue = 0;
-int THD_COUNT = 0;
-vid_t _global_vcount = 0;
-index_t _edge_count = 0;
-int _dir = 0;//undirected
-int _persist = 0;//no
-int _source = 0;//text
-
 void print_usage() 
 {
     string help = "./exe options.\n";
