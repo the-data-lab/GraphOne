@@ -194,13 +194,16 @@ protected:
             for (int k = 0; k < THD_COUNT; ++k) {
                 if (v_unit == hp[k]) {
                     //insert it back
-                    mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit;
+                    mem1->vunit_retired_last->next = v_unit;
+                    mem1->vunit_retired_last = v_unit;
+                    mem1->vunit_retired_count++;
+                    v_unit->next = 0;
                     return;
                 }
             }
         }
         //free it;
-        thd_mem->free_adjlist(v_unit->delta_adjlist, true);
+        thd_mem->free_adjlist(v_unit->delta_adjlist, v_unit->chain_count);
         if (mem1->vunit_free) {
             v_unit->next = mem1->vunit_free->next;
         } else {
@@ -212,21 +215,27 @@ protected:
     
     inline void retire_vunit(vunit_t<T>* v_unit1) {
         mem_t<T>* mem1 = thd_mem->mem + omp_get_thread_num();  
-        if (mem1->vunit_retired == 0) {
-            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
+        vunit_t<T>* v_unit = v_unit1;
+        v_unit->next = 0;
+        mem1->vunit_retired_count++;
+        mem1->vunit_retired_last = v_unit;
+        if (mem1->vunit_retired) {
+            mem1->vunit_retired = v_unit;
+            mem1->vunit_retired_last = v_unit;
+            return;
         }
-        mem1->vunit_retired[mem1->vunit_retired_count++] = v_unit1;
-        if (1024 == mem1->vunit_retired_count) {
-            vunit_t<T>* v_unit;
-            vunit_t<T>** vunit_retired = mem1->vunit_retired;
-            int    vunit_retired_count = mem1->vunit_retired_count;
-            mem1->vunit_retired = (vunit_t<T>**) calloc(sizeof(vunit_t<T>*), 1024);
-            mem1->vunit_retired_count = 0;
-            for (int i = 0; i < vunit_retired_count; i++) {
-                v_unit = vunit_retired[i];
-                free_vunit(v_unit);
-            }
-            free(vunit_retired);
+        v_unit->next = mem1->vunit_retired;
+        mem1->vunit_retired_last->next = v_unit;
+        mem1->vunit_retired_last = v_unit;
+        
+        if (mem1->vunit_retired_count < 1024) {
+            return;
+        }
+        for(int i = 1; i < mem1->vunit_retired_count; ++i) {
+            v_unit = mem1->vunit_retired;
+            mem1->vunit_retired = v_unit->next;
+            mem1->vunit_retired_count--;
+            free_vunit(v_unit);
         }
     }
 

@@ -33,7 +33,8 @@ struct mem_t {
     snapT_t<T>* dlog_beg;
     char*       adjlog_beg;
 
-    vunit_t<T>** vunit_retired;
+    vunit_t<T>* vunit_retired;
+    vunit_t<T>* vunit_retired_last;
     vunit_t<T>* vunit_free;
     	
 	public:
@@ -136,18 +137,23 @@ class thd_mem_t {
 		return adj_list;
 	}
 
-    void free_adjlist(delta_adjlist_t<T>* adj_list, bool chain) {
+    void free_adjlist(delta_adjlist_t<T>* adj_list, int chain_count) {
         #if defined(DEL) || defined(MALLOC)
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
-        if(chain) {
-            delta_adjlist_t<T>* adj_list1 = adj_list;
+        delta_adjlist_t<T>* adj_list1 = adj_list;
+        if(chain_count == 0) {
+            //int chain_count = 0;
             while (adj_list != 0) {
                 adj_list1 = adj_list->get_next();
                 free(adj_list);
                 adj_list = adj_list1;
             }
         } else {
-            free(adj_list);
+            for (int i =0; i < chain_count; ++i) {
+                adj_list1 = adj_list->get_next();
+                free(adj_list);
+                adj_list = adj_list1;
+            }
         }
         #endif
     }

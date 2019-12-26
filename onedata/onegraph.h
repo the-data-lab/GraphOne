@@ -347,6 +347,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     
     //replace v-unit atomically
     set_vunit(vid, v_unit1); 
+    v_unit->chain_count = 0;
     retire_vunit(v_unit);
     return eOK;
 }
@@ -378,18 +379,15 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
         return eOK;
     }
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
-    degree_t delta_degree = 0;
-    degree_t local_degree = 0;
+    degree_t local_degree = delta_adjlist->get_nebrcount();
     degree_t total_count = 0;
+    int chain_count = 0;
 
-    
-    while (delta_adjlist != 0) {
-        local_degree = delta_adjlist->get_nebrcount();
-        if (total_count + local_degree >= evict_count) {
-           break; 
-        }
+    while (total_count + local_degree < evict_count) {
         total_count += local_degree;
         delta_adjlist = delta_adjlist->get_next();
+        local_degree = delta_adjlist->get_nebrcount();
+        ++chain_count;
     }
 
     //-----------
@@ -403,6 +401,7 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
     
     //replace v-unit atomically
     set_vunit(vid, v_unit1); 
+    v_unit->chain_count = chain_count;
     retire_vunit(v_unit);//how many links in adj_list
     return eOK;
 }

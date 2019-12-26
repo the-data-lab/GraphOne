@@ -177,11 +177,13 @@ class vunit_t {
 	//uint16_t    max_size; //max count in delta adj list
     union {
         snapT_t<T>*   snap_blob;
-        vunit_t<T>*   next;
+        vunit_t<T>*   next;//retire and free can use it
     };
 	delta_adjlist_t<T>* delta_adjlist;
-	delta_adjlist_t<T>* adj_list;//Last chain
-
+	union {
+        delta_adjlist_t<T>* adj_list;//Last chain
+        int                 chain_count;//retire can use it.
+    };
     snapid_t    snap_id;
     uint32_t    del_count;
 public:
