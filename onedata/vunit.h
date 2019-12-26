@@ -197,7 +197,7 @@ public:
 	}
     inline sdegree_t get_degree() {
         snapT_t<T>*   blob = snap_blob;
-        sdegree_t sdegree;
+        sdegree_t sdegree(0);
         if (blob) {
             sdegree = blob->degree; 
         }
@@ -213,9 +213,9 @@ public:
     inline sdegree_t get_degree(snapid_t snap_id)
     {
         snapT_t<T>*   blob = snap_blob;
-        sdegree_t sdegree;
+        sdegree_t sdegree (0);
         if (0 == blob) { 
-            return 0;
+            return sdegree;
         }
         
         if (snap_id >= blob->snap_id) {

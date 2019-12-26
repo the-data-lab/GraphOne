@@ -218,13 +218,11 @@ protected:
         vunit_t<T>* v_unit = v_unit1;
         v_unit->next = 0;
         mem1->vunit_retired_count++;
-        mem1->vunit_retired_last = v_unit;
-        if (mem1->vunit_retired) {
+        if ( 0 == mem1->vunit_retired) {
             mem1->vunit_retired = v_unit;
             mem1->vunit_retired_last = v_unit;
             return;
         }
-        v_unit->next = mem1->vunit_retired;
         mem1->vunit_retired_last->next = v_unit;
         mem1->vunit_retired_last = v_unit;
         
