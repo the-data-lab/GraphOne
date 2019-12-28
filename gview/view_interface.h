@@ -13,6 +13,7 @@ class gview_t {
     void*           algo_meta;//algorithm specific data
     vid_t           v_count;
     int             flag;
+    blog_reader_t<T> reader;
     int             reg_id;
     typename callback<T>::sfunc   sstream_func; 
  public: 
@@ -52,3 +53,18 @@ class gview_t {
     } 
     inline virtual ~gview_t() {} 
 };
+
+//reading utility
+template <class T>
+inline void read_edge(blog_t<T>* blog, index_t i, edgeT_t<T>& edge)
+{
+    index_t e = (i & blog->blog_mask);
+    bool rewind1 = !((i >> BLOG_SHIFT) & 0x1);
+    bool rewind2 = IS_DEL(get_dst(blog->blog_beg[e]));
+    while (rewind1 != rewind2) {
+        usleep(10);
+        rewind2 = IS_DEL(get_dst(blog->blog_beg[e]));
+    }
+    edge = blog->blog_beg[e];
+    set_dst(edge, UNDEL_SID(get_dst(edge)));
+}

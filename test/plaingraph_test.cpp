@@ -4,6 +4,7 @@
 
 #include "stream_analytics.h"
 #include "sstream_analytics.h"
+#include "wsstream_analytics.h"
 
 using namespace std;
 
@@ -1232,6 +1233,20 @@ void test_stream_wcc(const string& idir, const string& odir)
     pthread_join(streamh->thread, &ret);
 }
 
+void test_wsstream(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<dst_id_t> manager; 
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    pgraph_t<dst_id_t>* pgraph = manager.get_plaingraph();
+    
+    wsstream_t<dst_id_t>* streamh = reg_wsstream_view(pgraph, 100000, wsstream_example, STALE_MASK|C_THREAD);
+    manager.prep_graph(idir, odir);
+    void* ret;
+    pthread_join(streamh->thread, &ret);
+}
+
 template <class T>
 void multi_stream_bfs(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn, int count)
@@ -1371,6 +1386,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 33:
             test_stream_wcc(idir, odir);
+            break;
+        case 34:
+            test_wsstream(idir, odir);
             break;
 
 	case 40:

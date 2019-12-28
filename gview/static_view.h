@@ -9,7 +9,9 @@ class snap_t : public gview_t <T> {
     onegraph_t<T>*   graph_in;
     sdegree_t*       degree_out;
     sdegree_t*       degree_in;
+    int              reader_id;
 
+    //private copies, if flag is set
     edgeT_t<T>*      edges; //Non archived edges
     index_t          edge_count;//their count
     
@@ -22,6 +24,8 @@ class snap_t : public gview_t <T> {
     using gview_t<T>::algo_meta;
     using gview_t<T>::v_count;
     using gview_t<T>::flag;
+    using gview_t<T>::reader;
+    using gview_t<T>::reg_id;
  
  public:
     inline snap_t() {
@@ -31,16 +35,20 @@ class snap_t : public gview_t <T> {
         degree_in = 0;
         edges = 0;
         edge_count = 0;
+        reader_id - -1;
     }
     inline ~snap_t() {
+        if (reg_id != -1) {
+            reader.blog->unregister_reader(reg_id);
+        }
         if (degree_in ==  degree_out) {
-            graph_out->unregister_reader(this->reg_id);
+            graph_out->unregister_reader(reader_id);
             free(degree_out);
             
         } else {
             free(degree_out);
             if (degree_in) {
-                graph_in->unregister_reader(this->reg_id);
+                graph_in->unregister_reader(reader_id);
                 free(degree_in);
             }
         }
@@ -60,11 +68,18 @@ class snap_t : public gview_t <T> {
     delta_adjlist_t<T>* get_nebrs_archived_in(vid_t);
     index_t get_nonarchived_edges(edgeT_t<T>*& ptr);
 
-    virtual int  is_unidir() {
+    inline int  is_unidir() {
        return ((graph_out != graph_in) && (graph_in ==0));
+    }
+    inline bool is_ddir() {
+       return ((graph_out != graph_in) && (graph_in !=0));
+    }
+    inline bool is_udir() {
+       return (graph_out == graph_in);
     }
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
+  private:
     void create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree);
     void handle_flagu();
     void handle_flagd();
@@ -89,17 +104,38 @@ void snap_t<T>::create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree)
 template <class T>
 void snap_t<T>::handle_flagu()
 {
-    sid_t src, dst;
     vid_t src_vid, dst_vid;
+    edgeT_t<T> edge;
     bool is_del = false;
-    bool is_stale = IS_STALE(flag);
+    bool is_private = IS_PRIVATE(flag);
     bool is_simple = IS_SIMPLE(flag);
-    if (false == is_stale && (true == is_simple)) {
+    if (true == is_simple && is_private) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
             src_vid = TO_VID(get_src(edges[i]));
             dst_vid = TO_VID(get_dst(edges[i]));
             is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_out+dst_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            is_del = IS_DEL(get_src(edge));
 #ifdef DEL
             if (is_del) {
             __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
@@ -121,17 +157,38 @@ void snap_t<T>::handle_flagu()
 template <class T>
 void snap_t<T>::handle_flagd()
 {
-    sid_t src, dst;
     vid_t src_vid, dst_vid;
+    edgeT_t<T> edge;
     bool is_del = false;
-    bool is_stale = IS_STALE(flag);
+    bool is_private = IS_PRIVATE(flag);
     bool is_simple = IS_SIMPLE(flag);
-    if ((false == is_stale) && (true == is_simple)) {
+    if (true == is_simple && true == is_private) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
             src_vid = TO_VID(get_src(edges[i]));
             dst_vid = TO_VID(get_dst(edges[i]));
             is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_in+dst_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            is_del = IS_DEL(get_src(edge));
 #ifdef DEL
             if (is_del) {
             __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
@@ -153,17 +210,37 @@ void snap_t<T>::handle_flagd()
 template <class T>
 void snap_t<T>::handle_flaguni()
 {
-    sid_t src, dst;
     vid_t src_vid, dst_vid;
+    edgeT_t<T> edge;
     bool is_del = false;
-    bool is_stale = IS_STALE(flag);
+    bool is_private = IS_PRIVATE(flag);
     bool is_simple = IS_SIMPLE(flag);
-    if (false == is_stale && (true == is_simple)) {
+    if (true == is_simple && true == is_private) {
         #pragma omp for
         for (index_t i = 0; i < edge_count; ++i) {
             src_vid = TO_VID(get_src(edges[i]));
             dst_vid = TO_VID(get_dst(edges[i]));
             is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        //
+        #pragma omp for
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            is_del = IS_DEL(get_src(edge));
 #ifdef DEL
             if (is_del) {
             __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
@@ -189,9 +266,13 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     pgraph  = ugraph;
     flag = a_flag;
     
+    if (!IS_STALE(flag)) {
+        reader.blog = pgraph->blog;
+        reader_id = reader.blog->register_reader(&reader);
+    }
     graph_out = ugraph->sgraph_out[0];
     degree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
-    this->reg_id = graph_out->register_reader(this, degree_out);
+    reader_id = graph_out->register_reader(this, degree_out);
     
     if (ugraph->sgraph_in == ugraph->sgraph_out) {
         graph_in   = graph_out;
@@ -199,7 +280,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     } else if (ugraph->sgraph_in != 0) {
         graph_in  = ugraph->sgraph_in[0];
         degree_in = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
-        this->reg_id = graph_in->register_reader(this, degree_in);
+        reader_id = graph_in->register_reader(this, degree_in);
     }
 }
 
@@ -211,20 +292,26 @@ status_t snap_t<T>::update_view()
     
     snapshot = pgraph->get_snapshot();
     
-    index_t old_marker = 0;
+    index_t snap_marker = 0;
     if (snapshot) {
-        old_marker = snapshot->marker;
+        snap_marker = snapshot->marker;
     }
 
-    if (IS_STALE(flag)) { 
-        edge_count = 0;
-    } else if (IS_PRIVATE(flag)) {
-        edge_count = marker - old_marker;
+    if (IS_PRIVATE(flag)) {
+        edge_count = marker - snap_marker;
         edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
-        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
-    } else {
-        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
-        edge_count = marker - old_marker;
+        
+        //copy the edges
+        reader.marker = marker;
+        reader.tail = snap_marker;
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edges[reader.tail - i]);
+        }
+        reader.marker = -1L;
+        reader.tail = -1L;
+    } else if (!IS_STALE(flag)) {
+        reader.marker = marker;
+        reader.tail = snap_marker;
     }
     
     //Degree and actual edge arrays
@@ -247,11 +334,9 @@ status_t snap_t<T>::update_view()
     //update complete
     prev_snapshot = snapshot;
 
-
     //wait for archiving to complete
     if (IS_SIMPLE(flag)) {
-        g->waitfor_archive();
-        //while(pgraph->get_archived_marker() < marker) usleep(1);
+        pgraph->waitfor_archive(reader.marker);
     }
     return eOK;
 }
@@ -336,10 +421,10 @@ degree_t snap_t<T>::get_degree_in(vid_t v)
 template <class T>
 degree_t snap_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
-    return graph_out->get_nebrs(v, adj_list, degree_out[v], this->reg_id);
+    return graph_out->get_nebrs(v, adj_list, degree_out[v], reader_id);
 }
 template<class T>
 degree_t snap_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_nebrs(v, adj_list, degree_in[v], this->reg_id);
+    return graph_in->get_nebrs(v, adj_list, degree_in[v], reader_id);
 }

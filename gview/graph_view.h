@@ -119,13 +119,20 @@ void unreg_stream_view(stream_t<T>* a_streamh)
 
 template <class T>
 wsstream_t<T>* reg_wsstream_view(pgraph_t<T>* ugraph, index_t window_sz, 
-                typename callback<T>::sfunc func, index_t flag)
+                typename callback<T>::sfunc func, index_t flag, void* algo_meta = 0)
 {
     wsstream_t<T>* wsstreamh = new wsstream_t<T>;
     
-    wsstreamh->init_wsstream_view(ugraph, window_sz, flag);
-    wsstreamh->wsstream_func = func;
+    wsstreamh->init_view(ugraph, window_sz, flag);
+    wsstreamh->sstream_func = func;
     wsstreamh->algo_meta = 0;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&wsstreamh->thread, 0, &sstream_func<T>, wsstreamh)) {
+            assert(0);
+        }
+        cout << "created wsstream thread" << endl;
+    }
     
     return wsstreamh;
 }

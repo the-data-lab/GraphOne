@@ -89,6 +89,11 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, snapshot_t* snapshot, de
 		curr = next;
 	}
     curr->degree = curr->degree + count;
+    #ifdef WINDOW
+    if (get_total(curr->degree) > MAX_DEL_DEGREE) {
+        window_nebrs(vid);
+    }
+    #endif
 }
 
 template <class T>

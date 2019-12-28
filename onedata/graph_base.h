@@ -176,7 +176,7 @@ protected:
             sdegree = get_degree(vid, snap_id1);
             prev_snapid = snap_id1;
             degree = sdegree;
-            #else
+            #elif defined(WINDOW)
             //can't fetch on window case. You know why.
             return 0;
             #endif

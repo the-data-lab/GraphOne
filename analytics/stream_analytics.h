@@ -155,16 +155,15 @@ template <class T>
 void stream_wcc(gview_t<T>* viewh)
 {
     stream_t<T>* streamh = (stream_t<T>*)viewh;
-    edgeT_t<T>* edges = streamh->get_edges();
+    edgeT_t<T> edge;
     vid_t src, dst;
-    index_t e = 0;
 
     wcc_t* wcc = (wcc_t*)streamh->get_algometa();
 
     for (index_t i = streamh->reader.tail; i < streamh->reader.marker; ++i) {
-        e = (i & streamh->reader.blog->blog_mask);
-        src = edges[e].src_id;
-        dst = get_dst(edges+e);
+        read_edge(streamh->reader.blog, i, edge);
+        src = edge.src_id;
+        dst = get_dst(edge);
         wcc_edge<T>(src, dst, wcc);
     }
 }

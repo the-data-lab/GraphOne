@@ -6,7 +6,7 @@ class stream_t : public gview_t<T> {
     using gview_t<T>::pgraph;
     using gview_t<T>::v_count;
     using gview_t<T>::reg_id;
-    blog_reader_t<T> reader;
+    using gview_t<T>::reader;
     
  public:
     stream_t(){}

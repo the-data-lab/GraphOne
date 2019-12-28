@@ -469,22 +469,15 @@ void edge_shard_t<T>::estimate_classify(vid_t* vid_range, vid_t* vid_range_in, v
     vid_t vert1_id, vert2_id;
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
+    edgeT_t<T> edge;
     index_t index;
-    bool rewind1, rewind2;
 
     #pragma omp for schedule(static)
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
-        index = (i & blog->blog_mask);
-        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
-        rewind2 = IS_DEL(get_dst(edges[index]));
-	while (rewind1 != rewind2) {
-	    usleep(10);
-            rewind2 = IS_DEL(get_dst(edges[index]));
-	}
+        read_edge(blog, i, edge);
 	
-        src = edges[index].src_id;
-        dst = TO_SID(get_dst(edges[index]));
-
+        src = edge.src_id;
+        dst = TO_SID(get_dst(edge));
         
         vert1_id = TO_VID(src);
         vert2_id = TO_VID(dst);
@@ -508,20 +501,13 @@ void edge_shard_t<T>::estimate_classify_uni(vid_t* vid_range, vid_t bit_shift)
     vid_t vert1_id;
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
+    edgeT_t<T> edge;
     index_t index;
-    bool rewind1, rewind2;
 
     #pragma omp for
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
-        index = (i & blog->blog_mask);
-        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
-        rewind2 = IS_DEL(get_dst(edges[index]));
-	while (rewind1 != rewind2) {
-	    usleep(10);
-            rewind2 = IS_DEL(get_dst(edges[index]));
-	}
-	
-        src = edges[index].src_id;
+        read_edge(blog, i, edge);	
+        src = edge.src_id;
         vert1_id = TO_VID(src);
 
         //gather high level info for 1
@@ -565,19 +551,13 @@ void edge_shard_t<T>::estimate_classify_runi(vid_t* vid_range, vid_t bit_shift)
     vid_t vert_id;
     vid_t range;
     edgeT_t<T>* edges = blog->blog_beg;
+    edgeT_t<T> edge;
     index_t index;
-    bool rewind1, rewind2;
 
     #pragma omp for
     for (index_t i = blog->blog_tail; i < blog->blog_marker; ++i) {
-        index = (i & blog->blog_mask);
-        rewind1 = !((i >> BLOG_SHIFT) & 0x1);
-        rewind2 = IS_DEL(get_dst(edges[index]));
-	while (rewind1 != rewind2) {
-	    usleep(10);
-            rewind2 = IS_DEL(get_dst(edges[index]));
-	}
-        dst = TO_SID(get_dst(edges[index]));
+        read_edge(blog, i, edge);
+        dst = TO_SID(get_dst(edge));
         vert_id = TO_VID(dst);
 
         //gather high level info for 1

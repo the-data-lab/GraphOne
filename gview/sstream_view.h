@@ -18,6 +18,8 @@ class sstream_t : public snap_t<T> {
     using snap_t<T>::edge_count;
     using snap_t<T>::v_count;
     using snap_t<T>::flag;
+    using snap_t<T>::reader;
+    using snap_t<T>::reg_id;
     //For edge-centric
     edgeT_t<T>*      new_edges;//New edges
     index_t          new_edge_count;//Their count
@@ -60,6 +62,9 @@ class sstream_t : public snap_t<T> {
  private:
     void  update_degreesnap();
     void update_degreesnapd();
+    void handle_flagu();
+    void handle_flagd();
+    void handle_flaguni();
  public:
     //These two functions are for vertex centric programming
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
@@ -77,79 +82,57 @@ class sstream_t : public snap_t<T> {
 template <class T>
 void sstream_t<T>::update_degreesnap()
 {
-    #pragma omp parallel num_threads(THD_COUNT)
-    {
-        sdegree_t nebr_count = 0;
-        snapid_t snap_id = 0;
-        if (snapshot) {
-            snap_id = snapshot->snap_id;
+    sdegree_t nebr_count = 0;
+    snapid_t snap_id = 0;
+    if (snapshot) {
+        snap_id = snapshot->snap_id;
 
-            #pragma omp for 
-            for (vid_t v = 0; v < v_count; ++v) {
-                nebr_count = graph_out->get_degree(v, snap_id);
-                if (degree_out[v] != nebr_count) {
-                    degree_out[v] = nebr_count;
-                    bitmap_out->set_bit(v);
-                } else {
-                    bitmap_out->reset_bit(v);
-                }
-                //cout << v << " " << degree_out[v] << endl;
+        #pragma omp for 
+        for (vid_t v = 0; v < v_count; ++v) {
+            nebr_count = graph_out->get_degree(v, snap_id);
+            if (degree_out[v] != nebr_count) {
+                degree_out[v] = nebr_count;
+                bitmap_out->set_bit(v);
+            } else {
+                bitmap_out->reset_bit(v);
             }
+            //cout << v << " " << degree_out[v] << endl;
         }
-        /*
-        if (false == IS_STALE(flag)) {
-            #pragma omp for
-            for (index_t i = 0; i < edge_count; ++i) {
-                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-                __sync_fetch_and_add(degree_out + get_dst(edges + i), 1);
-            }
-        }*/
     }
 }
 
 template <class T>
 void sstream_t<T>::update_degreesnapd()
 {
-    #pragma omp parallel num_threads(THD_COUNT)
-    {
-        sdegree_t      nebr_count = 0;
-        snapid_t snap_id = 0;
-        if (snapshot) {
-            snap_id = snapshot->snap_id;
+    sdegree_t      nebr_count = 0;
+    snapid_t snap_id = 0;
+    if (snapshot) {
+        snap_id = snapshot->snap_id;
 
-            vid_t   vcount_out = v_count;
-            vid_t   vcount_in  = v_count;
+        vid_t   vcount_out = v_count;
+        vid_t   vcount_in  = v_count;
 
-            #pragma omp for nowait 
-            for (vid_t v = 0; v < vcount_out; ++v) {
-                nebr_count = graph_out->get_degree(v, snap_id);
-                if (degree_out[v] != nebr_count) {
-                    degree_out[v] = nebr_count;
-                    bitmap_out->set_bit(v);
-                } else {
-                    bitmap_out->reset_bit(v);
-                }
-            }
-            
-            #pragma omp for nowait 
-            for (vid_t v = 0; v < vcount_in; ++v) {
-                nebr_count = graph_in->get_degree(v, snap_id);;
-                if (degree_in[v] != nebr_count) {
-                    degree_in[v] = nebr_count;
-                    bitmap_in->set_bit(v);
-                } else {
-                    bitmap_in->reset_bit(v);
-                }
+        #pragma omp for nowait 
+        for (vid_t v = 0; v < vcount_out; ++v) {
+            nebr_count = graph_out->get_degree(v, snap_id);
+            if (degree_out[v] != nebr_count) {
+                degree_out[v] = nebr_count;
+                bitmap_out->set_bit(v);
+            } else {
+                bitmap_out->reset_bit(v);
             }
         }
-        /*
-        if (false == IS_STALE(flag)) {
-            #pragma omp for
-            for (index_t i = 0; i < edge_count; ++i) {
-                __sync_fetch_and_add(degree_out + edges[i].src_id, 1);
-                __sync_fetch_and_add(degree_in + get_dst(edges+i), 1);
+        
+        #pragma omp for nowait 
+        for (vid_t v = 0; v < vcount_in; ++v) {
+            nebr_count = graph_in->get_degree(v, snap_id);;
+            if (degree_in[v] != nebr_count) {
+                degree_in[v] = nebr_count;
+                bitmap_in->set_bit(v);
+            } else {
+                bitmap_in->reset_bit(v);
             }
-        }*/
+        }
     }
 
     return;
@@ -160,35 +143,235 @@ status_t sstream_t<T>::update_view()
 {
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
-    
     snapshot = pgraph->get_snapshot();
     
     if (snapshot == 0|| (snapshot == prev_snapshot)) return eNoWork;
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
-    index_t new_marker = snapshot->marker;
+    index_t snap_marker = snapshot->marker;
     
-    //Get the edge copies for edge centric computation
+    
+    //for stale
+    if (IS_PRIVATE(flag)) {
+        edge_count = marker - snap_marker;
+        edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
+        
+        //copy the edges
+        reader.marker = marker;
+        reader.tail = snap_marker;
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edges[reader.tail - i]);
+        }
+        reader.marker = -1L;
+        reader.tail = -1L;
+    } else if (!IS_STALE(flag)) {
+        reader.marker = marker;
+        reader.tail = snap_marker;
+    }
+    
+    //Get the edge copies for edge centric computation XXX
     if (IS_E_CENTRIC(flag)) { 
-        new_edge_count = new_marker - old_marker;
+        new_edge_count = snap_marker - old_marker;
         if (new_edges!= 0) free(new_edges);
         new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
         memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
     }
+
     
-    //for stale
-    edges = blog->blog_beg + (new_marker & blog->blog_mask);
-    edge_count = marker - new_marker;
-    
+    #pragma omp parallel num_threads(THD_COUNT)
+    {
     if (graph_in == graph_out || graph_in == 0) {
         update_degreesnap();
     } else {
         update_degreesnapd();
     }
-    
+    if (graph_in != graph_out && graph_in != 0) {
+        handle_flagd();
+    } else if (graph_in == graph_out) {
+        handle_flagu();
+    } else {
+        handle_flaguni();
+    }
+    }
     if (prev_snapshot) {
         prev_snapshot->drop_ref();
     }
     prev_snapshot = snapshot;
+    
+    //wait for archiving to complete
+    if (IS_SIMPLE(flag)) {
+        pgraph->waitfor_archive(reader.marker);
+    }
 
     return eOK;
+}
+
+template <class T>
+void sstream_t<T>::handle_flagu()
+{
+    sid_t src, dst;
+    edgeT_t<T> edge;
+    vid_t src_vid, dst_vid;
+    bool is_del = false;
+    bool is_private = IS_PRIVATE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if (true == is_simple) {
+        #pragma omp for
+        for (index_t i = 0; i < edge_count; ++i) {
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            //set the bitmap
+            bitmap_out->set_bit_atomic(src_vid);
+            bitmap_out->set_bit_atomic(dst_vid);
+
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_out+dst_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            //set the bitmap
+            bitmap_out->set_bit_atomic(src_vid);
+            bitmap_out->set_bit_atomic(dst_vid);
+
+            is_del = IS_DEL(get_src(edge));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_out[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_out+dst_vid, 1);
+            }
+#endif
+        }
+    }
+}
+
+template <class T>
+void sstream_t<T>::handle_flagd()
+{
+    vid_t src_vid, dst_vid;
+    edgeT_t<T> edge;
+    bool is_del = false;
+    bool is_private = IS_PRIVATE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if (true == is_simple) {
+        #pragma omp for
+        for (index_t i = 0; i < edge_count; ++i) {
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            bitmap_out->set_bit_atomic(src_vid);
+            bitmap_in->set_bit_atomic(dst_vid);
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_in+dst_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            bitmap_out->set_bit_atomic(src_vid);
+            bitmap_in->set_bit_atomic(dst_vid);
+            is_del = IS_DEL(get_src(edge));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].add_count, 1);
+            __sync_fetch_and_add(&degree_in[dst_vid].add_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            __sync_fetch_and_add(&degree_in+dst_vid, 1);
+            }
+#endif
+        }
+    }
+}
+
+template <class T>
+void sstream_t<T>::handle_flaguni()
+{
+    vid_t src_vid, dst_vid;
+    edgeT_t<T> edge;
+    bool is_del = false;
+    bool is_private = IS_PRIVATE(flag);
+    bool is_simple = IS_SIMPLE(flag);
+    if (true == is_simple && true == is_private) {
+        #pragma omp for
+        for (index_t i = 0; i < edge_count; ++i) {
+            src_vid = TO_VID(get_src(edges[i]));
+            dst_vid = TO_VID(get_dst(edges[i]));
+            bitmap_out->set_bit_atomic(src_vid);
+            is_del = IS_DEL(get_src(edges[i]));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            }
+#endif
+        }
+    } else if (true == is_simple) {
+        //
+        #pragma omp for
+        for (index_t i = reader.tail; i < reader.marker; ++i) {
+            read_edge(reader.blog, i, edge);
+            src_vid = TO_VID(get_src(edge));
+            dst_vid = TO_VID(get_dst(edge));
+            bitmap_out->set_bit_atomic(src_vid);
+            is_del = IS_DEL(get_src(edge));
+#ifdef DEL
+            if (is_del) {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            } else {
+            __sync_fetch_and_add(&degree_out[src_vid].del_count, 1);
+            }
+#else
+            if (is_del) {assert(0);
+            __sync_fetch_and_add(&degree_out+src_vid, 1);
+            }
+#endif
+        }
+    }
 }
