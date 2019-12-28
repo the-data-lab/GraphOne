@@ -160,11 +160,9 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
     }
     
     index_t index1 = (index & blog->blog_mask);
+    blog->blog_beg[index1] = edge;
     if (rewind) {
-        blog->blog_beg[index1] = edge;
         set_dst(blog->blog_beg[index1], DEL_SID(get_dst(edge)));
-    } else {
-        blog->blog_beg[index1] = edge;
     }
 
     /*
@@ -213,7 +211,12 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
     for (index_t i = 0; i < count; ++i) {
         index1 = ((index+i) & blog->blog_mask);
         blog->blog_beg[index1] = edges[i];
+        if (rewind) {
+            set_dst(blog->blog_beg[index1], DEL_SID(get_dst(edges[i])));
+        }
     }
+    
+    /*
     index += count;
     index_t size = ((index - blog->blog_marker) & BATCH_MASK);
     
@@ -222,7 +225,7 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
         create_marker(index);
         //cout << "Will create a snapshot now " << endl;
         ret = eEndBatch;
-    }
+    }*/
     return ret; 
 }
     
