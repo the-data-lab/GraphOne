@@ -130,21 +130,13 @@ status_t wsstream_t<T>::update_view()
         reader.marker = marker;
         reader.tail = snap_marker;
         for (index_t i = reader.tail; i < reader.marker; ++i) {
-            read_edge(reader.blog, i, edges[reader.tail - i]);
+            read_edge(reader.blog, i, edges[i-reader.tail]);
         }
         reader.marker = -1L;
         reader.tail = -1L;
     } else if (!IS_STALE(flag)) {
         reader.marker = marker;
         reader.tail = snap_marker;
-    }
-    
-    //Get the edge copies for edge centric computation XXX
-    if (IS_E_CENTRIC(flag)) { 
-        new_edge_count = snap_marker - old_marker;
-        if (new_edges!= 0) free(new_edges);
-        new_edges = (edgeT_t<T>*)malloc (new_edge_count*sizeof(edgeT_t<T>));
-        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
     }
     
     #pragma omp parallel
@@ -166,6 +158,14 @@ status_t wsstream_t<T>::update_view()
     //wait for archiving to complete
     if (IS_SIMPLE(flag)) {
         pgraph->waitfor_archive(reader.marker);
+    }
+    
+    //Get the edge copies for edge centric computation XXX
+    if (IS_E_CENTRIC(flag)) { 
+        assert(0);//FIX ME
+        new_edge_count = snap_marker - old_marker;
+        new_edges = (edgeT_t<T>*)realloc (new_edges, new_edge_count*sizeof(edgeT_t<T>));
+        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
     }
     
     return eOK;
