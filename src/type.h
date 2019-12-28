@@ -105,7 +105,7 @@ typedef uint16_t vflag_t;
 #define TO_THIGH(sid) (sid & THIGH_MASK)
 #define DEL_SID(sid) (sid | DEL_MASK)
 #define IS_DEL(sid) (sid & DEL_MASK)
-#define UNDEL_SID(sid) (sid & SID_MASK)
+//#define UNDEL_SID(sid) (sid & SID_MASK)
 
 #define TID_TO_SFLAG(tid) (1L << tid)
 #define WORD_COUNT(count) ((count + 63) >> 6)

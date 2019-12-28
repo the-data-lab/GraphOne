@@ -20,7 +20,7 @@ degree_t print_nebrs_internal(delta_adjlist_t<T>* delta_adjlist)
         for (degree_t i = 0; i < local_degree; ++i) {
             sid = get_sid(local_adjlist[i]);
             if (IS_DEL(sid)) {
-                cout << "-" <<UNDEL_SID(sid) << ", ";
+                cout << "-" << TO_SID(sid) << ", ";
             } else {
                 cout << sid << ", ";
             }
@@ -321,7 +321,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
             ptr[total_count] = local_adjlist[i];
             sid = get_sid(local_adjlist[i]);
             if (IS_DEL(sid)) {
-                pos = UNDEL_SID(sid);//older position
+                pos = TO_SID(sid);//older position
                 dst = find_nebr_bypos(vid, pos);
                 assert(dst);
                 sid = get_sid(*dst);
@@ -496,7 +496,7 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
             for (degree_t i = 0; i < i_count; ++i) {
                 is_del = IS_DEL(get_sid(local_adjlist[i])); 
                 if (is_del) {
-                    pos = UNDEL_SID(get_sid(local_adjlist[i]));
+                    pos = TO_SID(get_sid(local_adjlist[i]));
                     if (total_count < nebr_count){
                         assert(idel + 2 <= 2*del_count);
                         del_pos[idel++] = pos;

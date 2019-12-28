@@ -66,5 +66,5 @@ inline void read_edge(blog_t<T>* blog, index_t i, edgeT_t<T>& edge)
         rewind2 = IS_DEL(get_dst(blog->blog_beg[e]));
     }
     edge = blog->blog_beg[e];
-    set_dst(edge, UNDEL_SID(get_dst(edge)));
+    set_dst(edge, TO_SID(get_dst(edge)));
 }
