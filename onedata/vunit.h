@@ -204,10 +204,12 @@ public:
         return sdegree;
     }
     inline void compress_degree(degree_t del_count) {
-#ifdef DEL
         snapT_t<T>*   blob = snap_blob;
+#ifdef DEL
         blob->degree.add_count -= del_count;
         blob->degree.del_count -= del_count;
+#else
+        blob->degree -= del_count;
 #endif
     } 
     inline sdegree_t get_degree(snapid_t snap_id)

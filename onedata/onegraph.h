@@ -371,10 +371,11 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
     //Get the new count 
     sdegree_t sdegree = 0;
     snapid_t c_snapid = get_degree_min(vid, sdegree);
-    if (c_snapid == 0) { //No readers
+    /*if (c_snapid == 0) { //No readers
 	    sdegree = v_unit->get_degree(snap_id-1);
         evict_count = get_actual(sdegree); 
-    } else if (c_snapid > v_unit->snap_id) {
+    } else */
+    if (c_snapid > v_unit->snap_id) {
 	    evict_count = get_actual(sdegree);
         //assert(0);
     } else {
@@ -395,6 +396,7 @@ status_t onegraph_t<T>::window_nebrs(vid_t vid)
         local_degree = delta_adjlist->get_nebrcount();
         ++chain_count;
     }
+    if (total_count == 0) return eOK;
 
     //-----------
     vunit_t<T>* v_unit1 = thd_mem->alloc_vunit();
@@ -558,7 +560,6 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
     //See if we need adjustment in the sdegree;
     if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
         start -= v_unit->del_count;
-        count -= v_unit->del_count;
     }
     
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;

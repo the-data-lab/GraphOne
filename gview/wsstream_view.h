@@ -13,7 +13,7 @@ struct wsstream_t : public sstream_t<T> {
     using sstream_t<T>::bitmap_out;
     using sstream_t<T>::bitmap_in;
     using sstream_t<T>::reader;
-    using sstream_t<T>::reg_id;
+    using sstream_t<T>::reader_id;
 
  protected: 
     //end  of the window
@@ -45,6 +45,11 @@ struct wsstream_t : public sstream_t<T> {
         start_marker = 0;
         wdegree_out = 0;
         wdegree_in = 0;
+        start_edges = 0;
+        start_count = 0;
+        start_marker = 0;
+        new_edges = 0;
+        new_edge_count = 0;
     }
     inline ~wsstream_t() {
         if (wdegree_in == wdegree_out && wdegree_out != NULL) {
@@ -143,7 +148,7 @@ status_t wsstream_t<T>::update_view()
         reader.tail = snap_marker;
     }
     
-    #pragma omp parallel
+    #pragma omp parallel num_threads(THD_COUNT)
     {
     if (graph_in == graph_out || graph_in == 0) {
         update_degreesnap();
@@ -276,13 +281,13 @@ degree_t wsstream_t<T>::get_degree_in(vid_t v)
 template <class T>
 degree_t wsstream_t<T>::get_nebrs_out(vid_t v, T* adj_list)
 {
-    return graph_out->get_wnebrs(v, adj_list, degree_out[v], get_degree_out(v), reg_id);
+    return graph_out->get_wnebrs(v, adj_list, degree_out[v], get_degree_out(v), reader_id);
 }
 
 template<class T>
 degree_t wsstream_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
-    return graph_in->get_wnebrs(v, adj_list, degree_in[v], get_degree_in(v), reg_id);
+    return graph_in->get_wnebrs(v, adj_list, degree_in[v], get_degree_in(v), reader_id);
 }
 
 template <class T>
