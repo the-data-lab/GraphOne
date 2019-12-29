@@ -109,25 +109,32 @@ status_t wsstream_t<T>::update_view()
     
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
+    index_t snap_marker = snapshot->marker;
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
     
-    if(marker - start_marker < window_sz) {
+    if (IS_STALE(flag)) {
+        if (snap_marker - start_marker >= window_sz) {
+            start_count = snap_marker - old_marker;
+        } else {
             return eNoWork;
+        }
+    } else {
+        if(marker - start_marker >= window_sz) {
+            start_count = (marker - old_marker);
+        } else {
+            return eNoWork;
+        }
     }
-    
-    index_t snap_marker = snapshot->marker;
     
     //read the older edges
-    if (IS_STALE(flag)) {
-        start_count = snap_marker - old_marker;
-    } else {
-       start_count = (marker - old_marker);
-    }
     if (0 == start_marker) {
+        assert(start_count > window_sz);
         start_count -= window_sz;
     }
     index_t end_marker = start_marker + start_count;
+    assert(end_marker + window_sz == snap_marker);
     start_edges = (edgeT_t<T>*)realloc(start_edges, start_count*sizeof(edgeT_t<T>));
+    assert(start_edges);
     pgraph->get_prior_edges(start_marker, end_marker, start_edges);
 
     //for stale

@@ -567,6 +567,8 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
     degree_t local_degree = 0;
     degree_t i_count = 0;
     degree_t total_count = 0;
+    degree_t actual_count = get_total(count);
+
             
     //traverse the delta adj list
     degree_t delta_degree = get_total(start); 
@@ -578,9 +580,10 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
             delta_adjlist = delta_adjlist->get_next();
             delta_degree -= local_degree;
         } else {
-            i_count = local_degree - delta_degree;
+            i_count = min(actual_count, local_degree - delta_degree);
             memcpy(ptr, local_adjlist + delta_degree, sizeof(T)*i_count);
             total_count += i_count;
+            actual_count -= i_count;
             delta_adjlist = delta_adjlist->get_next();
             delta_degree = 0;
             break;
@@ -588,16 +591,14 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
     }
     
     //Now, lets copy
-    total_count = 0;
-    delta_degree = get_total(count);
-    while (delta_adjlist !=0 && delta_degree > 0) {
+    while (delta_adjlist !=0 && actual_count > 0) {
         local_adjlist = delta_adjlist->get_adjlist();
         local_degree = delta_adjlist->get_nebrcount();
-        i_count = min(local_degree, delta_degree);
+        i_count = min(local_degree, actual_count);
         memcpy(ptr+total_count, local_adjlist, sizeof(T)*i_count);
         total_count+=i_count;
         delta_adjlist = delta_adjlist->get_next();
-        delta_degree -= i_count;
+        actual_count -= i_count;
     }
     if (reg_id != -1) rem_hp(v_unit, reg_id);
     return total_count;

@@ -313,7 +313,10 @@ status_t pgraph_t<T>::write_edgelog()
 
     index_t actual_tail = w_tail & blog->blog_mask;
     index_t actual_marker = w_marker & blog->blog_mask;
-    
+    edgeT_t<T> edge;
+    for(index_t i = w_tail; i < w_marker; ++ i) {
+        read_edge(blog, i, edge); 
+    }
     if (actual_tail < actual_marker) {
         //write and update tail
         //fwrite(blog->blog_beg + w_tail, sizeof(edgeT_t<T>), w_count, wtf);

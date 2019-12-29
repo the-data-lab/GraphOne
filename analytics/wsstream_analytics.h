@@ -14,9 +14,9 @@ void wsstream_example(gview_t<T>* view)
     index_t check_sz = window_sz;
     if (viewh->is_udir()) check_sz += window_sz;
     
-    degree_t sz = 0;
-    T* adj_list = 0;//(T*)malloc(sz*sizeof(T));
-    //assert(adj_list);
+    degree_t sz = 1024;
+    T* adj_list = (T*)malloc(sz*sizeof(T));
+    assert(adj_list);
 
     while (viewh->get_snapmarker() < _edge_count) {
         if (eOK != viewh->update_view()) continue;
@@ -36,7 +36,7 @@ void wsstream_example(gview_t<T>* view)
             viewh->get_nebrs_out(v, adj_list);
         }
         assert(edge_count == check_sz);
-        cout << check_sz << ":" << edge_count << endl;
+        //cout << check_sz << ":" << edge_count << endl;
     }
 
     cout << "wsstream: update_count " << update_count << ":" << edge_count << endl;
