@@ -151,36 +151,41 @@ protected:
     inline snapid_t get_degree_min(vid_t vid, sdegree_t& degree) {
         sdegree_t sdegree = 0;
         snapid_t snap_id1 = 0;
-        snapid_t prev_snapid = snap_id;//as a max initialization
+        index_t compaction_marker = 0;
+        index_t prev_compaction_marker = 0;
+
         for (int j = 0; j < VIEW_COUNT; ++j) {
             if (reader[j].viewh == 0) { 
                 continue;
             }
-            snap_id1 = reader[j].viewh->get_snapid();
-            if (0 == snap_id1 || prev_snapid < snap_id1) {
+            compaction_marker = reader[j].viewh->get_compaction_marker();
+            snap_id1 = reader[j].viewh->get_prev_snapid();
+            sdegree = reader[j].degree[vid];
+            if (0 == compaction_marker || compaction_marker < prev_compaction_marker) {
                 continue;
             }
-            snapid_t prev_backup = reader[j].viewh->get_prev_snapid();
-            snapid_t backup = snap_id1;
-            if (snap_id1 == reader[j].viewh->get_prev_snapid()) {
-                sdegree = reader[j].degree[vid];
-                if (snap_id1 == reader[j].viewh->get_snapid()) {
-                    prev_snapid = snap_id1;
-                    degree = sdegree;
-                    continue;
-                }
-            } 
-            #ifdef DEL
-            //We came here beacuse view may be getting updated
-            snap_id1 = reader[j].viewh->get_snapid();
-            sdegree = get_degree(vid, snap_id1);
-            prev_snapid = snap_id1;
-            degree = sdegree;
-            #elif defined(WINDOW)
-            //can't fetch on window case. You know why.
-            return 0;
-            #endif
+            if (snap_id1 == reader[j].viewh->get_prev_snapid() &&
+                snap_id1 == reader[j].viewh->get_snapid()) {
+                prev_compaction_marker = compaction_marker;
+                continue;
+            } else { //We came here beacuse view may be getting updated
+                snap_id1 = reader[j].viewh->get_snapid();
+                prev_compaction_marker = reader[j].viewh->get_compaction_marker();
+                #ifdef DEL
+                sdegree = get_degree(vid, snap_id1);
+                #elif defined(WINDOW)
+                //can't fetch on window case. You know why.
+                sdegree = 0;
+                //return 0;
+                #endif
+            }
         }
+        #ifdef DEL
+        if (snap_id1 == 0) { // no readers
+            snap_id1 = snap_id - 1;
+	        sdegree = v_unit->get_degree(snap_id-1);
+        }
+        #endif
         degree = sdegree;
         return snap_id1;
     }

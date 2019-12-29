@@ -42,6 +42,10 @@ class gview_t {
         if (snapshot) return snapshot->marker;
         return 0;
     }
+    
+    virtual index_t  get_compaction_marker() {
+        return prev_snapshot->marker;
+    }
     inline gview_t() {
         pgraph = 0;
         snapshot = 0;

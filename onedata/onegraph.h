@@ -272,12 +272,13 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     degree_t del_count = 0;
     sdegree_t sdegree = 0;
     snapid_t c_snapid = get_degree_min(vid, sdegree);
-    if (c_snapid == 0) { //No readers
+    /*if (c_snapid == 0) { //No readers
 	    sdegree = v_unit->get_degree(snap_id-1);
 	    nebr_count = get_actual(sdegree);
         del_count = get_delcount(sdegree);
         compressed_count = get_actual(sdegree); 
-    } else if (c_snapid > v_unit->snap_id) {
+    } else*/ 
+    if (c_snapid > v_unit->snap_id) {
 	    nebr_count = get_actual(sdegree);
         del_count = get_delcount(sdegree);
 	    sdegree_t sd = v_unit->get_degree(snap_id-1);

@@ -62,6 +62,10 @@ struct wsstream_t : public sstream_t<T> {
     void init_view(pgraph_t<T>* pgraph, index_t window_sz, index_t flag);
     status_t update_view();
     
+    virtual index_t  get_compaction_marker() {
+        return start_marker;
+    }
+    
  private:
     void update_degreesnap();
     void update_degreesnapd();
