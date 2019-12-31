@@ -4,6 +4,7 @@
 
 #include "stream_analytics.h"
 #include "sstream_analytics.h"
+#include "differential_analytics.h"
 #include "wsstream_analytics.h"
 
 using namespace std;
@@ -1382,21 +1383,24 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_serial_stream<dst_id_t>(idir, odir, stream_serial_bfs);
             break;
         case 32:
-            stream_netflow_aggregation(idir, odir);
+            multi_stream_bfs<dst_id_t>(idir, odir, diff_streambfs, residue);
             break;
         case 33:
-            test_stream_wcc(idir, odir);
+            stream_netflow_aggregation(idir, odir);
             break;
         case 34:
+            test_stream_wcc(idir, odir);
+            break;
+        case 35:
             test_wsstream(idir, odir);
             break;
 
-	case 40:
-	    test_user1(idir, odir);
-	    break;
-	case 41:
-	    test_user2(idir, odir);
-	    break;
+        case 40:
+            test_user1(idir, odir);
+            break;
+        case 41:
+            test_user2(idir, odir);
+            break;
         case 50:
             paper_test_pr(idir, odir);
             break;

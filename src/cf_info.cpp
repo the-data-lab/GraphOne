@@ -163,10 +163,13 @@ void cfinfo_t::create_snapthread(bool snap_thd)
         return;
     }
     snap_create = snap_thd; 
-    pthread_mutex_init(&snap_mutex, 0);
-    pthread_cond_init(&snap_condition, 0);
+    //pthread_mutex_init(&snap_mutex, 0);
+    //pthread_cond_init(&snap_condition, 0);
+
+    if (snap_create) {
     if (0 != pthread_create(&snap_thread, 0, cfinfo_t::snap_func, (void*)this)) {
         assert(0);
+    }
     }
 }
 
