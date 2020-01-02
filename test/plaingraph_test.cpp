@@ -1386,12 +1386,15 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             multi_stream_bfs<dst_id_t>(idir, odir, diff_streambfs, residue);
             break;
         case 33:
-            stream_netflow_aggregation(idir, odir);
+            multi_stream_bfs<dst_id_t>(idir, odir, diff_streampr, residue);
             break;
         case 34:
-            test_stream_wcc(idir, odir);
+            stream_netflow_aggregation(idir, odir);
             break;
         case 35:
+            test_stream_wcc(idir, odir);
+            break;
+        case 36:
             test_wsstream(idir, odir);
             break;
 
