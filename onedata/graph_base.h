@@ -87,6 +87,7 @@ public:
     }
     
     degree_t get_nebrs(vid_t vid, T* ptr, sdegree_t count, int reg_id = -1);//XXX remove default
+    degree_t get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegree_t sdegree, int reg_id);
     degree_t get_wnebrs(vid_t vid, T* ptr, sdegree_t start, sdegree_t count, int reg_id = -1);
     degree_t start(vid_t v, header_t<T>& header, degree_t offset = 0);
     status_t next(header_t<T>& header, T& dst);
