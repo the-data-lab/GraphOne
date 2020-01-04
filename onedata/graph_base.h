@@ -162,16 +162,18 @@ protected:
             compaction_marker = reader[j].viewh->get_compaction_marker();
             snap_id1 = reader[j].viewh->get_prev_snapid();
             sdegree = reader[j].degree[vid];
-            if (0 == compaction_marker || compaction_marker < prev_compaction_marker) {
-                continue;
-            }
+            //if (0 == compaction_marker || compaction_marker < prev_compaction_marker) {
+            //    continue;
+            //}
             if (snap_id1 == reader[j].viewh->get_prev_snapid() &&
                 snap_id1 == reader[j].viewh->get_snapid()) {
                 prev_compaction_marker = compaction_marker;
                 continue;
             } else { //We came here beacuse view may be getting updated
                 snap_id1 = reader[j].viewh->get_snapid();
-                prev_compaction_marker = reader[j].viewh->get_compaction_marker();
+                compaction_marker = reader[j].viewh->snapshot->marker;
+                if (compaction_marker < prev_compaction_marker) continue;
+                prev_compaction_marker = compaction_marker;
                 #ifdef DEL
                 sdegree = get_degree(vid, snap_id1);
                 #elif defined(WINDOW)
@@ -182,9 +184,10 @@ protected:
             }
         }
         #ifdef DEL
-        if (snap_id1 == 0) { // no readers
+        if (snap_id1 == 0 && snap_id > 2) { // no readers
+            //assert(0);
             snap_id1 = snap_id - 1;
-	        sdegree = v_unit->get_degree(snap_id-1);
+	        sdegree = get_degree(vid, snap_id-1);
         }
         #endif
         degree = sdegree;

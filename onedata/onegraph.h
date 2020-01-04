@@ -768,6 +768,7 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
             delta_adjlist = delta_adjlist->get_next();
             i_count = 0;
         }
+        return total_count;
     } else {
         bool is_del = false;
         degree_t pos = 0;
@@ -798,6 +799,7 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
 
         //now do the actual copy
         degree_t new_count = 0;
+        total_count = 0;
         delta_degree = get_total(count); 
         delta_adjlist = v_unit->delta_adjlist;
         while(delta_degree != 0) {
@@ -817,13 +819,14 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
             delta_adjlist = delta_adjlist->get_next();
             i_count = 0;
         }
+        return new_count;
     }
-    return total_count;
 }
 
 template <class T>
 degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_t count1, int reg_id)
 {
+#ifndef DEL
     vunit_t<T>* v_unit = get_vunit(vid);
     if (v_unit == 0) return 0;
 
@@ -884,6 +887,9 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, sdegree_t start1, sdegree_
     }
     if (reg_id != -1) rem_hp(v_unit, reg_id);
     return total_count;
+    #else
+    return 0; 
+    #endif
 }
 
 template <class T>

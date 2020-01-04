@@ -19,8 +19,8 @@ struct diff_view_t : public sstream_t<T> {
     //end  of the window
     using sstream_t<T>::snapshot;
     using sstream_t<T>::prev_snapshot;
-    degree_t*        wdegree_out;
-    degree_t*        wdegree_in;
+    sdegree_t*        wdegree_out;
+    sdegree_t*        wdegree_in;
     
     //beginning of the the window
     using sstream_t<T>::degree_out;
@@ -163,7 +163,7 @@ void diff_view_t<T>::update_degreesnap()
     snapid_t    snap_id = snapshot->snap_id;
     snapid_t    prev_snapid = this->get_prev_snapid();
     snapid_t    snap_id1 = 0;
-    degree_t    nebr_count = 0;
+    sdegree_t    nebr_count = 0;
     degree_t    evict_count = 0;; 
     #pragma omp for 
     for (vid_t v = 0; v < v_count; ++v) {
@@ -191,7 +191,7 @@ void diff_view_t<T>::update_degreesnap()
 template <class T>
 void diff_view_t<T>::update_degreesnapd()
 {
-    degree_t nebr_count = 0;
+    sdegree_t nebr_count = 0;
     degree_t evict_count = 0;; 
     snapid_t    snap_id = snapshot->snap_id;
     snapid_t    prev_snapid = this->get_prev_snapid();

@@ -19,8 +19,8 @@ struct wsstream_t : public sstream_t<T> {
     //end  of the window
     using sstream_t<T>::snapshot;
     using sstream_t<T>::prev_snapshot;
-    degree_t*        wdegree_out;
-    degree_t*        wdegree_in;
+    sdegree_t*        wdegree_out;
+    sdegree_t*        wdegree_in;
     
     //beginning of the the window
     using sstream_t<T>::degree_out;
@@ -190,10 +190,11 @@ status_t wsstream_t<T>::update_view()
 template <class T>
 void wsstream_t<T>::update_degreesnap()
 {
+#ifndef DEL
     snapid_t    snap_id = snapshot->snap_id;
     snapid_t    prev_snapid = this->get_prev_snapid();
     snapid_t    snap_id1 = 0;
-    degree_t    nebr_count = 0;
+    sdegree_t    nebr_count = 0;
     degree_t    evict_count = 0;; 
     #pragma omp for 
     for (vid_t v = 0; v < v_count; ++v) {
@@ -207,7 +208,11 @@ void wsstream_t<T>::update_degreesnap()
         }
 
         if (prev_snapid < snap_id1 && snap_id >= snap_id1) {
+            #ifdef DEL
+            assert(0);
+            #else
             degree_out[v] -= evict_count; 
+            #endif
         }
     }
 
@@ -221,11 +226,13 @@ void wsstream_t<T>::update_degreesnap()
         bitmap_out->set_bit_atomic(start_edges[i].src_id);
         bitmap_out->set_bit_atomic(TO_VID(get_dst(start_edges + i)));
     }
+#endif
 }
 
 template <class T>
 void wsstream_t<T>::update_degreesnapd()
 {
+    #ifndef DEL
     degree_t nebr_count = 0;
     degree_t evict_count = 0;; 
     snapid_t    snap_id = snapshot->snap_id;
@@ -270,19 +277,20 @@ void wsstream_t<T>::update_degreesnapd()
         bitmap_in->set_bit_atomic(TO_VID(get_dst(start_edges + i)));
     }
 
+    #endif
     return;
 }
 
 template <class T>
 degree_t wsstream_t<T>::get_degree_out(vid_t v)
 {
-    return wdegree_out[v] - degree_out[v];
+    return get_actual(wdegree_out[v]) - get_actual(degree_out[v]);
 }
 
 template <class T>
 degree_t wsstream_t<T>::get_degree_in(vid_t v)
 {
-    return wdegree_in[v] - degree_in[v];
+    return get_actual(wdegree_in[v]) - get_actual(degree_in[v]);
 }
 
 template <class T>
