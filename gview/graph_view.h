@@ -34,6 +34,7 @@ class vert_table_t;
 #include "static_view.h"
 #include "sstream_view.h"
 #include "stream_view.h"
+#include "diff_view.h"
 #include "wsstream_view.h"
 #include "historical_view.h"
 
@@ -90,6 +91,32 @@ template <class T>
 void unreg_sstream_view(sstream_t<T>* sstreamh)
 {
     delete sstreamh;
+}
+
+template <class T>
+diff_view_t<T>* reg_diff_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
+                               index_t flag, void* algo_meta = 0)
+{
+    diff_view_t<T>* viewh = new diff_view_t<T>;
+    
+    viewh->init_view(ugraph, flag);
+    viewh->sstream_func = func;
+    viewh->algo_meta = algo_meta;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&viewh->thread, 0, &sstream_func<T>, viewh)) {
+            assert(0);
+        }
+        cout << "created diff_view thread" << endl;
+    }
+    
+    return viewh;
+}
+
+template <class T>
+void unreg_diff_view(diff_view_t<T>* viewh)
+{
+    delete viewh;
 }
 
 template <class T>

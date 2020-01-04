@@ -512,7 +512,7 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
 }
 */
 template <class T>
-degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegree_t sdegree, int reg_id)
+degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegree_t sdegree, int reg_id, degree_t& diff_degree)
 {
     vunit_t<T>* v_unit = get_vunit(vid);
     if (v_unit == 0) return 0;
@@ -528,8 +528,8 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
         v_unit = get_vunit(vid); 
     }
 
-    sdegree_t count = start;
-    sdegree_t count1 = sdegree;
+    sdegree_t count = sdegree;
+    sdegree_t count1 = start;
     #ifdef DEL
     //See if we need adjustment in the sdegree;
     if (reg_id != -1 && reader[reg_id].viewh->snapshot->snap_id < v_unit->snap_id) {
@@ -554,20 +554,21 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
     delta_adjlist_t<T>* delta_adjlist = v_unit->delta_adjlist;
     
     if (0 == del_count && 0 == del_count1) {
-        while (delta_degree1 > 0) {
+        while (delta_degree > 0) {
             local_adjlist = delta_adjlist->get_adjlist();
             local_degree = delta_adjlist->get_nebrcount();
-            i_count = min(local_degree, delta_degree1);
+            i_count = min(local_degree, delta_degree);
             memcpy(ptr+total_count, local_adjlist, sizeof(T)*i_count);
             
             total_count+=i_count;
-            delta_degree1 -= i_count;
-            if (delta_degree1 == 0 && local_degree != i_count) {
+            delta_degree -= i_count;
+            if (delta_degree == 0 && local_degree != i_count) {
                 break;
             }
             delta_adjlist = delta_adjlist->get_next();
             i_count = 0;
         }
+        diff_degree = delta_degree1;
         return total_count;
     } else {
         bool is_del = false;
@@ -575,10 +576,10 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
         Bitmap bitmap(get_actual(count1));
         
         //set the bitmap first.
-        while (delta_degree1 > 0) {
+        while (delta_degree > 0) {
             local_adjlist = delta_adjlist->get_adjlist();
             local_degree = delta_adjlist->get_nebrcount();
-            i_count = min(local_degree, delta_degree1);
+            i_count = min(local_degree, delta_degree);
             
             for (degree_t i = 0; i < i_count; ++i) {
                 is_del = IS_DEL(get_sid(local_adjlist[i]));
@@ -589,8 +590,8 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
                 }
                 ++total_count;
             }
-            delta_degree1 -= i_count;
-            if (delta_degree1 == 0 && local_degree != i_count) {
+            delta_degree -= i_count;
+            if (delta_degree == 0 && local_degree != i_count) {
                 break;
             }
             delta_adjlist = delta_adjlist->get_next();
@@ -600,36 +601,40 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
         //now do the actual copy
         T* dst;
         sid_t sid;
-        delta_degree1 = get_total(count1); 
+        delta_degree = get_total(count); 
         delta_adjlist = v_unit->delta_adjlist;
         degree_t new_count = 0;
         total_count = 0;
 
-        while(delta_degree1 != 0) {
+        while(delta_degree != 0) {
             local_adjlist = delta_adjlist->get_adjlist();
             local_degree = delta_adjlist->get_nebrcount();
-            i_count = min(local_degree, delta_degree1);
+            i_count = min(local_degree, delta_degree);
 
             //copy
             for (degree_t i = 0; i < i_count; ++i) {
                 if (bitmap.get_bit(total_count++)) {
-                    if (total_count < delta_degree) continue;
-                    else {
-                        sid = get_sid(local_adjlist[i]);
-                        pos = TO_SID(sid);//older position
-                        if (!IS_DEL(sid) || pos >=delta_degree) continue;
-
-                        dst = find_nebr_bypos(vid, pos);
-                        assert(dst);
-                        ptr[new_count++] = *dst;//xxx
-                        set_sid(ptr + new_count - 1, DEL_SID(dst));
+                    if (total_count < delta_degree1) continue;
+                    else if (total_count == delta_degree1) {
+                        diff_degree = new_count;
                     }
+                    
+                    sid = get_sid(local_adjlist[i]);
+                    pos = TO_SID(sid);//older position
+                    if (!IS_DEL(sid) || pos >=delta_degree) continue;
+
+                    dst = find_nebr_bypos(vid, pos);
+                    assert(dst);
+                    ptr[new_count++] = *dst;//xxx
+                    sid = get_sid(*dst);
+                    set_sid(ptr[new_count - 1], DEL_SID(sid));
+                    
                 } else {
                     ptr[new_count++] = local_adjlist[i];
                 }
             }
-            delta_degree1 -= i_count;
-            if (delta_degree1 == 0 && local_degree != i_count) {
+            delta_degree -= i_count;
+            if (delta_degree == 0 && local_degree != i_count) {
                 break;
             }
             delta_adjlist = delta_adjlist->get_next();

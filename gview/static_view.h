@@ -400,22 +400,13 @@ index_t snap_t<T>::get_nonarchived_edges(edgeT_t<T>*& ptr)
 template <class T>
 degree_t snap_t<T>::get_degree_out(vid_t v)
 {
-#ifdef DEL
-    return degree_out[v].add_count - degree_out[v].del_count;
-#else
-    return degree_out[v];
-#endif
-    
+    return get_actual(degree_out[v]);
 }
 
 template <class T>
 degree_t snap_t<T>::get_degree_in(vid_t v)
 {
-#ifdef DEL
-    return degree_in[v].add_count - degree_in[v].del_count;
-#else
-    return degree_in[v];
-#endif
+    return get_actual(degree_in[v]);
 }
 
 template <class T>

@@ -1274,6 +1274,31 @@ void multi_stream_bfs(const string& idir, const string& odir,
 }
 
 template <class T>
+void multi_diff_analytics(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    diff_view_t<T>** viewh = (diff_view_t<T>**)malloc(sizeof(diff_view_t<T>*)*count);
+    
+    for (int i = 0; i < count; ++i) {
+        viewh[i] = reg_diff_view(pgraph, stream_fn, 
+                            STALE_MASK|V_CENTRIC|C_THREAD, (void*)(i+1));
+    }
+    
+    //CorePin(0);
+    manager.prep_graph(idir, odir);
+    for (int i = 0; i < count; ++i) {
+        void* ret;
+        pthread_join(viewh[i]->thread, &ret);
+    }
+}
+
+template <class T>
 void test_serial_stream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
@@ -1386,15 +1411,18 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             multi_stream_bfs<dst_id_t>(idir, odir, diff_streambfs, residue);
             break;
         case 33:
-            multi_stream_bfs<dst_id_t>(idir, odir, diff_streampr, residue);
+            multi_stream_bfs<dst_id_t>(idir, odir, stream_pr, residue);
             break;
         case 34:
-            stream_netflow_aggregation(idir, odir);
+            multi_diff_analytics<dst_id_t>(idir, odir, diff_stream_pr, residue);
             break;
         case 35:
-            test_stream_wcc(idir, odir);
+            stream_netflow_aggregation(idir, odir);
             break;
         case 36:
+            test_stream_wcc(idir, odir);
+            break;
+        case 37:
             test_wsstream(idir, odir);
             break;
 
