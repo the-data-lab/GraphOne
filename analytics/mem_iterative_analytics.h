@@ -71,12 +71,15 @@ mem_hop1(gview_t<T>* snaph)
         vid_t src, dst; 
         v = query[i];
         edgeT_t<T>* edges = 0;
-        index_t marker = snaph->get_nonarchived_edges(edges);
-        if (0 == marker) continue;
+        edgeT_t<T> edge;
+        //index_t marker = snaph->get_nonarchived_edges(edges);
+        //if (0 == marker) continue;
         #pragma omp parallel for reduction(+:sum1) schedule(static)
-        for (index_t j = 0; j < marker ; ++j) {
-            src = edges[j].src_id;
-            dst = get_sid(edges[j].dst_id);
+        for (index_t i = snaph->reader.tail; i < snaph->reader.marker; ++i) 
+        {
+            read_edge(snaph->reader.blog, i, edge);
+            src = get_src(edge);
+            dst = get_dst(edge);
             if (src == v) {
                 sum1 += dst;
             }
@@ -506,11 +509,14 @@ void mem_hop2(gview_t<T>* snaph)
         //on-the-fly snapshots should process this
         vid_t src, dst;
         edgeT_t<T>* edges = 0;
+        edgeT_t<T> edge;
         index_t marker = snaph->get_nonarchived_edges(edges);
         #pragma omp for reduction(+:sum1) schedule(static) nowait
-        for (index_t i = 0; i < marker; ++i) {
-            src = edges[i].src_id;
-            dst = get_dst(edges[i]);
+        for (index_t i = snaph->reader.tail; i < snaph->reader.marker; ++i) 
+        {
+            read_edge(snaph->reader.blog, i, edge);
+            src = get_src(edge);
+            dst = get_dst(edge);
             for (degree_t j = 0; j < d; ++j) {
                 v = vlist[j];
                 if (src == v) {
@@ -536,18 +542,16 @@ void mem_hop2(gview_t<T>* snaph)
 }
 
 template<class T>
-void mem_bfs_simple(gview_t<T>* snaph,
-        uint8_t* status, sid_t root)
+void mem_bfs_simple(gview_t<T>* snaph, uint8_t* status, sid_t root)
 {
-	int				level      = 1;
+	int				level      = 0;
 	int				top_down   = 1;
 	sid_t			frontier   = 0;
     sid_t           v_count    = snaph->get_vcount();
+    memset(status, 255, v_count);
+    status[root] = level;
 
-	double start1 = mywtime();
-    
-    //if (snaph->degree_out[root] == 0) { root = 0;}
-	status[root] = level;
+    double start1 = mywtime();
     
 	do {
 		frontier = 0;
@@ -578,7 +582,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 
                     for (degree_t i = 0; i < nebr_count; ++i) {
                         sid = get_sid(local_adjlist[i]);
-                        if (status[sid] == 0) {
+                        if (status[sid] == 255) {
                             status[sid] = level + 1;
                             ++frontier;
                             //cout << " " << sid << endl;
@@ -589,7 +593,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 				
 				#pragma omp for nowait
 				for (vid_t v = 0; v < v_count; v++) {
-					if (status[v] != 0 ) continue;
+					if (status[v] != 255 ) continue;
                     
                     nebr_count = snaph->get_degree_in(v);
                     if (nebr_count == 0) { 
@@ -613,29 +617,6 @@ void mem_bfs_simple(gview_t<T>* snaph,
                     }
 				}
 		    }
-            
-            //on-the-fly snapshots should process this
-            //cout << "On the Fly" << endl;
-            /*
-            vid_t src, dst;
-            edgeT_t<T>* edges;
-            index_t count = snaph->get_nonarchived_edges(edges);
-            
-            #pragma omp for schedule (static)
-            for (index_t i = 0; i < count; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
-                if (status[src] == 0 && status[dst] == level) {
-                    status[src] = level + 1;
-                    ++frontier;
-                    //cout << " " << src << endl;
-                } 
-                if (status[src] == level && status[dst] == 0) {
-                    status[dst] = level + 1;
-                    ++frontier;
-                    //cout << " " << dst << endl;
-                }
-            }*/
         }
 
 		//double end = mywtime();
@@ -664,14 +645,15 @@ template<class T>
 void mem_bfs(gview_t<T>* snaph,
         uint8_t* status, sid_t root)
 {
-    int				level      = 1;
+    int				level      = 0;
 	int				top_down   = 1;
 	sid_t			frontier   = 0;
     sid_t           v_count    = snaph->get_vcount();
     
-	double start1 = mywtime();
-    if (snaph->get_degree_out(root) == 0) { root = 0;}
+    memset(status, 255, v_count);
 	status[root] = level;
+    
+	double start1 = mywtime();
     
 	do {
 		frontier = 0;
@@ -704,7 +686,7 @@ void mem_bfs(gview_t<T>* snaph,
                         degree_t i_count = min(local_degree, delta_degree);
                         for (degree_t i = 0; i < i_count; ++i) {
                             sid = get_sid(local_adjlist[i]);
-                            if (status[sid] == 0) {
+                            if (status[sid] == 255) {
                                 status[sid] = level + 1;
                                 ++frontier;
                                 //cout << " " << sid << endl;
@@ -719,7 +701,7 @@ void mem_bfs(gview_t<T>* snaph,
 				
 				#pragma omp for nowait
 				for (vid_t v = 0; v < v_count; v++) {
-					if (status[v] != 0 ) continue;
+					if (status[v] != 255) continue;
 					nebr_count = snaph->get_degree_in(v);
                     if (0 == nebr_count) continue;
 
@@ -750,15 +732,20 @@ void mem_bfs(gview_t<T>* snaph,
             
             //on-the-fly snapshots should process this
             //cout << "On the Fly" << endl;
-            /*
+            
             vid_t src, dst;
             edgeT_t<T>* edges;
-            index_t marker = snaph->get_nonarchived_edges(edges);
+            edgeT_t<T> edge;
+            //index_t marker = snaph->get_nonarchived_edges(edges);
+            //for (index_t i = 0; i < marker; ++i) //for private copy 
+                //edge = edges[i];
 
             #pragma omp for schedule (static)
-            for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+            for (index_t i = snaph->reader.tail; i < snaph->reader.marker; ++i) 
+            {
+                read_edge(snaph->reader.blog, i, edge);
+                src = edge.src_id;
+                dst = get_dst(edge);
                 if (status[src] == 0 && status[dst] == level) {
                     status[src] = level + 1;
                     ++frontier;
@@ -770,7 +757,6 @@ void mem_bfs(gview_t<T>* snaph,
                     //cout << " " << dst << endl;
                 }
             }
-            */
         }
         
         
@@ -889,11 +875,14 @@ void mem_pagerank_push(gview_t<T>* snaph, int iteration_count)
             //cout << "On the Fly" << endl;
             vid_t src, dst;
             edgeT_t<T>* edges = 0;
-            index_t marker = snaph->get_nonarchived_edges(edges);
+            edgeT_t<T> edge;
+            //index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
-            for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+            for (index_t i = snaph->reader.tail; i < snaph->reader.marker; ++i) 
+            {
+                read_edge(snaph->reader.blog, i, edge);
+                src = get_src(edge);
+                dst = get_dst(edge);
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }
@@ -1018,11 +1007,14 @@ void mem_pagerank(gview_t<T>* snaph, int iteration_count)
             //cout << "On the Fly" << endl;
             vid_t src, dst;
             edgeT_t<T>* edges = 0;
-            index_t marker = snaph->get_nonarchived_edges(edges);
+            edgeT_t<T> edge;
+            //index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
-            for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+            for (index_t i = snaph->reader.tail; i < snaph->reader.marker; ++i) 
+            {
+                read_edge(snaph->reader.blog, i, edge);
+                src = get_src(edge);
+                dst = get_dst(edge);
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }
