@@ -587,7 +587,7 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
     } else {
         bool is_del = false;
         degree_t pos = 0;
-        Bitmap bitmap(get_actual(count1));
+        Bitmap bitmap(get_total(count));
         
         //set the bitmap first.
         while (delta_degree > 0) {
@@ -600,6 +600,7 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
                 if (is_del) {
                     bitmap.set_bit(total_count);
                     pos = TO_SID(get_sid(local_adjlist[i]));
+                    assert(pos < get_total(count));
                     bitmap.set_bit(pos);
                 }
                 ++total_count;
@@ -631,6 +632,7 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
                     if (total_count < delta_degree1) continue;
                     else if (total_count == delta_degree1) {
                         diff_degree = new_count;
+                        continue;
                     }
                     
                     sid = get_sid(local_adjlist[i]);
@@ -645,6 +647,10 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
                     
                 } else {
                     ptr[new_count++] = local_adjlist[i];
+
+                    if (total_count == delta_degree1) {
+                        diff_degree = new_count;
+                    }
                 }
             }
             delta_degree -= i_count;

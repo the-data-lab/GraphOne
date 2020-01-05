@@ -50,9 +50,9 @@ void do_diffbfs(sstream_t<T>* viewh)
     uint8_t level = 1;//start from second iteration
 
     index_t frontier = 0;
+    double start = mywtime();
     do {
         frontier = 0;
-        //double start = mywtime();
         #pragma omp parallel num_threads (THD_COUNT) reduction(+:frontier)
         {
         sid_t sid;
@@ -71,6 +71,11 @@ void do_diffbfs(sstream_t<T>* viewh)
 
             //handle the in-edges
             nebr_count = viewh->get_degree_in(v);
+            if (nebr_count == 0) {
+                viewh->reset_vertex_changed_out(v);
+                status[v] = 255;
+                goto label;
+            }
             if (nebr_count > prior_sz) {
                 prior_sz = nebr_count;
                 free(local_adjlist);
@@ -98,7 +103,7 @@ void do_diffbfs(sstream_t<T>* viewh)
             } else {
                 continue;
             }
-
+label:
             nebr_count = viewh->get_degree_out(v);
             if (nebr_count == 0) {
                 continue;
@@ -112,12 +117,16 @@ void do_diffbfs(sstream_t<T>* viewh)
 
             for (degree_t i = 0; i < nebr_count; ++i) {
                 sid = get_sid(local_adjlist[i]);
-                viewh->set_vertex_changed_out(sid);
+                if (status[sid] > level) { 
+                    viewh->set_vertex_changed_out(sid);
+                }
             }
         }
         }
         ++level;
     } while (frontier);
+    double end = mywtime();
+    cout << "time = " << end - start << endl;
 }
 
 template <class T> 
@@ -247,9 +256,11 @@ void do_diffpr(diff_view_t<T>* viewh, float epsilon)
                 rank_array[v] = new_rank;//updated rank 
                 viewh->set_vertex_changed_out(v);
             } 
+            free(local_adjlist);
         }
         //++iter;
     }	
+    free(prior_rank_array1);
 }
 template <class T> 
 void do_streampr(sstream_t<T>* viewh, float epsilon)
@@ -353,7 +364,7 @@ void stream_pr(gview_t<T>* view)
             do_diffpr((diff_view_t<T>*)viewh, epsilon);
         }
         ++update_count;
-        cout << " update_count = " << update_count << endl;
+        //cout << " update_count = " << update_count << endl;
     }
     //print_bfs(viewh);
     cout << " update_count = " << update_count 
@@ -375,8 +386,6 @@ void diff_stream_pr(gview_t<T>* view)
     init_pr(viewh);
     float** arr = (float**) viewh->algo_meta;
         
-    sleep(1);
-
     while (viewh->get_snapmarker() < _edge_count) {
         if (eOK != viewh->update_view()) continue;
         if (update_count == 0) {
@@ -385,7 +394,8 @@ void diff_stream_pr(gview_t<T>* view)
             do_diffpr(viewh, epsilon);
         }
         ++update_count;
-        cout << " update_count = " << update_count << endl;
+        //cout << " update_count = " << update_count  
+        //     << ":" << viewh->get_snapmarker() << endl;
     }
     cout << " update_count = " << update_count 
          << " snapshot count = " << viewh->get_snapid() << endl;
