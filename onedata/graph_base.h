@@ -139,7 +139,7 @@ public:
     }
 
 protected:
-    degree_t get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, delta_adjlist_t<T>*& delta_adjlist, degree_t& i_count);
+    degree_t get_nebrs_internal(vunit_t<T>* vunit, T* ptr, sdegree_t count, delta_adjlist_t<T>*& delta_adjlist, degree_t& i_count);
 
     inline void add_hp(vunit_t<T>* v_unit, int reg_id) {
         reader[reg_id].hp[omp_get_thread_num()]= v_unit;

@@ -315,7 +315,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     degree_t i_count = 0;
     
     //---------- copy the data from older edge arrays to new edge array
-    degree_t total_count = get_nebrs_internal(vid, ptr, sdegree, delta_adjlist, i_count);
+    degree_t total_count = get_nebrs_internal(v_unit, ptr, sdegree, delta_adjlist, i_count);
     if(c_snapid == 0) {
         assert(total_count == compressed_count); 
     }
@@ -457,7 +457,7 @@ degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, sdegree_t sdegree, int reg_
     
     delta_adjlist_t<T>* delta_adjlist;
     degree_t i_count = 0;
-    degree_t total_count = get_nebrs_internal(vid, ptr, count, delta_adjlist, i_count);
+    degree_t total_count = get_nebrs_internal(v_unit, ptr, count, delta_adjlist, i_count);
     if (reg_id != -1) rem_hp(v_unit, reg_id);
     return total_count;
 }
@@ -751,11 +751,8 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
 }*/
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, delta_adjlist_t<T>*& delta_adjlist, degree_t& i_count)
+degree_t onegraph_t<T>::get_nebrs_internal(vunit_t<T>* v_unit, T* ptr, sdegree_t count, delta_adjlist_t<T>*& delta_adjlist, degree_t& i_count)
 {
-    vunit_t<T>* v_unit = get_vunit(vid);
-    if (v_unit == 0) return 0;
-    
     delta_adjlist = v_unit->delta_adjlist;
     i_count = 0;
     
