@@ -138,6 +138,20 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
 {
     vunit_t<T>* v_unit = get_vunit(vid); 
     delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
+    #ifdef NODUP
+    degree_t location = find_nebr(vid, get_sid(sid));
+    if (INVALID_DEGREE != location) {
+        //Didn't find the old value. decrease del degree count
+	    snapT_t<T>* curr = v_unit->get_snapblob();
+		#ifdef DEL
+        curr->degree.add_count--;
+        #else
+        curr->degree--;
+        #endif
+        return;
+    }
+    #endif
+    
     #ifndef BULK 
     if (adj_list1 == 0 || adj_list1->get_nebrcount() >= adj_list1->get_maxcount()) {
         
@@ -289,7 +303,7 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     }
 
 	//Only 1 chain, and no deletion data,then no compaction required
-    if (del_count == 0 && (v_unit->delta_adjlist == v_unit->adj_list)) {
+    if (del_count == 0) {// && (v_unit->delta_adjlist == v_unit->adj_list)
         return eOK;
     }
 
@@ -785,6 +799,7 @@ degree_t onegraph_t<T>::get_nebrs_internal(vid_t vid, T* ptr, sdegree_t count, d
                 if (is_del) {
                     bitmap.set_bit(total_count);
                     pos = TO_SID(get_sid(local_adjlist[i]));
+                    assert(false == bitmap.get_bit(pos));
                     bitmap.set_bit(pos);
                 }
                 ++total_count;
@@ -1122,8 +1137,29 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
         for (degree_t i = local_degree; i != 0; --i) {
             nebr = get_sid(local_adjlist[i-1]);
             if (nebr == sid) {
-                ret_degree = i-1;
-                return degree + ret_degree;
+                ret_degree = degree + i-1;
+                #ifdef NODUP
+                //Now we need to search for duplicaton
+                degree_t i_count = i;
+                degree_t pos = 0;
+                sid_t sid = 0;
+                while(delta_adjlist != 0) {
+                    local_adjlist = delta_adjlist->get_adjlist();
+                    local_degree = delta_adjlist->get_nebrcount();
+                    for(degree_t j = i_count; j < local_degree; ++j) {
+                        sid = get_sid(local_adjlist[j]);
+                        if (IS_DEL(sid)) {
+                            pos = TO_SID(sid);
+                            if (ret_degree == pos) {
+                                return INVALID_DEGREE;
+                            }
+                        }
+                    }
+                    delta_adjlist = delta_adjlist->get_next();
+                    i_count = 0;
+                }
+                #endif
+                return ret_degree;
             }
         }
     }

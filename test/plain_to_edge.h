@@ -571,7 +571,7 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     uint8_t* level_array = 0;
     level_array = (uint8_t*) calloc(snaph->get_vcount(), sizeof(uint8_t));
     start = mywtime();
-    mem_bfs<T>(snaph, level_array, root);
+    mem_bfs_simple<T>(snaph, level_array, root);
     end = mywtime();
     cout << "BFS complex = " << end - start << endl;    
     

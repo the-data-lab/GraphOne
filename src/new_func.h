@@ -115,16 +115,24 @@ inline index_t parse_plaingraph_line(char* line, edgeT_t<dst_id_t>& edge)
     char* token = 0;
     
     #ifdef B32
+    int32_t sid; 
     token = strtok_r(line, del, &line);
-    sscanf(token, "%u", &edge.src_id);
+    sscanf(token, "%u", &sid);
     token = strtok_r(line, del, &line);
     sscanf(token, "%u", &edge.dst_id.sid);
     #else
+    int64_t sid; 
     token = strtok_r(line, del, &line);
-    sscanf(token, "%lu", &edge.src_id);
+    sscanf(token, "%lu", &sid);
     token = strtok_r(line, del, &line);
     sscanf(token, "%lu", &edge.dst_id.sid);
     #endif
+    
+    if (sid < 0) {
+        set_src(edge, DEL_SID(-sid));
+    } else {
+        set_src(edge, sid);
+    }
 
     return eOK;
 }

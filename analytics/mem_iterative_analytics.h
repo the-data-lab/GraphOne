@@ -552,7 +552,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
 	do {
 		frontier = 0;
 		//double start = mywtime();
-		#pragma omp parallel reduction(+:frontier)
+		#pragma omp parallel num_threads(THD_COUNT) reduction(+:frontier)
 		{
             sid_t sid;
             degree_t nebr_count = 0;
@@ -616,6 +616,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
             
             //on-the-fly snapshots should process this
             //cout << "On the Fly" << endl;
+            /*
             vid_t src, dst;
             edgeT_t<T>* edges;
             index_t count = snaph->get_nonarchived_edges(edges);
@@ -634,7 +635,7 @@ void mem_bfs_simple(gview_t<T>* snaph,
                     ++frontier;
                     //cout << " " << dst << endl;
                 }
-            }
+            }*/
         }
 
 		//double end = mywtime();
@@ -675,7 +676,7 @@ void mem_bfs(gview_t<T>* snaph,
 	do {
 		frontier = 0;
 		double start = mywtime();
-		#pragma omp parallel reduction(+:frontier)
+		#pragma omp parallel num_threads(THD_COUNT)  reduction(+:frontier)
 		{
             sid_t sid;
             degree_t nebr_count = 0;
@@ -749,6 +750,7 @@ void mem_bfs(gview_t<T>* snaph,
             
             //on-the-fly snapshots should process this
             //cout << "On the Fly" << endl;
+            /*
             vid_t src, dst;
             edgeT_t<T>* edges;
             index_t marker = snaph->get_nonarchived_edges(edges);
@@ -768,6 +770,7 @@ void mem_bfs(gview_t<T>* snaph,
                     //cout << " " << dst << endl;
                 }
             }
+            */
         }
         
         

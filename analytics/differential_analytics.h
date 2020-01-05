@@ -25,14 +25,17 @@ void diff_streambfs(gview_t<T>* view)
 
 
     while (viewh->get_snapmarker() < _edge_count) {
-        if (eOK != viewh->update_view()) continue;
+        if (eOK != viewh->update_view()) {
+            usleep(100);
+            continue;
+        }
         if (update_count == 0) {
             do_streambfs(viewh);
         } else {
             do_diffbfs(viewh);
         }
         ++update_count;
-        cout << " update_count = " << update_count << endl;
+        //cout << " update_count = " << update_count << endl;
     }
     print_bfs(viewh);
     cout << " update_count = " << update_count 
@@ -59,7 +62,7 @@ void do_diffbfs(sstream_t<T>* viewh)
         degree_t prior_sz = 65536;
         T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
-        #pragma omp for nowait
+        #pragma omp for 
         for (vid_t v = 0; v < v_count; v++) {
             if(false == viewh->has_vertex_changed_out(v) || status[v] < level ) continue;
             
@@ -68,9 +71,7 @@ void do_diffbfs(sstream_t<T>* viewh)
 
             //handle the in-edges
             nebr_count = viewh->get_degree_in(v);
-            if (nebr_count == 0) {
-                continue;
-            } else if (nebr_count > prior_sz) {
+            if (nebr_count > prior_sz) {
                 prior_sz = nebr_count;
                 free(local_adjlist);
                 local_adjlist = (T*)malloc(prior_sz*sizeof(T));
@@ -83,13 +84,13 @@ void do_diffbfs(sstream_t<T>* viewh)
                 new_level = min(new_level, status[sid]);
             }
 
-            if (new_level+1 == level && backup_level >= level) {//upgrade case
+            if (new_level == level - 1 && backup_level > level) {//upgrade case
                 status[v] = level;
                 viewh->reset_vertex_changed_out(v);
                 ++frontier;
-            } else if (new_level+1 != level &&  backup_level == level) { //infinity case
-                status[v] == 255;
-                viewh->reset_vertex_changed_out(v);
+            } else if (new_level > level - 1  &&  backup_level == level) { //infinity case
+                status[v] = 255;
+                //viewh->reset_vertex_changed_out(v);
                 ++frontier;
             } else if (backup_level > level && backup_level != 255) {
                 ++frontier;
