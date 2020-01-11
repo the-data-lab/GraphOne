@@ -224,7 +224,8 @@ void* recovery_func(void* a_arg)
     
     //Lets set the edge log higher
     index_t new_count = upper_power_of_two(edge_count);
-    ugraph->alloc_edgelog(new_count);
+    int blog_shift = ilog2(new_count);
+    ugraph->alloc_edgelog(blog_shift);
     edgeT_t<T>*    edge = blog->blog_beg;
     cout << "edge_count = " << edge_count << endl;
     cout << "new_count  = " << new_count << endl;
@@ -336,6 +337,7 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     //Upper align this, and create a mask for it
     index_t new_count = upper_power_of_two(blog->blog_head);
     blog->blog_mask = new_count -1;
+    blog->blog_shift = ilog2(new_count);
     
     double start = mywtime();
     
@@ -463,7 +465,7 @@ void plaingraph_manager_t<T>::prep_graph(const string& idirname, const string& o
         //Wait for make and durable graph
         waitfor_archive_durable(start);
     } else {
-        g->waitfor_archive();
+        ugraph->waitfor_archive(_edge_count);
         end = mywtime();
         cout << "Make graph time = " << end - start << endl;
     }
@@ -496,7 +498,7 @@ void plaingraph_manager_t<T>::prep_graph2(const string& idirname, const string& 
         //Wait for make and durable graph
         waitfor_archive_durable(start);
     } else {
-        g->waitfor_archive();
+        ugraph->waitfor_archive(_edge_count);
         end = mywtime();
         cout << "Make graph time = " << end - start << endl;
     }

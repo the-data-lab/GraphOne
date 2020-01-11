@@ -22,6 +22,12 @@ inline index_t upper_power_of_two(index_t v)
     return v;
 }
 
+//You must be sure that it is a perfect power
+inline int ilog2(index_t e)
+{
+    return __builtin_ctzll(e);
+}
+
 inline
 index_t alloc_mem_dir(const string& idirname, char** buf, bool alloc)
 {

@@ -177,7 +177,9 @@ void* cfinfo_t::snap_func(void* arg)
 {
     cfinfo_t* ptr = (cfinfo_t*)(arg);
 
-    while(eEndBatch != ptr->create_snapshot());
+    do {
+        //ptr->create_marker(0);
+    } while (eEndBatch != ptr->create_snapshot());
     /*
     do {
         struct timespec ts;

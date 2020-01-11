@@ -45,7 +45,8 @@ class blog_t {
  public:
     edgeT_t<T>* blog_beg;
     //In memory size
-    index_t     blog_count;
+    index_t         blog_count;
+    index_t         blog_shift;
     //MASK
     index_t     blog_mask;
 
@@ -118,14 +119,14 @@ class blog_t {
 };
 
 template <class T>
-void blog_t<T>::alloc_edgelog(index_t count) {
+void blog_t<T>::alloc_edgelog(index_t bit_shift) {
     if (blog_beg) {
         free(blog_beg);
         blog_beg = 0;
     }
-
-    blog_count = count;
-    blog_mask = count - 1;
+    blog_shift = bit_shift;
+    blog_count = (1L << blog_shift);
+    blog_mask = blog_count - 1;
     //blog->blog_beg = (edgeT_t<T>*)mmap(0, sizeof(edgeT_t<T>)*blog->blog_count, 
     //PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
     //if (MAP_FAILED == blog->blog_beg) {

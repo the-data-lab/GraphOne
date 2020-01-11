@@ -131,7 +131,7 @@ typedef one2one<lite_edge_t> p_one2one_t;
 template <class T> 
 void many2one<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog(1 << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 
@@ -231,7 +231,7 @@ void many2one<T>::read_graph_baseline()
 template <class T> 
 void one2many<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog(1 << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 
@@ -327,7 +327,7 @@ void one2many<T>::read_graph_baseline()
 template <class T> 
 void one2one<T>::prep_graph_baseline()
 {
-    this->alloc_edgelog(1 << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
     tid_t   t_count    = g->get_total_types();

@@ -114,7 +114,7 @@ class thd_mem_t {
         }
         degree_t max_count = (size - sizeof(delta_adjlist_t<T>))/sizeof(T);
 
-        #if defined(DEL) || defined(MALLOC) 
+        #if defined(DEL) || defined(WINDOW)|| defined(MALLOC) 
 		adj_list =  (delta_adjlist_t<T>*)malloc(size);
         assert(adj_list!=0);
         #else 

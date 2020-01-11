@@ -326,7 +326,7 @@ void pgraph_t<T>::fill_adj_list_out(onegraph_t<T>** sgraph_out, onekv_t<T>** skv
 template <class T> 
 void dgraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
-    this->alloc_edgelog(1L << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 
@@ -408,7 +408,7 @@ void dgraph<T>::read_graph_baseline()
 template <class T> 
 void ugraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
-    this->alloc_edgelog( 1L << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1 = flag1 | flag2;
     flag2 = flag1;
 
@@ -485,7 +485,7 @@ void ugraph<T>::read_graph_baseline()
 template <class T> 
 void unigraph<T>::prep_graph_baseline(egraph_t egraph_type)
 {
-    this->alloc_edgelog(1L << BLOG_SHIFT);
+    this->alloc_edgelog(BLOG_SHIFT);
     flag1_count = __builtin_popcountll(flag1);
     flag2_count = __builtin_popcountll(flag2);
 

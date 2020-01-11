@@ -15,9 +15,11 @@
 //One vertex's neighbor information
 template <class T>
 class vert_table_t {
- public:
-	vunit_t<T>*   v_unit;
-    inline vert_table_t() { v_unit = 0;}
+	vunit_t<T>   *v_unit;
+    public:
+    inline vert_table_t() { /*v_unit = 0;*/}
+    inline vunit_t<T>* get_vunit() { return v_unit;}
+    inline void set_vunit(vunit_t<T>* v_unit1) { /*assert(0);*/v_unit = v_unit1;}
 };
 
 template <class T>
@@ -257,9 +259,9 @@ protected:
     status_t window_nebrs(vid_t vid);
     status_t compress_nebrs(vid_t vid);
 	
-    inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].v_unit;}
+    inline vunit_t<T>* get_vunit(vid_t v) {return beg_pos[v].get_vunit();}
 	inline void set_vunit(vid_t v, vunit_t<T>* v_unit) {
-		beg_pos[v].v_unit = v_unit;
+		beg_pos[v].set_vunit(v_unit);
 	}
     //-----------durability thing------------
     void prepare_dvt(write_seg_t* seg, vid_t& last_vid, bool clean = false);

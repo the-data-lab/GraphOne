@@ -18,8 +18,12 @@ void wsstream_example(gview_t<T>* view)
     T* adj_list = (T*)malloc(sz*sizeof(T));
     assert(adj_list);
 
+    //sleep(1);
     while (viewh->get_snapmarker() < _edge_count) {
-        if (eOK != viewh->update_view()) continue;
+        if (eOK != viewh->update_view()) {
+            usleep(10);
+            continue;
+        }
         ++update_count;
         edge_count = 0;
         
@@ -33,11 +37,11 @@ void wsstream_example(gview_t<T>* view)
                 adj_list = (T*)realloc(adj_list, sz*sizeof(T));
                 assert(adj_list);
             }
-            viewh->get_nebrs_out(v, adj_list);
+            //viewh->get_nebrs_out(v, adj_list);
         }
         assert(edge_count == check_sz);
         //cout << check_sz << ":" << edge_count << endl;
     }
 
-    cout << "wsstream: update_count " << update_count << ":" << edge_count << endl;
+    cout << "wsstream: update_count " << update_count << ":" << viewh->get_snapid() << endl;//edge_count << endl;
 }

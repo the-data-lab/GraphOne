@@ -50,8 +50,8 @@ class pgraph_t: public cfinfo_t {
 #endif
     }
 
-    inline void alloc_edgelog(index_t count) {
-        blog->alloc_edgelog(count);
+    inline void alloc_edgelog(index_t blog_shift) {
+        blog->alloc_edgelog(blog_shift);
     }
     status_t write_edgelog(); 
     
@@ -74,7 +74,10 @@ class pgraph_t: public cfinfo_t {
     status_t move_marker(index_t& snap_marker); 
     
     //Wait for make graph. Be careful on why you calling.
-    void waitfor_archive(index_t marker) {
+    void waitfor_archive(index_t marker = 0) {
+        if (marker == 0) {
+            marker = blog->blog_head;
+        }
         while (blog->blog_tail < marker) {
             usleep(1);
         }
@@ -149,14 +152,20 @@ status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge)
 {
     status_t ret = eOK;
     
-    index_t index = __sync_fetch_and_add(&blog->blog_head, 1L);
-    bool rewind = !((index >> BLOG_SHIFT) & 0x1);
-
     //Check if we are overwritting the unarchived data, if so sleep
-    while (index + 1 - blog->blog_free > blog->blog_count) {
+    while (blog->blog_head  + 1 - blog->blog_free > blog->blog_count) {
         //cout << "Sleeping for edge log" << endl;
         //assert(0);
         usleep(10);
+    }
+    
+    index_t index = __sync_fetch_and_add(&blog->blog_head, 1L);
+    bool rewind = !((index >> BLOG_SHIFT) & 0x1);
+
+    while (index + 1 - blog->blog_free > blog->blog_count) {
+        //cout << "Sleeping for edge log" << endl;
+        assert(0);
+        //usleep(10);
     }
     
     index_t index1 = (index & blog->blog_mask);
@@ -232,28 +241,33 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
 template <class T>
 index_t pgraph_t<T>::create_marker(index_t marker) 
 {
+    assert(0);
+    index_t snap_marker = marker;
     if (marker ==0) {
-        marker = blog->blog_head;
-    } else {
-        while (blog->blog_head < marker) {
-            //cout << "in loop " << blog->blog_head << " " << marker <<endl;
-            usleep(100);
-            continue;
+        snap_marker = blog->blog_head;
+        if (snap_marker < blog->blog_tail + BATCH_SIZE) {
+            usleep(100000);//One time sleep
         }
-    }
+        snap_marker = blog->blog_head;
+    } 
+    blog->blog_marker = snap_marker;
+    return snap_marker;
+    
+    /*
     pthread_mutex_lock(&snap_mutex);
     index_t m_index = __sync_fetch_and_add(&q_head, 1L);
     q_beg[m_index % q_count] = marker;
     pthread_cond_signal(&snap_condition);
     pthread_mutex_unlock(&snap_mutex);
     //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
-    return marker;
+    */
 } 
     
 //called from snap thread 
 template <class T>
 status_t pgraph_t<T>::move_marker(index_t& snap_marker) 
 {
+    assert(0);
     pthread_mutex_lock(&snap_mutex);
     index_t head = q_head;
     //Need to read marker and set the blog_marker;
@@ -277,7 +291,6 @@ status_t pgraph_t<T>::move_marker(index_t& snap_marker)
 template <class T> 
 status_t pgraph_t<T>::create_snapshot()
 {
-    int work_done = 0;
     index_t snap_marker = blog->blog_head;
     
     //Do we have new data
@@ -286,7 +299,7 @@ status_t pgraph_t<T>::create_snapshot()
         eNoWork;
     }
 
-    if (snap_marker < blog->blog_tail + 65536) {
+    if (snap_marker < blog->blog_tail + BATCH_SIZE) {
         usleep(100000);//One time sleep
     }
     

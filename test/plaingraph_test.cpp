@@ -678,9 +678,8 @@ void weighted_dtest0(const string& idir, const string& odir)
     
     end = mywtime();
     cout << "batch Edge time = " << end - start << endl;
-    g->waitfor_archive(); 
     //graph->create_marker(0);
-    //graph->waitfor_archive();
+    graph->waitfor_archive(); 
     end = mywtime();
     cout << "Make graph time = " << end - start << endl;
     cout << "no of actions " << na << endl;
@@ -1078,7 +1077,7 @@ void test_user1(const string& idir, const string& odir)
     status = pgraph->batch_edge(edge);
     cout << "insert " << v0 << " - " << v2 << ": " << 103 << "\n";
 
-    g->waitfor_archive();
+    pgraph->waitfor_archive();
     dump();
 
     set_src(edge, DEL_SID(v0)); // src
@@ -1087,7 +1086,7 @@ void test_user1(const string& idir, const string& odir)
     status = pgraph->batch_edge(edge);
     cout << "remove " << v0 << " - " << v2 << ": " << 104 << "\n";
 
-    g->waitfor_archive();
+    pgraph->waitfor_archive();
     dump();
 
     set_src(edge, v0); // src
@@ -1096,7 +1095,7 @@ void test_user1(const string& idir, const string& odir)
     status = pgraph->batch_edge(edge);
     cout << "insert " << v0 << " - " << v2 << ": " << 1010 << "\n";
 
-    g->waitfor_archive();
+    pgraph->waitfor_archive();
     dump();
 }
 
@@ -1243,7 +1242,7 @@ void test_wsstream(const string& idir, const string& odir)
     pgraph_t<dst_id_t>* pgraph = manager.get_plaingraph();
     
     wsstream_t<dst_id_t>* streamh = reg_wsstream_view(pgraph, 100000, wsstream_example, STALE_MASK|C_THREAD);
-    manager.prep_graph(idir, odir);
+    manager.prep_graph2(idir, odir);
     void* ret;
     pthread_join(streamh->thread, &ret);
 }

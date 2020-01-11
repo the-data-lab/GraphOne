@@ -64,7 +64,7 @@ template <class T>
 inline void read_edge(blog_t<T>* blog, index_t i, edgeT_t<T>& edge)
 {
     index_t e = (i & blog->blog_mask);
-    bool rewind1 = !((i >> BLOG_SHIFT) & 0x1);
+    bool rewind1 = !((i >> blog->blog_shift) & 0x1);
     bool rewind2 = IS_DEL(get_dst(blog->blog_beg[e]));
     while (rewind1 != rewind2) {
         usleep(10);
