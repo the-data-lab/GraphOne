@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "cf_info.h"
 #include "graph.h"
@@ -178,7 +179,7 @@ void* cfinfo_t::snap_func(void* arg)
     cfinfo_t* ptr = (cfinfo_t*)(arg);
 
     do {
-        //ptr->create_marker(0);
+        ptr->create_marker(0);
     } while (eEndBatch != ptr->create_snapshot());
     /*
     do {
@@ -391,4 +392,27 @@ off_t fsize(int fd)
     }
     perror("stat issue");
     return -1L;
+}
+
+off_t fsize_bin_dir(const string& idir)
+{
+    struct dirent *ptr;
+    DIR *dir;
+    string filename;
+        
+    index_t size = 0;
+    index_t total_size = 0;
+    
+
+    //allocate accuately
+    dir = opendir(idir.c_str());
+    
+    while (NULL != (ptr = readdir(dir))) {
+        if (ptr->d_name[0] == '.') continue;
+        filename = idir + "/" + string(ptr->d_name);
+        size = fsize(filename);
+        total_size += size;
+    }
+    closedir(dir);
+    return total_size;
 }

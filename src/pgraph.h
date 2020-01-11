@@ -241,12 +241,11 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
 template <class T>
 index_t pgraph_t<T>::create_marker(index_t marker) 
 {
-    assert(0);
     index_t snap_marker = marker;
     if (marker ==0) {
         snap_marker = blog->blog_head;
         if (snap_marker < blog->blog_tail + BATCH_SIZE) {
-            usleep(100000);//One time sleep
+            usleep(1000);//One time sleep
         }
         snap_marker = blog->blog_head;
     } 
@@ -291,7 +290,7 @@ status_t pgraph_t<T>::move_marker(index_t& snap_marker)
 template <class T> 
 status_t pgraph_t<T>::create_snapshot()
 {
-    index_t snap_marker = blog->blog_head;
+    index_t snap_marker = blog->blog_marker;
     
     //Do we have new data
     if (snap_marker <= blog->blog_tail) {
@@ -299,17 +298,11 @@ status_t pgraph_t<T>::create_snapshot()
         eNoWork;
     }
 
-    if (snap_marker < blog->blog_tail + BATCH_SIZE) {
-        usleep(100000);//One time sleep
-    }
-    
-    snap_marker = blog->blog_head;
-    blog->blog_marker = snap_marker;
     make_graph_baseline();
     blog->update_marker();
     new_snapshot(snap_marker);
     blog->free_blog();
-    if (blog->blog_marker == _edge_count) {
+    if (snap_marker == _edge_count) {
         return eEndBatch;
     }
     return eOK;

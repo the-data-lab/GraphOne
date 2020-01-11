@@ -1036,6 +1036,7 @@ void test_archive(const string& idir, const string& odir)
         manager.run_bfs();
     }
 
+    /*
     //Run PageRank
     for (int i = 0; i < 1; i++){
         manager.run_pr();
@@ -1045,7 +1046,7 @@ void test_archive(const string& idir, const string& odir)
     //Run 1-HOP query
     for (int i = 0; i < 1; i++){
         manager.run_1hop();
-    }
+    }*/
 }
 
 void test_user1(const string& idir, const string& odir)

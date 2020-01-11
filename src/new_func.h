@@ -13,10 +13,15 @@ index_t file_and_insert(const string& textfile, const string& ofile, pgraph_t<T>
     
     edgeT_t<T> edge;
     index_t icount = 0;
+    sid_t sid;
     ssize_t size = 0;
     //tmp_blog_t<T> edges(64);
     while((size = fread(&edge, sizeof(edge), 1, file)) > 0) {
         //pgraph->batch_edge(&edges, edge);
+        sid = get_src(edge);
+        if (sid < 0) {
+            set_src(edge, DEL_SID(-sid));
+        }
         pgraph->batch_edge(edge);
         icount++;
     }
@@ -33,7 +38,12 @@ index_t buf_and_insert(const char* buf , pgraph_t<T>* pgraph, index_t count)
 {
     index_t edge_count = count/sizeof(edgeT_t<T>);
     edgeT_t<T>* edges = (edgeT_t<T>*)buf;
+    sid_t sid;
     for (index_t i = 0; i < edge_count; ++i) {
+        sid = get_src(edges[i]);
+        if (sid < 0) {
+            set_src(edges[i], DEL_SID(-sid));
+        }
         pgraph->batch_edge(edges[i]);
     }
     return edge_count;

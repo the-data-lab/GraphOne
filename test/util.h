@@ -7,6 +7,7 @@
 #define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
 #endif
 
+off_t fsize_bin_dir(const string& idir);
 short CorePin(int coreID);
 
 inline index_t upper_power_of_two(index_t v)
@@ -31,25 +32,7 @@ inline int ilog2(index_t e)
 inline
 index_t alloc_mem_dir(const string& idirname, char** buf, bool alloc)
 {
-    struct dirent *ptr;
-    DIR *dir;
-    string filename;
-        
-    index_t size = 0;
-    index_t total_size = 0;
-    
-
-    //allocate accuately
-    dir = opendir(idirname.c_str());
-    
-    while (NULL != (ptr = readdir(dir))) {
-        if (ptr->d_name[0] == '.') continue;
-        filename = idirname + "/" + string(ptr->d_name);
-        size = fsize(filename);
-        total_size += size;
-    }
-    closedir(dir);
-
+    index_t total_size = fsize_bin_dir(idirname);
     void* local_buf = mmap(0, total_size, PROT_READ|PROT_WRITE,
                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
 

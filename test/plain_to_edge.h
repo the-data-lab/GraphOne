@@ -329,16 +329,20 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
 {
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
     blog_t<T>*     blog = ugraph->blog;
-    
-    free(blog->blog_beg);
-    blog->blog_beg = 0;
-    blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
-    _edge_count = blog->blog_head; 
-    //Upper align this, and create a mask for it
-    index_t new_count = upper_power_of_two(blog->blog_head);
-    blog->blog_mask = new_count -1;
-    blog->blog_shift = ilog2(new_count);
-    
+
+    index_t size = fsize_bin_dir(idirname);
+    if (size > blog->blog_count) {
+        //Upper align this, and create a mask for it
+        index_t new_count = upper_power_of_two(size/sizeof(edgeT_t<T>));
+        index_t blog_shift = ilog2(new_count);
+        ugraph->alloc_edgelog(blog_shift);
+    }
+
+    if(0==_source) {//text
+        _edge_count = read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);
+    } else {//binary
+        _edge_count = read_idir_text(idirname, odirname, ugraph, file_and_insert);
+    }
     double start = mywtime();
     
     //Make Graph
