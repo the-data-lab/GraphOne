@@ -515,10 +515,6 @@ void plaingraph_manager_t<T>::waitfor_archive_durable(double start)
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
     blog_t<T>* blog = pgraph->blog;
-    index_t marker = blog->blog_head;
-    if (marker != blog->blog_marker) {
-        pgraph->create_marker(marker);
-    }
     double end = 0;
     bool done_making = false;
     bool done_persisting = false;
