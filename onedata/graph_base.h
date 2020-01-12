@@ -17,7 +17,7 @@ template <class T>
 class vert_table_t {
 	vunit_t<T>   *v_unit;
     public:
-    inline vert_table_t() { /*v_unit = 0;*/}
+    inline vert_table_t() { v_unit = 0;}
     inline vunit_t<T>* get_vunit() { return v_unit;}
     inline void set_vunit(vunit_t<T>* v_unit1) { /*assert(0);*/v_unit = v_unit1;}
 };

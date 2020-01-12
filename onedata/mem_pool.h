@@ -138,7 +138,7 @@ class thd_mem_t {
 	}
 
     void free_adjlist(delta_adjlist_t<T>* adj_list, int chain_count) {
-        #if defined(DEL) || defined(MALLOC)
+        #if defined(DEL) || defined(WINDOW) || defined(MALLOC)
         mem_t<T>* mem1 = mem + omp_get_thread_num();  
         delta_adjlist_t<T>* adj_list1 = adj_list;
         if(chain_count == 0) {

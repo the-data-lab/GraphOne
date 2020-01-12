@@ -397,6 +397,7 @@ edgeT_t<T>* pgraph_t<T>::get_prior_edges(index_t start_offset, index_t end_offse
     index_t size = (end_offset - start_offset)*sizeof(edgeT_t<T>);
     index_t offset = start_offset*sizeof(edgeT_t<T>);
     //edgeT_t<T>* edges = (edgeT_t<T>*)malloc(size);
+    assert(end_offset <= blog->blog_wtail);
     index_t sz_read = pread(wtf, edges, size, offset);
     assert(size == sz_read);
     return edges;

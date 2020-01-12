@@ -79,7 +79,7 @@ class snap_t : public gview_t <T> {
     }
     void init_view(pgraph_t<T>* ugraph, index_t flag);
     status_t update_view();
-  private:
+  protected:
     void create_degreesnap(onegraph_t<T>* graph, sdegree_t* degree);
     void handle_flagu();
     void handle_flagd();

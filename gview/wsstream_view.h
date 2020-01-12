@@ -85,9 +85,19 @@ void wsstream_t<T>::init_view(pgraph_t<T>* pgraph, index_t window_sz1,
 {
     sstream_t<T>::init_view(pgraph, a_flag);
     start_marker = 0;
-    if (pgraph->blog) {
-        start_marker = pgraph->blog->blog_head;
+    snapshot = pgraph->get_snapshot();
+    
+    if (snapshot != 0) {
+        start_marker = snapshot->marker;
+        #pragma omp parallel num_threads(THD_COUNT)
+        {
+        this->create_degreesnap(graph_out, degree_out);
+        if (graph_in != graph_out && graph_in != 0) {
+            this->create_degreesnap(graph_in, degree_in);
+        }
+        }
     }
+    
     window_sz =  window_sz1;
     wdegree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
     if (graph_in == graph_out) {
@@ -111,31 +121,28 @@ status_t wsstream_t<T>::update_view()
     index_t  marker = blog->blog_head;
     index_t snap_marker = snapshot->marker;
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
+    index_t end_marker = 0; //start_marker + start_count;
     
     if (IS_STALE(flag)) {
         if (snap_marker - start_marker >= window_sz) {
-            start_count = snap_marker - old_marker;
+            end_marker = snap_marker - window_sz;
         } else {
             return eNoWork;
         }
     } else {
         if(marker - start_marker >= window_sz) {
-            start_count = (marker - old_marker);
+            end_marker = marker - window_sz;
         } else {
             return eNoWork;
         }
     }
+    start_count = end_marker - start_marker;
     
-    //read the older edges
-    if (0 == start_marker) {
-        assert(start_count > window_sz);
-        start_count -= window_sz;
+    if (start_count) {
+        start_edges = (edgeT_t<T>*)realloc(start_edges, start_count*sizeof(edgeT_t<T>));
+        assert(start_edges);
+        pgraph->get_prior_edges(start_marker, end_marker, start_edges);
     }
-    index_t end_marker = start_marker + start_count;
-    assert(end_marker + window_sz == snap_marker);
-    start_edges = (edgeT_t<T>*)realloc(start_edges, start_count*sizeof(edgeT_t<T>));
-    assert(start_edges);
-    pgraph->get_prior_edges(start_marker, end_marker, start_edges);
 
     //for stale
     if (IS_PRIVATE(flag)) {

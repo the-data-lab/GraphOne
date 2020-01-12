@@ -1234,18 +1234,38 @@ void test_stream_wcc(const string& idir, const string& odir)
     pthread_join(streamh->thread, &ret);
 }
 
-void test_wsstream(const string& idir, const string& odir)
+template <class T>
+void test_wsstream(const string& idir, const string& odir,
+                   typename callback<T>::sfunc stream_fn, int count)
 {
-    plaingraph_manager_t<dst_id_t> manager; 
+    plaingraph_manager_t<T> manager; 
     manager.schema(_dir);
     //do some setup for plain graphs
     manager.setup_graph(_global_vcount);    
-    pgraph_t<dst_id_t>* pgraph = manager.get_plaingraph();
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
     
-    wsstream_t<dst_id_t>* streamh = reg_wsstream_view(pgraph, 100000, wsstream_example, STALE_MASK|C_THREAD);
+    wsstream_t<T>* streamh = reg_wsstream_view(pgraph, 100000, stream_fn, STALE_MASK|C_THREAD);
     manager.prep_graph2(idir, odir);
     void* ret;
     pthread_join(streamh->thread, &ret);
+}
+
+template <class T>
+void archive_wsstream(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    wsstream_t<T>* sstreamh = reg_wsstream_view(pgraph, (1<<20), stream_fn, STALE_MASK|C_THREAD);
+    
+    //CorePin(0);
+    manager.prep_graph_adj(idir, odir);
+    void* ret;
+    pthread_join(sstreamh->thread, &ret);
 }
 
 template <class T>
@@ -1423,7 +1443,10 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_stream_wcc(idir, odir);
             break;
         case 37:
-            test_wsstream(idir, odir);
+            test_wsstream<dst_id_t>(idir, odir, wsstream_example, 1);
+            break;
+        case 38:
+            archive_wsstream<dst_id_t>(idir, odir, wsstream_example, 1);
             break;
 
         case 40:

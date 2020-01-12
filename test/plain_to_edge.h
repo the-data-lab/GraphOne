@@ -337,6 +337,12 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
         index_t blog_shift = ilog2(new_count);
         ugraph->alloc_edgelog(blog_shift);
     }
+    if (_persist) {
+        g->file_open(true);
+        g->create_threads(false, true);
+    } else {
+        g->create_threads(false, false);
+    }
 
     if(0==_source) {//text
         _edge_count = read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);

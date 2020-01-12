@@ -30,6 +30,7 @@ void wsstream_example(gview_t<T>* view)
         for (vid_t v = 0; v < v_count; ++v) {
             degree = viewh->get_degree_out(v);
             if (degree == 0) continue;
+            assert (degree < check_sz);
             edge_count += degree;
             if (degree > sz) {
                 //assert(0);
