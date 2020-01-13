@@ -596,17 +596,8 @@ void weighted_dtest0(const string& idir, const string& odir)
         #pragma omp for
         for (int64_t v = 0; v < nv; ++v) {
             nebr_count = v_offset[v+1] - v_offset[v];
-            #ifndef BULK
             sgraph->increment_count_noatomic(v, 0, nebr_count);
-            #else
-            sgraph->increment_count(v, nebr_count);
-            #endif
         }
-#ifdef BULK
-        sgraph->setup_adjlist();
-        #pragma omp barrier
-#endif
-
         #pragma omp for
         for (int64_t v = 0; v < nv; ++v) {
             nebr_count = v_offset[v+1] - v_offset[v];
@@ -617,13 +608,12 @@ void weighted_dtest0(const string& idir, const string& odir)
     }
     
     //faking a snapshot creation.
-    index_t snap_marker = 0;
     blog->blog_head += ne;
-    graph->create_marker(0);//latest head will be chosen
-    if (eOK == graph->move_marker(snap_marker)) {
-        graph->new_snapshot(snap_marker, snap_marker);
-        graph->update_marker();
-    }
+    index_t snap_marker = graph->create_marker(0);//latest head will be chosen
+    blog->update_marker();
+    graph->new_snapshot(snap_marker);
+    blog->free_blog();
+    
     double end = mywtime();
     cout << "Make graph time = " << end - start << endl;
 
@@ -670,7 +660,7 @@ void weighted_dtest0(const string& idir, const string& odir)
             graph->batch_edge(edge);
         } else {
             edge.src_id = DEL_SID(-src);
-            set_dst(edge, DEL_SID(-dst));
+            set_dst(edge, -dst);
             graph->batch_edge(edge);
             ++del_count;
         }
@@ -696,6 +686,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     mem_bfs_simple<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     
+    /*
     start = mywtime();
     graph->compress_graph_baseline();
     end = mywtime();
@@ -705,6 +696,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     mem_bfs<lite_edge_t>(snaph, level_array, 0);
     free(level_array);
     //manager.run_bfs(0);
+    */
 #endif
     return;
 
@@ -1260,16 +1252,47 @@ void archive_wsstream(const string& idir, const string& odir,
     manager.setup_graph(_global_vcount);    
     
     pgraph_t<T>* pgraph = manager.get_plaingraph();
-    wsstream_t<T>* sstreamh = reg_wsstream_view(pgraph, (1<<20), stream_fn, STALE_MASK|C_THREAD);
+    wsstream_t<T>** sstreamh = (wsstream_t<T>**)malloc(sizeof(wsstream_t<T>*)*count);
+    
+    for (int i = 0; i < count; ++i) {
+        sstreamh[i] = reg_wsstream_view(pgraph, (1<<20), stream_fn, STALE_MASK|C_THREAD);
+    }
     
     //CorePin(0);
     manager.prep_graph_adj(idir, odir);
-    void* ret;
-    pthread_join(sstreamh->thread, &ret);
+    for (int i = 0; i < count; ++i) {
+        void* ret;
+        pthread_join(sstreamh[i]->thread, &ret);
+    }
 }
 
 template <class T>
-void multi_stream_bfs(const string& idir, const string& odir,
+void archive_sstream(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
+    
+    for (int i = 0; i < count; ++i) {
+    sstreamh[i] = reg_sstream_view(pgraph, stream_fn, 
+                STALE_MASK|V_CENTRIC|C_THREAD, (void*)(i+1));
+    }
+    
+    //CorePin(0);
+    manager.prep_graph_adj(idir, odir);
+    for (int i = 0; i < count; ++i) {
+        void* ret;
+        pthread_join(sstreamh[i]->thread, &ret);
+    }
+}
+
+template <class T>
+void multi_sstream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn, int count)
 {
     plaingraph_manager_t<T> manager;
@@ -1294,7 +1317,7 @@ void multi_stream_bfs(const string& idir, const string& odir,
 }
 
 template <class T>
-void multi_diff_analytics(const string& idir, const string& odir,
+void multi_diff(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn, int count)
 {
     plaingraph_manager_t<T> manager;
@@ -1319,7 +1342,7 @@ void multi_diff_analytics(const string& idir, const string& odir,
 }
 
 template <class T>
-void test_serial_stream(const string& idir, const string& odir,
+void serial_sstream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
@@ -1422,25 +1445,22 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         
         case 30:
-            multi_stream_bfs<dst_id_t>(idir, odir, stream_bfs, residue);
+            multi_sstream<dst_id_t>(idir, odir, stream_bfs, residue);
             break;
         case 31:
-            test_serial_stream<dst_id_t>(idir, odir, stream_serial_bfs);
+            serial_sstream<dst_id_t>(idir, odir, stream_serial_bfs);
             break;
         case 32:
-            multi_stream_bfs<dst_id_t>(idir, odir, diff_streambfs, residue);
+            multi_sstream<dst_id_t>(idir, odir, diff_streambfs, residue);
             break;
         case 33:
-            multi_stream_bfs<dst_id_t>(idir, odir, stream_pr, residue);
+            multi_sstream<dst_id_t>(idir, odir, stream_pr, residue);
             break;
         case 34:
-            multi_diff_analytics<dst_id_t>(idir, odir, diff_stream_pr, residue);
+            multi_diff<dst_id_t>(idir, odir, diff_stream_pr, residue);
             break;
         case 35:
-            stream_netflow_aggregation(idir, odir);
-            break;
-        case 36:
-            test_stream_wcc(idir, odir);
+            archive_sstream<dst_id_t>(idir, odir, stream_bfs, 1);
             break;
         case 37:
             test_wsstream<dst_id_t>(idir, odir, wsstream_example, 1);
@@ -1448,11 +1468,17 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 38:
             archive_wsstream<dst_id_t>(idir, odir, wsstream_example, 1);
             break;
-
+        case 39:
+            stream_netflow_aggregation(idir, odir);
+            break;
         case 40:
+            test_stream_wcc(idir, odir);
+            break;
+
+        case 48:
             test_user1(idir, odir);
             break;
-        case 41:
+        case 49:
             test_user2(idir, odir);
             break;
         case 50:
