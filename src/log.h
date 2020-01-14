@@ -100,6 +100,32 @@ class blog_t {
         return blog_tail;
     }
 
+    inline index_t batch_edge(edgeT_t<T>& edge) {
+        
+        //Check if we are overwritting the unarchived data, if so sleep
+        while (blog_head  + 1 - blog_free > blog_count) {
+            //cout << "Sleeping for edge log" << endl;
+            //assert(0);
+            usleep(10);
+        }
+        
+        index_t index = __sync_fetch_and_add(&blog_head, 1L);
+        bool rewind = !((index >> blog_shift) & 0x1);
+
+        while (index + 1 - blog_free > blog_count) {
+            //cout << "Sleeping for edge log" << endl;
+            assert(0);
+            //usleep(10);
+        }
+        
+        index_t index1 = (index & blog_mask);
+        blog_beg[index1] = edge;
+        if (rewind) {
+            set_dst(blog_beg[index1], DEL_SID(get_dst(edge)));
+        }
+        return index;
+    }
+
     inline void readfrom_snapshot(snapshot_t* global_snapshot) {
         blog_head = global_snapshot->marker;
         blog_tail = global_snapshot->marker;

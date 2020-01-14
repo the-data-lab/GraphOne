@@ -151,29 +151,7 @@ template <class T>
 status_t pgraph_t<T>::batch_edge(edgeT_t<T>& edge) 
 {
     status_t ret = eOK;
-    
-    //Check if we are overwritting the unarchived data, if so sleep
-    while (blog->blog_head  + 1 - blog->blog_free > blog->blog_count) {
-        //cout << "Sleeping for edge log" << endl;
-        //assert(0);
-        usleep(10);
-    }
-    
-    index_t index = __sync_fetch_and_add(&blog->blog_head, 1L);
-    bool rewind = !((index >> BLOG_SHIFT) & 0x1);
-
-    while (index + 1 - blog->blog_free > blog->blog_count) {
-        //cout << "Sleeping for edge log" << endl;
-        assert(0);
-        //usleep(10);
-    }
-    
-    index_t index1 = (index & blog->blog_mask);
-    blog->blog_beg[index1] = edge;
-    if (rewind) {
-        set_dst(blog->blog_beg[index1], DEL_SID(get_dst(edge)));
-    }
-
+    index_t index = blog->batch_edge(edge);
     /*
     index += 1;
     index_t size = ((index - blog->blog_marker) & BATCH_MASK);
@@ -295,7 +273,7 @@ status_t pgraph_t<T>::create_snapshot()
     //Do we have new data
     if (snap_marker <= blog->blog_tail) {
         blog->free_blog();
-        eNoWork;
+        return eNoWork;
     }
 
     make_graph_baseline();
@@ -317,12 +295,13 @@ status_t pgraph_t<T>::write_edgelog()
     index_t w_count = w_marker - w_tail;
     if (w_count == 0) return eNoWork;
 
-    index_t actual_tail = w_tail & blog->blog_mask;
-    index_t actual_marker = w_marker & blog->blog_mask;
     edgeT_t<T> edge;
     for(index_t i = w_tail; i < w_marker; ++ i) {
         read_edge(blog, i, edge); 
     }
+    
+    index_t actual_tail = w_tail & blog->blog_mask;
+    index_t actual_marker = w_marker & blog->blog_mask;
     if (actual_tail < actual_marker) {
         //write and update tail
         //fwrite(blog->blog_beg + w_tail, sizeof(edgeT_t<T>), w_count, wtf);

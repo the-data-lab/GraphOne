@@ -217,6 +217,7 @@ status_t wsstream_t<T>::update_view_tumble()
     }
     
     prev_snapshot = snapshot;
+    return eOK;
 }
 
 template <class T>

@@ -1020,29 +1020,10 @@ void remove_dup(const string& idir, const string& odir)
     //do some setup for plain graphs
     manager.setup_graph(_global_vcount);    
     
+    wsstream_t<T>* viewh = reg_wsstream_view(manager.pgraph, 100000, wsstream_dup, STALE_MASK|C_THREAD);
     manager.prep_graph(idir, odir);
-    
-    snap_t<T>* viewh = create_static_view(manager.pgraph, STALE_MASK|V_CENTRIC);
-    degree_t sz = 1024;
-    T* adj_list = (T*)malloc(sz*sizeof(T));
-    assert(adj_list);
-    vid_t v_count = viewh->get_vcount();
-    vid_t v, sid; 
-    degree_t degree;
-    
-    for (vid_t v = 0; v< v_count; ++v) {
-        degree = viewh->get_degree_out(v);
-        if (degree == 0) continue;
-        if (degree > sz) {
-            sz = degree;
-            adj_list = (T*)realloc(adj_list, sz*sizeof(T));
-            assert(adj_list);
-        }
-        viewh->get_nebrs_out(v, adj_list);
-        for (degree_t j = 0; j < degree; ++j) {
-            std::cerr << v << " " << TO_SID(get_sid(adj_list[j])) << endl;
-        }
-    }
+    void* ret;
+    pthread_join(viewh->thread, &ret);
 }
 
 template <class T>
