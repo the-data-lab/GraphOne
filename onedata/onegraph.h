@@ -41,7 +41,9 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapshot_t* snapsh
     snap_id = snapshot? snapshot->snap_id + 1 : 1;//snapshot starts at 1
     for (index_t i = 0; i < count; ++i) {
         src = edges[i].src_id;
-        //src_index = TO_TID(src);
+        #ifdef NODUP
+        if (TO_SID(src) == TO_SID(get_dst(edges[i]))) continue; 
+        #endif
         vert1_id = TO_VID(src);
 
         if (!IS_DEL(src)) { 
@@ -54,7 +56,9 @@ void onegraph_t<T>::archive(edgeT_t<T>* edges, index_t count, snapshot_t* snapsh
     for (index_t i = 0; i < count; ++i) {
         src = edges[i].src_id;
         dst = edges[i].dst_id;
-        //src_index = TO_TID(src);
+        #ifdef NODUP
+        if (TO_SID(src) == TO_SID(get_dst(edges[i]))) continue; 
+        #endif
         vert1_id = TO_VID(src);
         if (!IS_DEL(src)) { 
             add_nebr_noatomic(vert1_id, dst);
@@ -139,7 +143,7 @@ void  onegraph_t<T>::add_nebr_noatomic(vid_t vid, T sid)
     vunit_t<T>* v_unit = get_vunit(vid); 
     delta_adjlist_t<T>* adj_list1 = v_unit->adj_list;
     #ifdef NODUP
-    degree_t location = find_nebr(vid, get_sid(sid));
+    degree_t location = find_nebr(vid, get_sid(sid), true);
     if (INVALID_DEGREE != location) {
         //Didn't find the old value. decrease del degree count
 	    snapT_t<T>* curr = v_unit->get_snapblob();
@@ -1106,7 +1110,7 @@ T* onegraph_t<T>::find_nebr_bypos(vid_t vid, degree_t pos)
 
 //returns the location of the found value
 template <class T>
-degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid) 
+degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid, bool add/*=false*/) 
 {
     //Find the location of deleted one
     vunit_t<T>* v_unit = get_vunit(vid);
@@ -1141,6 +1145,7 @@ degree_t onegraph_t<T>::find_nebr(vid_t vid, sid_t sid)
             nebr = get_sid(local_adjlist[i-1]);
             if (nebr == sid) {
                 ret_degree = degree + i-1;
+                if (true == add) return ret_degree;
                 #ifdef NODUP
                 //Now we need to search for duplicaton
                 degree_t i_count = i;

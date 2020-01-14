@@ -66,6 +66,7 @@ struct wsstream_t : public sstream_t<T> {
     
     void init_view(pgraph_t<T>* pgraph, index_t window_sz, index_t flag);
     status_t update_view();
+    status_t update_view_tumble();
     
     virtual index_t  get_compaction_marker() {
         return start_marker;
@@ -192,6 +193,30 @@ status_t wsstream_t<T>::update_view()
     }
     
     return eOK;
+}
+
+template <class T>
+status_t wsstream_t<T>::update_view_tumble()
+{
+    snapshot = pgraph->get_snapshot();
+    
+    if (snapshot == 0|| (snapshot == prev_snapshot)) return eNoWork;
+    
+    blog_t<T>*  blog = pgraph->blog;
+    snapid_t    snap_id = snapshot->snap_id;
+    sdegree_t    nebr_count;
+
+    for (vid_t v = 0; v < v_count; ++v) {
+        nebr_count = graph_out->get_degree(v, snap_id);
+        degree_out[v] = wdegree_out[v];
+        wdegree_out[v] = nebr_count;
+    }
+    
+    if (prev_snapshot) {
+        prev_snapshot->drop_ref();
+    }
+    
+    prev_snapshot = snapshot;
 }
 
 template <class T>

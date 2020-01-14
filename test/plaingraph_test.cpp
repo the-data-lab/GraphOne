@@ -1013,6 +1013,39 @@ void test_mix(const string& idir, const string& odir)
 }
 
 template <class T>
+void remove_dup(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    manager.prep_graph(idir, odir);
+    
+    snap_t<T>* viewh = create_static_view(manager.pgraph, STALE_MASK|V_CENTRIC);
+    degree_t sz = 1024;
+    T* adj_list = (T*)malloc(sz*sizeof(T));
+    assert(adj_list);
+    vid_t v_count = viewh->get_vcount();
+    vid_t v, sid; 
+    degree_t degree;
+    
+    for (vid_t v = 0; v< v_count; ++v) {
+        degree = viewh->get_degree_out(v);
+        if (degree == 0) continue;
+        if (degree > sz) {
+            sz = degree;
+            adj_list = (T*)realloc(adj_list, sz*sizeof(T));
+            assert(adj_list);
+        }
+        viewh->get_nebrs_out(v, adj_list);
+        for (degree_t j = 0; j < degree; ++j) {
+            std::cerr << v << " " << TO_SID(get_sid(adj_list[j])) << endl;
+        }
+    }
+}
+
+template <class T>
 void test_archive(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
@@ -1475,6 +1508,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             test_stream_wcc(idir, odir);
             break;
 
+        case 47:
+            remove_dup<dst_id_t>(idir, odir);
+            break;
         case 48:
             test_user1(idir, odir);
             break;
