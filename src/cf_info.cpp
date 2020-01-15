@@ -394,7 +394,7 @@ off_t fsize(int fd)
     return -1L;
 }
 
-off_t fsize_bin_dir(const string& idir)
+off_t fsize_dir(const string& idir)
 {
     struct dirent *ptr;
     DIR *dir;

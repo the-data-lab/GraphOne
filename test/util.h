@@ -7,7 +7,7 @@
 #define MAP_HUGE_2MB (21 << MAP_HUGE_SHIFT)
 #endif
 
-off_t fsize_bin_dir(const string& idir);
+off_t fsize_dir(const string& idir);
 short CorePin(int coreID);
 
 inline index_t upper_power_of_two(index_t v)
@@ -32,7 +32,7 @@ inline int ilog2(index_t e)
 inline
 index_t alloc_mem_dir(const string& idirname, char** buf, bool alloc)
 {
-    index_t total_size = fsize_bin_dir(idirname);
+    index_t total_size = fsize_dir(idirname);
     void* local_buf = mmap(0, total_size, PROT_READ|PROT_WRITE,
                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|MAP_HUGE_2MB, 0, 0);
 
@@ -210,4 +210,49 @@ index_t read_idir(const string& idirname, edgeT_t<T>** pedges, bool alloc)
     return total_edge_count;
 }
 
+// Credits to :
+// http://www.memoryhole.net/kyle/2012/06/a_use_for_volatile_in_multithr.html
+inline float qthread_dincr(float *operand, float incr)
+{
+    //*operand = *operand + incr;
+    //return incr;
+    
+    union {
+       float   d;
+       uint32_t i;
+    } oldval, newval, retval;
+    do {
+         oldval.d = *(volatile float *)operand;
+         newval.d = oldval.d + incr;
+         //__asm__ __volatile__ ("lock; cmpxchgq %1, (%2)"
+         __asm__ __volatile__ ("lock; cmpxchg %1, (%2)"
+                                : "=a" (retval.i)
+                                : "r" (newval.i), "r" (operand),
+                                 "0" (oldval.i)
+                                : "memory");
+    } while (retval.i != oldval.i);
+    return oldval.d;
+}
+
+inline double qthread_doubleincr(double *operand, double incr)
+{
+    //*operand = *operand + incr;
+    //return incr;
+    
+    union {
+       double   d;
+       uint64_t i;
+    } oldval, newval, retval;
+    do {
+         oldval.d = *(volatile double *)operand;
+         newval.d = oldval.d + incr;
+         //__asm__ __volatile__ ("lock; cmpxchgq %1, (%2)"
+         __asm__ __volatile__ ("lock; cmpxchg %1, (%2)"
+                                : "=a" (retval.i)
+                                : "r" (newval.i), "r" (operand),
+                                 "0" (oldval.i)
+                                : "memory");
+    } while (retval.i != oldval.i);
+    return oldval.d;
+}
 

@@ -57,6 +57,7 @@ class plaingraph_manager_t {
     void prep_graph(const string& idirname, const string& odirname);
     
     void prep_graph_adj(const string& idirname, const string& odirname);
+    void prep_graph_del(const string& idirname, const string& odirname);
     void prep_graph_mix(const string& idirname, const string& odirname);
     
     void prep_graph_and_compute(const string& idirname, const string& odirname, stream_t<T>* streamh);
@@ -315,7 +316,7 @@ void plaingraph_manager_t<T>::split_files(const string& idirname, const string& 
         fwrite(blog->blog_beg+marker, sizeof(edgeT_t<T>), batch_size, fd); 
         marker += batch_size;
     } 
-        sprintf(tmp, "%d.dat", residue);
+        sprintf(tmp, "%ld.dat", residue);
         ifile = odirname + "part" + tmp; 
         fd = fopen(ifile.c_str(), "wb");
         fwrite(blog->blog_beg+marker, sizeof(edgeT_t<T>), blog->blog_head - marker, fd); 
@@ -323,32 +324,11 @@ void plaingraph_manager_t<T>::split_files(const string& idirname, const string& 
     double end = mywtime ();
     cout << "Split time = " << end - start << endl;
 }
-
 template <class T>
-void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const string& odirname)
+void* archive(void* arg)
 {
-    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    blog_t<T>*     blog = ugraph->blog;
-
-    index_t size = fsize_bin_dir(idirname);
-    if (size > blog->blog_count) {
-        //Upper align this, and create a mask for it
-        index_t new_count = upper_power_of_two(size/sizeof(edgeT_t<T>));
-        index_t blog_shift = ilog2(new_count);
-        ugraph->alloc_edgelog(blog_shift);
-    }
-    if (_persist) {
-        g->file_open(true);
-        g->create_threads(false, true);
-    } else {
-        g->create_threads(false, false);
-    }
-
-    if(0==_source) {//text
-        _edge_count = read_idir_text(idirname, odirname, ugraph, parsefile_and_insert);
-    } else {//binary
-        _edge_count = read_idir_text(idirname, odirname, ugraph, file_and_insert);
-    }
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)arg;
+    blog_t<T>*     blog = pgraph->blog;
     double start = mywtime();
     
     //Make Graph
@@ -356,30 +336,90 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     index_t batch_size = (1L << residue);
     cout << "batch_size = " << batch_size << endl;
 
-    while (marker < blog->blog_head) {
+    while (marker < _edge_count) {
         marker = min(blog->blog_head, marker+batch_size);
-        ugraph->create_marker(marker);
-        ugraph->create_snapshot();
+        pgraph->create_marker(marker);
+        pgraph->create_snapshot();
     }
-    double end = mywtime ();
+    double end = mywtime();
     cout << "Make graph time = " << end - start << endl;
+    
+    return 0;
 }
 
 template <class T>
-void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const string& odirname)
+void plaingraph_manager_t<T>::prep_graph_adj(const string& idir, const string& odir)
 {
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
-    blog_t<T>*     blog = ugraph->blog;
+    prep_graph_edgelog(idir, odir);
+    archive<T>((void*)ugraph);
+}
+
+template <class T>
+void plaingraph_manager_t<T>::prep_graph_del(const string& idir, const string& odir)
+{
+    pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    blog_t<T>*     blog = pgraph->blog;
+    pthread_t      thread;
+     
+    if (_persist) {
+        g->file_open(true);
+        g->create_threads(false, true);
+    } else {
+        g->create_threads(false, false);
+    }
     
-    free(blog->blog_beg);
-    blog->blog_beg = 0;
-    blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
-    _edge_count = blog->blog_head; 
+    if (0 != pthread_create(&thread, 0, &archive<T>, pgraph)) {
+        assert(0);
+        //archive<T>((void*)ugraph);
+    }
     
-    //Upper align this, and create a mask for it
-    index_t new_count = upper_power_of_two(blog->blog_head);
-    blog->blog_mask = new_count -1;
-    cout << " total edge count" << new_count << endl;
+    blog_reader_t<T> reader;
+    reader.blog = blog;
+    int reg_id = reader.blog->register_reader(&reader);
+
+    //Batch Graph
+    index_t edge_count;
+    double start = mywtime();
+    if (0 == _source) {//text
+        edge_count = read_idir_text(idir, odir, pgraph, parsefile_and_insert);
+    } else {//binary
+        edge_count = read_idir_text(idir, odir, pgraph, file_and_insert);
+    }
+    
+    //Let's do deletion and addition
+    _edge_count = edge_count*3;
+    edgeT_t<T> edge;
+    sid_t sid;
+    while (blog->blog_head < _edge_count) {
+        reader.marker++;
+        read_edge(reader.blog, reader.tail, edge);
+        sid = get_src(edge);
+        if(IS_DEL(sid)) {
+            set_src(edge, TO_SID(sid));
+        } else {
+            set_src(edge, DEL_SID(sid));
+        }
+        blog->batch_edge(edge);
+        reader.tail = reader.marker;
+    }
+    if (reg_id != -1) reader.blog->unregister_reader(reg_id);
+    double end = mywtime();
+    cout << "Batch Update Time = " << end - start << endl;
+    
+    void* ret;
+    pthread_join(thread, &ret);
+    
+    if (_persist) g->type_store(odir);
+
+    
+}
+
+template <class T>
+void plaingraph_manager_t<T>::prep_graph_mix(const string& idir, const string& odir)
+{
+    pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
+    prep_graph_edgelog(idir, odir);
     
     double start = mywtime();
     
@@ -429,6 +469,15 @@ void plaingraph_manager_t<T>::prep_graph_edgelog(const string& idirname,
         const string& odirname)
 {
     pgraph_t<T>* pgraph = (pgraph_t<T>*)get_plaingraph();
+    blog_t<T>*     blog = pgraph->blog;
+    
+    index_t size = fsize_dir(idirname);
+    if (size > blog->blog_count) {
+        //Upper align this, and create a mask for it
+        index_t new_count = upper_power_of_two(size/sizeof(edgeT_t<T>));
+        index_t blog_shift = ilog2(new_count);
+        pgraph->alloc_edgelog(blog_shift);
+    }
     
     if (_persist) {
         g->file_open(true);

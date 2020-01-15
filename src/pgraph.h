@@ -296,7 +296,7 @@ status_t pgraph_t<T>::write_edgelog()
     if (w_count == 0) return eNoWork;
 
     edgeT_t<T> edge;
-    for(index_t i = w_tail; i < w_marker; ++ i) {
+    for(index_t i = w_tail; i < w_marker; ++i) {
         read_edge(blog, i, edge); 
     }
     

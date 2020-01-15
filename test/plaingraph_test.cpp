@@ -9,51 +9,6 @@
 
 using namespace std;
 
-// Credits to :
-// http://www.memoryhole.net/kyle/2012/06/a_use_for_volatile_in_multithr.html
-float qthread_dincr(float *operand, float incr)
-{
-    //*operand = *operand + incr;
-    //return incr;
-    
-    union {
-       rank_t   d;
-       uint32_t i;
-    } oldval, newval, retval;
-    do {
-         oldval.d = *(volatile rank_t *)operand;
-         newval.d = oldval.d + incr;
-         //__asm__ __volatile__ ("lock; cmpxchgq %1, (%2)"
-         __asm__ __volatile__ ("lock; cmpxchg %1, (%2)"
-                                : "=a" (retval.i)
-                                : "r" (newval.i), "r" (operand),
-                                 "0" (oldval.i)
-                                : "memory");
-    } while (retval.i != oldval.i);
-    return oldval.d;
-}
-
-double qthread_doubleincr(double *operand, double incr)
-{
-    //*operand = *operand + incr;
-    //return incr;
-    
-    union {
-       double   d;
-       uint64_t i;
-    } oldval, newval, retval;
-    do {
-         oldval.d = *(volatile double *)operand;
-         newval.d = oldval.d + incr;
-         //__asm__ __volatile__ ("lock; cmpxchgq %1, (%2)"
-         __asm__ __volatile__ ("lock; cmpxchg %1, (%2)"
-                                : "=a" (retval.i)
-                                : "r" (newval.i), "r" (operand),
-                                 "0" (oldval.i)
-                                : "memory");
-    } while (retval.i != oldval.i);
-    return oldval.d;
-}
 
 struct estimate_t {
     degree_t durable_degree;
@@ -1013,6 +968,18 @@ void test_mix(const string& idir, const string& odir)
 }
 
 template <class T>
+void test_del(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    manager.prep_graph_del(idir, odir);
+    manager.run_bfs();
+}
+
+template <class T>
 void remove_dup(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
@@ -1488,7 +1455,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         case 40:
             test_stream_wcc(idir, odir);
             break;
-
+        case 46:
+            test_del<dst_id_t>(idir, odir);
+            break;
         case 47:
             remove_dup<dst_id_t>(idir, odir);
             break;
