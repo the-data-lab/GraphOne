@@ -62,9 +62,9 @@ class blog_t {
     blog_reader_t<T>* reader[VIEW_COUNT];
 
     //Make edge durable from this point
-    index_t     blog_wtail;
+    //index_t     blog_wtail;
     //Make edge durable upto this point
-    index_t     blog_wmarker;
+    //index_t     blog_wmarker;
 
     blog_t() {
         blog_beg = 0;
@@ -73,8 +73,8 @@ class blog_t {
         blog_tail = 0;
         blog_marker = 0;
         blog_free = 0;
-        blog_wtail = 0;
-        blog_wmarker = 0;
+        //blog_wtail = 0;
+        //blog_wmarker = 0;
         
         memset(reader, 0, VIEW_COUNT*sizeof(blog_reader_t<T>*));
     }
@@ -130,8 +130,8 @@ class blog_t {
         blog_head = global_snapshot->marker;
         blog_tail = global_snapshot->marker;
         blog_marker = global_snapshot->marker;
-        blog_wtail = global_snapshot->durable_marker;
-        blog_wmarker = global_snapshot->durable_marker; 
+        //blog_wtail = global_snapshot->durable_marker;
+        //blog_wmarker = global_snapshot->durable_marker; 
     }
 
     inline void free_blog() {

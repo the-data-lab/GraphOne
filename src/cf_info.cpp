@@ -117,7 +117,7 @@ void cfinfo_t::create_wthread()
     if (egraph != gtype) {
         return;
     }
-
+    reg_edgelog();
     if (0 != pthread_create(&w_thread, 0, cfinfo_t::w_func, (void*)this)) {
         assert(0);
     }
@@ -146,8 +146,8 @@ void* cfinfo_t::w_func(void* arg)
     cout << "enterting w_func" << endl; 
     
     cfinfo_t* ptr = (cfinfo_t*)(arg);
-    pthread_mutex_init(&ptr->w_mutex, 0);
-    pthread_cond_init(&ptr->w_condition, 0);
+    //pthread_mutex_init(&ptr->w_mutex, 0);
+    //pthread_cond_init(&ptr->w_condition, 0);
     
     do {
         ptr->write_edgelog();

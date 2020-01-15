@@ -29,6 +29,7 @@ class pgraph_t: public cfinfo_t {
         
         //circular edge log buffer
         blog_t<T>*  blog;
+        blog_reader_t<T> reader;
 
         //edge sharding unit
         edge_shard_t<T>* edge_shard;
@@ -53,7 +54,13 @@ class pgraph_t: public cfinfo_t {
     inline void alloc_edgelog(index_t blog_shift) {
         blog->alloc_edgelog(blog_shift);
     }
-    status_t write_edgelog(); 
+    status_t write_edgelog();
+
+    virtual void reg_edgelog() {
+        reader.blog = blog;
+        int reg_id = reader.blog->register_reader(&reader);
+        return;
+    }
     
     virtual status_t batch_update(const string& src, const string& dst, propid_t pid = 0) {
         edgeT_t<T> edge; 
@@ -291,7 +298,8 @@ template <class T>
 status_t pgraph_t<T>::write_edgelog() 
 {
     index_t w_marker = blog->blog_head;
-    index_t w_tail = blog->blog_wtail;
+    reader.marker = w_marker;
+    index_t w_tail = reader.tail;
     index_t w_count = w_marker - w_tail;
     if (w_count == 0) return eNoWork;
 
@@ -311,7 +319,7 @@ status_t pgraph_t<T>::write_edgelog()
         write(wtf, blog->blog_beg + actual_tail, sizeof(edgeT_t<T>)*(blog->blog_count - actual_tail));
         write(wtf, blog->blog_beg, sizeof(edgeT_t<T>)*actual_marker);
     }
-    blog->blog_wtail = w_marker;
+    reader.tail = w_marker;
 
     //Write the string weights if any
     this->mem.handle_write();
@@ -376,7 +384,7 @@ edgeT_t<T>* pgraph_t<T>::get_prior_edges(index_t start_offset, index_t end_offse
     index_t size = (end_offset - start_offset)*sizeof(edgeT_t<T>);
     index_t offset = start_offset*sizeof(edgeT_t<T>);
     //edgeT_t<T>* edges = (edgeT_t<T>*)malloc(size);
-    assert(end_offset <= blog->blog_wtail);
+    assert(end_offset <= reader.tail);
     index_t sz_read = pread(wtf, edges, size, offset);
     assert(size == sz_read);
     return edges;

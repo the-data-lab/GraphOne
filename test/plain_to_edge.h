@@ -579,7 +579,7 @@ void plaingraph_manager_t<T>::waitfor_archive_durable(double start)
             cout << "Make Graph Time = " << end - start << endl;
             done_making = true;
         }
-        if (blog->blog_wtail == blog->blog_head && !done_persisting) {
+        if (pgraph->reader.tail == blog->blog_head && !done_persisting) {
             end = mywtime();
             cout << "Durable Graph Time = " << end - start << endl;
             done_persisting = true;

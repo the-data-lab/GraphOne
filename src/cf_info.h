@@ -78,8 +78,8 @@ class cfinfo_t {
     bool            snap_create;
     
     pthread_t       w_thread;
-    pthread_mutex_t w_mutex;
-    pthread_cond_t  w_condition;
+    //pthread_mutex_t w_mutex;
+    //pthread_cond_t  w_condition;
     int          wtf;   //edge log file
     
     string       snapfile;
@@ -94,6 +94,7 @@ class cfinfo_t {
     
     void create_wthread();
     static void* w_func(void* arg);
+    virtual void reg_edgelog() {assert(0);}
     void create_snapthread(bool a_snap_create);
     static void* snap_func(void* arg);
     
