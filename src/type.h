@@ -396,13 +396,11 @@ class snapshot_t {
     snapid_t snap_id;
     std::atomic<int> ref_count;
     index_t marker;
-    index_t durable_marker;
 
     snapshot_t() {
         snap_id = 0;
         ref_count = 1;
         marker = 0;
-        durable_marker = 0;
     }
     inline snapshot_t* take_ref() {
         ++ref_count;
@@ -426,7 +424,6 @@ class disk_snapshot_t {
  public:
     snapid_t snap_id;
     index_t  marker;
-    index_t  durable_marker;
 };
 
 

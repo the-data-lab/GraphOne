@@ -98,16 +98,7 @@ cfinfo_t::cfinfo_t(gtype_t type/* = evlabel*/)
     col_info = 0;
     col_count = 0;
     
-    q_count = 512;
-    q_beg = (index_t*)calloc(q_count, sizeof(index_t));
-    if (0 == q_beg) {
-        perror("posix memalign batch edge log");
-    }
-    q_head = 0;
-    q_tail = 0;
-    
     snap_thread = 0;
-
     snap_f = 0;
     wtf = 0;
 }
@@ -123,31 +114,11 @@ void cfinfo_t::create_wthread()
     }
 }
 
-//void* cfinfo_t::w_func(void* arg)
-//{
-//    cout << "enterting w_func" << endl; 
-//    cfinfo_t* ptr = (cfinfo_t*)(arg);
-//    pthread_mutex_init(&ptr->w_mutex, 0);
-//    pthread_cond_init(&ptr->w_condition, 0);
-//    
-//    do {
-//        pthread_mutex_lock(&ptr->w_mutex);
-//        pthread_cond_wait(&ptr->w_condition, &ptr->w_mutex);
-//        pthread_mutex_unlock(&ptr->w_mutex);
-//        ptr->write_edgelog();
-//        cout << "Writing w_thd" << endl;
-//    } while(1);
-//
-//    return 0;
-//}
-
 void* cfinfo_t::w_func(void* arg)
 {
     cout << "enterting w_func" << endl; 
     
     cfinfo_t* ptr = (cfinfo_t*)(arg);
-    //pthread_mutex_init(&ptr->w_mutex, 0);
-    //pthread_cond_init(&ptr->w_condition, 0);
     
     do {
         ptr->write_edgelog();
@@ -164,8 +135,6 @@ void cfinfo_t::create_snapthread(bool snap_thd)
         return;
     }
     snap_create = snap_thd; 
-    //pthread_mutex_init(&snap_mutex, 0);
-    //pthread_cond_init(&snap_condition, 0);
 
     if (snap_create) {
     if (0 != pthread_create(&snap_thread, 0, cfinfo_t::snap_func, (void*)this)) {
@@ -181,38 +150,17 @@ void* cfinfo_t::snap_func(void* arg)
     do {
         ptr->create_marker(0);
     } while (eEndBatch != ptr->create_snapshot());
-    /*
-    do {
-        struct timespec ts;
-        int rc = clock_gettime(CLOCK_REALTIME, &ts);
-
-        //ts.tv_sec = tp.tv_sec;
-        //ts.tv_nsec = tp.tv_usec * 1000;
-        ts.tv_nsec += 10 * 1000000;  //30 is my milliseconds
-        pthread_mutex_lock(&ptr->snap_mutex);
-        pthread_cond_timedwait(&ptr->snap_condition, &ptr->snap_mutex, &ts);
-        pthread_mutex_unlock(&ptr->snap_mutex);
-        while (eOK == ptr->create_snapshot());
-    } while(1);
-    */
 
     return 0;
 }
 
 status_t cfinfo_t::create_snapshot()
 {
-    index_t snap_marker = 0;
-    //create_marker(0);
-    if (eOK == move_marker(snap_marker)) {
-        make_graph_baseline();
-        update_marker();
-        new_snapshot(snap_marker);
-        return eOK;
-    }
-    return eNoWork;
+    assert(0);
+    return eOK;
 }
 
-void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 */)
+void cfinfo_t::new_snapshot(index_t snap_marker)
 {
     snapshot_t* next = new snapshot_t;
     snapshot_t* last = 0;
@@ -220,14 +168,8 @@ void cfinfo_t::new_snapshot(index_t snap_marker, index_t durable_marker /* = 0 *
     if (!list_empty(&snapshot)) {
         last = (snapshot_t*)snapshot.next;
         next->snap_id = last->snap_id + 1;
-        if (durable_marker == 0) {
-            next->durable_marker = last->durable_marker;
-        } else {
-            next->durable_marker = durable_marker;
-        }
     } else {
         next->snap_id = 1;//snapshot starts at 1
-        next->durable_marker = 0;
     }
 
     next->marker = snap_marker;
@@ -261,7 +203,6 @@ void cfinfo_t::read_snapshot()
     next = new snapshot_t;
     next->snap_id = disk_snapshot[count-1].snap_id;
     next->marker = disk_snapshot[count-1].marker;
-    next->durable_marker = disk_snapshot[count-1].durable_marker;
     list_add(&next->list, &snapshot);
 }
 
@@ -271,7 +212,6 @@ void cfinfo_t::write_snapshot()
     snapshot_t* last = get_snapshot();
     disk_snapshot->snap_id= last->snap_id;
     disk_snapshot->marker = last->marker;
-    disk_snapshot->durable_marker = last->durable_marker;
     fwrite(disk_snapshot, sizeof(disk_snapshot_t), 1, snap_f);
     last->drop_ref();
 }
@@ -315,11 +255,6 @@ void cfinfo_t::prep_graph_baseline(egraph_t egraph_type)
 void cfinfo_t::make_graph_baseline()
 {
     assert(0);
-}
-    
-status_t cfinfo_t::move_marker(index_t& snap_marker)
-{
-   return eNoWork;
 }
 
 status_t cfinfo_t::write_edgelog()

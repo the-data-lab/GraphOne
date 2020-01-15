@@ -65,28 +65,17 @@ class cfinfo_t {
     uint8_t     flag1_count;
     uint8_t     flag2_count;
         
-    //queue
-    index_t*   q_beg;
-    index_t    q_count;
-    index_t    q_head;
-    index_t    q_tail;
-    
     //threads
-    pthread_t       snap_thread;
-    pthread_mutex_t snap_mutex;
-    pthread_cond_t  snap_condition;
-    bool            snap_create;
+    pthread_t   snap_thread;
+    bool        snap_create;
     
-    pthread_t       w_thread;
-    //pthread_mutex_t w_mutex;
-    //pthread_cond_t  w_condition;
-    int          wtf;   //edge log file
+    pthread_t   w_thread;
+    int         wtf;   //edge log file
     
-    string       snapfile;
-    FILE*        snap_f;
+    string     snapfile;
+    FILE*      snap_f;
    
    private:
-    //snapshot_t*  snapshot;
     list_head  snapshot;
 
  public: 
@@ -109,7 +98,7 @@ class cfinfo_t {
     void read_snapshot();
     void write_snapshot();
     
-    void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
+    void new_snapshot(index_t snap_marker);
 
  public:
     void create_columns(propid_t prop_count);
@@ -125,7 +114,6 @@ class cfinfo_t {
     
     virtual index_t create_marker(index_t marker) {return marker;};    
     virtual index_t update_marker() {return 0;};    
-    virtual status_t move_marker(index_t& snap_marker);
     virtual void prep_graph_baseline(egraph_t egraph_type=eADJ);
     virtual void waitfor_archive(index_t marker = 0);
     virtual void make_graph_baseline();

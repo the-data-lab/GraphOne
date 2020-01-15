@@ -210,16 +210,6 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
         }
     }
     
-    /*
-    index += count;
-    index_t size = ((index - blog->blog_marker) & BATCH_MASK);
-    
-    //inform archive thread about threshold being crossed
-    if ((0 == size) && (index != blog->blog_marker)) {
-        create_marker(index);
-        //cout << "Will create a snapshot now " << endl;
-        ret = eEndBatch;
-    }*/
     return ret; 
 }
     
@@ -236,41 +226,7 @@ index_t pgraph_t<T>::create_marker(index_t marker)
     } 
     blog->blog_marker = snap_marker;
     return snap_marker;
-    
-    /*
-    pthread_mutex_lock(&snap_mutex);
-    index_t m_index = __sync_fetch_and_add(&q_head, 1L);
-    q_beg[m_index % q_count] = marker;
-    pthread_cond_signal(&snap_condition);
-    pthread_mutex_unlock(&snap_mutex);
-    //cout << "Marker queued. position = " << m_index % q_count << " " << marker << endl;
-    */
 } 
-    
-//called from snap thread 
-template <class T>
-status_t pgraph_t<T>::move_marker(index_t& snap_marker) 
-{
-    assert(0);
-    pthread_mutex_lock(&snap_mutex);
-    index_t head = q_head;
-    //Need to read marker and set the blog_marker;
-    if (q_tail == head) {
-        pthread_mutex_unlock(&snap_mutex);
-        //cout << "Marker NO dequeue. Position = " << head <<  endl;
-        return eNoWork;
-    }
-    
-    index_t m_index = head - 1;
-    index_t marker = q_beg[m_index % q_count];
-    q_tail = head;
-    blog->blog_marker = marker;
-    snap_marker = blog->blog_marker;
-    
-    pthread_mutex_unlock(&snap_mutex);
-    //cout << "Marker dequeue. Position = " << m_index % q_count << " " << marker << endl;
-    return eOK;
-}
 
 template <class T> 
 status_t pgraph_t<T>::create_snapshot()
@@ -311,8 +267,6 @@ status_t pgraph_t<T>::write_edgelog()
     index_t actual_tail = w_tail & blog->blog_mask;
     index_t actual_marker = w_marker & blog->blog_mask;
     if (actual_tail < actual_marker) {
-        //write and update tail
-        //fwrite(blog->blog_beg + w_tail, sizeof(edgeT_t<T>), w_count, wtf);
         write(wtf, blog->blog_beg + actual_tail, sizeof(edgeT_t<T>)*w_count);
     }
     else {
