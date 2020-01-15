@@ -178,18 +178,19 @@ protected:
                 prev_compaction_marker = compaction_marker;
                 #ifdef DEL
                 sdegree = get_degree(vid, snap_id1);
-                #elif defined(WINDOW)
-                //can't fetch on window case. You know why.
-                sdegree = 0;
-                //return 0;
                 #endif
+                //read value is fine in window case.
             }
         }
         #ifdef DEL
         if (snap_id1 == 0 && snap_id > 2) { // no readers
             //assert(0);
             snap_id1 = snap_id - 1;
-	        sdegree = get_degree(vid, snap_id-1);
+            #ifdef COMPACTION
+            sdegree = get_degree(vid, snap_id-1);//auto
+            #else
+            sdegree = get_degree(vid, snap_id);//manual
+            #endif
         }
         #endif
         degree = sdegree;

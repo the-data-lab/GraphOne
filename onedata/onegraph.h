@@ -124,14 +124,16 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
 		curr = next;
 	
 	}
-#ifdef DEL
-    if (((curr->degree.del_count >= MAX_DEL_DEGREE) 
-        || (curr->degree.del_count + count) < count)) {
+#ifdef COMPACTION 
+    if ((curr->degree.del_count >= MAX_DEL_DEGREE) 
+       ||((curr->degree.del_count == curr->degree.add_count) 
+           && curr->degree.del_count > 16)) {
         compress_nebrs(vid);
     }
 	curr->degree.del_count += count;
     assert(curr->degree.del_count >= count);
-#else
+#endif
+#if !defined(DEL)
 	assert(0);
 #endif
 }
@@ -299,7 +301,11 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
     if (c_snapid > v_unit->snap_id) {
 	    nebr_count = get_actual(sdegree);
         del_count = get_delcount(sdegree);
-	    sdegree_t sd = v_unit->get_degree(snap_id-1);
+        #ifdef COMPACTION
+	    sdegree_t sd = v_unit->get_degree(snap_id-1);//auto
+        #else
+	    sdegree_t sd = v_unit->get_degree(snap_id); //manual
+        #endif
         compressed_count = get_total(sd) - del_count - del_count; 
         //assert(0);
     } else {
