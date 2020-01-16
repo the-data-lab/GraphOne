@@ -3,9 +3,6 @@
 template <class T>
 struct diff_view_t : public sstream_t<T> {
     using sstream_t<T>::pgraph;
-    using sstream_t<T>::sstream_func;
-    using sstream_t<T>::thread;
-    using sstream_t<T>::algo_meta;
     using sstream_t<T>::v_count;
     using sstream_t<T>::flag;
     using sstream_t<T>::graph_out;
@@ -25,10 +22,6 @@ struct diff_view_t : public sstream_t<T> {
     //beginning of the the window
     using sstream_t<T>::degree_out;
     using sstream_t<T>::degree_in;
-    
-    //handling stale, simple private etc.
-    using sstream_t<T>::edges;
-    using sstream_t<T>::edge_count;
 
  public:   
     inline diff_view_t() {
@@ -78,9 +71,6 @@ struct diff_view_t : public sstream_t<T> {
  private:
     void update_degreesnap();
     void update_degreesnapd();
-    void handle_flagu();
-    void handle_flagd();
-    void handle_flaguni();
 };
 
 template <class T>
@@ -109,24 +99,7 @@ status_t diff_view_t<T>::update_view()
     index_t snap_marker = snapshot->marker;
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
     
-    //for stale
-    if (IS_PRIVATE(flag)) {
-        edge_count = marker - snap_marker;
-        edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
-        
-        //copy the edges
-        reader.marker = marker;
-        reader.tail = snap_marker;
-        for (index_t i = reader.tail; i < reader.marker; ++i) {
-            read_edge(reader.blog, i, edges[i-reader.tail]);
-        }
-        reader.marker = -1L;
-        reader.tail = -1L;
-    } else if (!IS_STALE(flag)) {
-        reader.marker = marker;
-        reader.tail = snap_marker;
-    }
-    
+    this->handle_visibility(marker, snap_marker);
     #pragma omp parallel num_threads(THD_COUNT)
     {
         if (graph_in == graph_out || graph_in == 0) {
@@ -135,11 +108,11 @@ status_t diff_view_t<T>::update_view()
             update_degreesnapd();
         }
         if (graph_in != graph_out && graph_in != 0) {
-            handle_flagd();
+           this->handle_flagd(wdegree_out, wdegree_in);
         } else if (graph_in == graph_out) {
-            handle_flagu();
+            this->handle_flagu(wdegree_out, bitmap_out);
         } else {
-            handle_flaguni();
+            this->handle_flaguni(wdegree_out, bitmap_out);
         }
     }
 
@@ -260,176 +233,4 @@ template<class T>
 degree_t diff_view_t<T>::get_nebrs_in(vid_t v, T* adj_list)
 {
     return graph_in->get_nebrs(v, adj_list, wdegree_in[v], reader_id);
-}
-
-
-template <class T>
-void diff_view_t<T>::handle_flagu()
-{
-    sid_t src, dst;
-    edgeT_t<T> edge;
-    vid_t src_vid, dst_vid;
-    bool is_del = false;
-    bool is_private = IS_PRIVATE(flag);
-    bool is_simple = IS_SIMPLE(flag);
-    if (true == is_simple && true == is_private) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            src_vid = TO_VID(get_src(edges[i]));
-            dst_vid = TO_VID(get_dst(edges[i]));
-            //set the bitmap
-            bitmap_out->set_bit_atomic(src_vid);
-            bitmap_out->set_bit_atomic(dst_vid);
-
-            is_del = IS_DEL(get_src(edges[i]));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            __sync_fetch_and_add(&wdegree_out[dst_vid].del_count, 1);
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].add_count, 1);
-            __sync_fetch_and_add(&wdegree_out[dst_vid].add_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            __sync_fetch_and_add(&wdegree_out+dst_vid, 1);
-            }
-#endif
-        }
-    } else if (true == is_simple) {
-        for (index_t i = reader.tail; i < reader.marker; ++i) {
-            read_edge(reader.blog, i, edge);
-            src_vid = TO_VID(get_src(edge));
-            dst_vid = TO_VID(get_dst(edge));
-            //set the bitmap
-            bitmap_out->set_bit_atomic(src_vid);
-            bitmap_out->set_bit_atomic(dst_vid);
-
-            is_del = IS_DEL(get_src(edge));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            __sync_fetch_and_add(&wdegree_out[dst_vid].del_count, 1);
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].add_count, 1);
-            __sync_fetch_and_add(&wdegree_out[dst_vid].add_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            __sync_fetch_and_add(&wdegree_out+dst_vid, 1);
-            }
-#endif
-        }
-    }
-}
-
-template <class T>
-void diff_view_t<T>::handle_flagd()
-{
-    vid_t src_vid, dst_vid;
-    edgeT_t<T> edge;
-    bool is_del = false;
-    bool is_private = IS_PRIVATE(flag);
-    bool is_simple = IS_SIMPLE(flag);
-    if (true == is_simple && true == is_private) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            src_vid = TO_VID(get_src(edges[i]));
-            dst_vid = TO_VID(get_dst(edges[i]));
-            bitmap_out->set_bit_atomic(src_vid);
-            bitmap_in->set_bit_atomic(dst_vid);
-            is_del = IS_DEL(get_src(edges[i]));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            __sync_fetch_and_add(&wdegree_in[dst_vid].del_count, 1);
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].add_count, 1);
-            __sync_fetch_and_add(&wdegree_in[dst_vid].add_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            __sync_fetch_and_add(&wdegree_in+dst_vid, 1);
-            }
-#endif
-        }
-    } else if (true == is_simple) {
-        for (index_t i = reader.tail; i < reader.marker; ++i) {
-            read_edge(reader.blog, i, edge);
-            src_vid = TO_VID(get_src(edge));
-            dst_vid = TO_VID(get_dst(edge));
-            bitmap_out->set_bit_atomic(src_vid);
-            bitmap_in->set_bit_atomic(dst_vid);
-            is_del = IS_DEL(get_src(edge));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            __sync_fetch_and_add(&wdegree_in[dst_vid].del_count, 1);
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].add_count, 1);
-            __sync_fetch_and_add(&wdegree_in[dst_vid].add_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            __sync_fetch_and_add(&wdegree_in+dst_vid, 1);
-            }
-#endif
-        }
-    }
-}
-
-template <class T>
-void diff_view_t<T>::handle_flaguni()
-{
-    vid_t src_vid, dst_vid;
-    edgeT_t<T> edge;
-    bool is_del = false;
-    bool is_private = IS_PRIVATE(flag);
-    bool is_simple = IS_SIMPLE(flag);
-    if (true == is_simple && true == is_private) {
-        #pragma omp for
-        for (index_t i = 0; i < edge_count; ++i) {
-            src_vid = TO_VID(get_src(edges[i]));
-            dst_vid = TO_VID(get_dst(edges[i]));
-            bitmap_out->set_bit_atomic(src_vid);
-            is_del = IS_DEL(get_src(edges[i]));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            }
-#endif
-        }
-    } else if (true == is_simple) {
-        //
-        #pragma omp for
-        for (index_t i = reader.tail; i < reader.marker; ++i) {
-            read_edge(reader.blog, i, edge);
-            src_vid = TO_VID(get_src(edge));
-            dst_vid = TO_VID(get_dst(edge));
-            bitmap_out->set_bit_atomic(src_vid);
-            is_del = IS_DEL(get_src(edge));
-#ifdef DEL
-            if (is_del) {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            } else {
-            __sync_fetch_and_add(&wdegree_out[src_vid].del_count, 1);
-            }
-#else
-            if (is_del) {assert(0);
-            __sync_fetch_and_add(&wdegree_out+src_vid, 1);
-            }
-#endif
-        }
-    }
 }
