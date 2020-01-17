@@ -45,8 +45,8 @@ class blog_t {
  public:
     edgeT_t<T>* blog_beg;
     //In memory size
-    index_t         blog_count;
-    index_t         blog_shift;
+    index_t     blog_count;
+    index_t     blog_shift;
     //MASK
     index_t     blog_mask;
 
@@ -101,20 +101,21 @@ class blog_t {
     }
 
     inline index_t batch_edge(edgeT_t<T>& edge) {
-        
         index_t index = __sync_fetch_and_add(&blog_head, 1L);
         bool rewind = !((index >> blog_shift) & 0x1);
 
         while (index + 1 - blog_free > blog_count) {
             //cout << "Sleeping for edge log" << endl;
             //assert(0);
-            usleep(10);
+            usleep(100);
         }
         
         index_t index1 = (index & blog_mask);
         blog_beg[index1] = edge;
         if (rewind) {
             set_dst(blog_beg[index1], DEL_SID(get_dst(edge)));
+        } else {
+            set_dst(blog_beg[index1], TO_SID(get_dst(edge)));
         }
         return index;
     }
