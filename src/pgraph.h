@@ -198,7 +198,7 @@ status_t pgraph_t<T>::batch_edges(tmp_blog_t<T>* tmp)
     while (index + count - blog->blog_free > blog->blog_count) {
         //cout << "Sleeping for edge log" << endl;
         //assert(0);
-        usleep(10);
+        usleep(100);
     }
     
     index_t index1;
@@ -223,6 +223,9 @@ index_t pgraph_t<T>::create_marker(index_t marker)
             usleep(1000);//One time sleep
         }
         snap_marker = blog->blog_head;
+        if (snap_marker - blog->blog_free >= blog->blog_count) {
+            snap_marker = blog->blog_free + blog->blog_count - 1;
+        }
     } 
     blog->blog_marker = snap_marker;
     return snap_marker;

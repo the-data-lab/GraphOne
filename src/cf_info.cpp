@@ -16,7 +16,7 @@ index_t  BATCH_SIZE = (1L << 16);//edge batching in edge log
 index_t  BATCH_MASK =  0xFFFF;
 
 //In-memory data structure size
-index_t  BLOG_SHIFT = 27;
+index_t  BLOG_SHIFT = 24;
 //index_t  BLOG_SIZE = (1L << BLOG_SHIFT); //size of edge log
 //index_t  BLOG_MASK = (BLOG_SIZE - 1);
 

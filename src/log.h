@@ -102,20 +102,13 @@ class blog_t {
 
     inline index_t batch_edge(edgeT_t<T>& edge) {
         
-        //Check if we are overwritting the unarchived data, if so sleep
-        while (blog_head  + 1 - blog_free > blog_count) {
-            //cout << "Sleeping for edge log" << endl;
-            //assert(0);
-            usleep(10);
-        }
-        
         index_t index = __sync_fetch_and_add(&blog_head, 1L);
         bool rewind = !((index >> blog_shift) & 0x1);
 
         while (index + 1 - blog_free > blog_count) {
             //cout << "Sleeping for edge log" << endl;
-            assert(0);
-            //usleep(10);
+            //assert(0);
+            usleep(10);
         }
         
         index_t index1 = (index & blog_mask);

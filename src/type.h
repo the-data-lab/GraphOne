@@ -55,7 +55,7 @@ typedef uint16_t vflag_t;
 
 
 #define HUB_COUNT  8192
-#define MAX_DEL_DEGREE 500
+#define MAX_DEL_DEGREE 128 
 
 #ifndef PLAIN_GRAPH 
 #ifdef B64
