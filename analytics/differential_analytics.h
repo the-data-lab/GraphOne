@@ -23,7 +23,7 @@ void diff_streambfs(gview_t<T>* view)
     vid_t v_count = viewh->get_vcount();
     init_bfs(viewh);
 
-
+    
     while (viewh->get_snapmarker() < _edge_count) {
         if (eOK != viewh->update_view()) {
             usleep(100);
@@ -64,7 +64,7 @@ void do_diffbfs(sstream_t<T>* viewh)
 
         #pragma omp for 
         for (vid_t v = 0; v < v_count; v++) {
-            if(false == viewh->has_vertex_changed_out(v) || status[v] < level ) continue;
+            if(false == viewh->has_vertex_changed_in(v) || status[v] < level ) continue;
             
             backup_level = status[v];
             new_level =  255;
@@ -72,38 +72,41 @@ void do_diffbfs(sstream_t<T>* viewh)
             //handle the in-edges
             nebr_count = viewh->get_degree_in(v);
             if (nebr_count == 0) {
-                viewh->reset_vertex_changed_out(v);
+                viewh->reset_vertex_changed_in(v);
+                if(status[v] == 255) { continue; }
                 status[v] = 255;
-                goto label;
-            }
-            if (nebr_count > prior_sz) {
-                prior_sz = nebr_count;
-                free(local_adjlist);
-                local_adjlist = (T*)malloc(prior_sz*sizeof(T));
-            }
-
-            viewh->get_nebrs_in(v, local_adjlist);
-
-            for (degree_t i = 0; i < nebr_count; ++i) {
-                sid = get_sid(local_adjlist[i]);
-                new_level = min(new_level, status[sid]);
-            }
-
-            if (new_level == level - 1 && backup_level > level) {//upgrade case
-                status[v] = level;
-                viewh->reset_vertex_changed_out(v);
-                ++frontier;
-            } else if (new_level > level - 1  &&  backup_level == level) { //infinity case
-                status[v] = 255;
-                //viewh->reset_vertex_changed_out(v);
-                ++frontier;
-            } else if (backup_level > level && backup_level != 255) {
-                ++frontier;
-                continue;
             } else {
-                continue;
+                if (nebr_count > prior_sz) {
+                    prior_sz = nebr_count;
+                    free(local_adjlist);
+                    local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+                }
+
+                viewh->get_nebrs_in(v, local_adjlist);
+
+                for (degree_t i = 0; i < nebr_count; ++i) {
+                    sid = get_sid(local_adjlist[i]);
+                    new_level = min(new_level, status[sid]);
+                    if (new_level == level - 1) break;
+                }
+
+                if (new_level == level - 1 && backup_level > level) {//upgrade case
+                    status[v] = level;
+                    viewh->reset_vertex_changed_in(v);
+                    ++frontier;
+                } else if (new_level > level - 1  &&  backup_level == level) { //infinity case
+                    status[v] = 255;
+                    //viewh->reset_vertex_changed_out(v);
+                    ++frontier;
+                } else if ((backup_level > level && backup_level != 255) || 
+                           (new_level > level - 1 && new_level != 255)) {
+                    ++frontier;
+                    continue;
+                } else {
+                    continue;
+                }
             }
-label:
+            //handle out-edges
             nebr_count = viewh->get_degree_out(v);
             if (nebr_count == 0) {
                 continue;
@@ -118,7 +121,7 @@ label:
             for (degree_t i = 0; i < nebr_count; ++i) {
                 sid = get_sid(local_adjlist[i]);
                 if (status[sid] > level) { 
-                    viewh->set_vertex_changed_out(sid);
+                    viewh->set_vertex_changed_in(sid);
                 }
             }
         }

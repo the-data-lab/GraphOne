@@ -79,6 +79,8 @@ class sstream_t : public snap_t<T> {
     
     inline void set_vertex_changed_out(vid_t v) {bitmap_out->set_bit_atomic(v);;}
     inline void reset_vertex_changed_out(vid_t v) {bitmap_out->reset_bit(v);;}
+    inline void set_vertex_changed_in(vid_t v) {bitmap_in->set_bit_atomic(v);;}
+    inline void reset_vertex_changed_in(vid_t v) {bitmap_in->reset_bit(v);;}
 };
 
 template <class T>
