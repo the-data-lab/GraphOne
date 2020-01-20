@@ -22,6 +22,7 @@ void diff_streambfs(gview_t<T>* view)
    
     vid_t v_count = viewh->get_vcount();
     init_bfs(viewh);
+    uint8_t max_level = 1;//root is already set
 
     //sleep(8);
 
@@ -30,16 +31,17 @@ void diff_streambfs(gview_t<T>* view)
             usleep(100);
             continue;
         }
-        do_diffbfs(viewh);
+        max_level = do_diffbfs(viewh, max_level);
         ++update_count;
     }
     print_bfs(viewh);
-    cout << " update_count = " << update_count 
+    cout << " update_count = " << update_count
+         << " max_level = " << (int)max_level
          << " snapshot count = " << viewh->get_snapid() << endl;
 }
 
 template <class T> 
-void do_diffbfs(diff_view_t<T>* viewh) 
+uint8_t do_diffbfs(diff_view_t<T>* viewh, uint8_t max_level) 
 {
     uint8_t* status = (uint8_t*)viewh->get_algometa();
     vid_t   v_count = viewh->get_vcount();
@@ -52,14 +54,13 @@ void do_diffbfs(diff_view_t<T>* viewh)
     double start = mywtime();
     do {
         frontier = 0;
-        //#pragma omp parallel num_threads (THD_COUNT) reduction(+:frontier)
+        #pragma omp parallel num_threads (THD_COUNT) reduction(+:frontier)
         {
             sid_t sid;
             sid_t vid;
             uint8_t backup_level = 0;
             uint8_t y = 0;
             uint8_t new_level = 255;
-            uint8_t next_level = 0;
 
             degree_t nebr_count = 0;
             degree_t diff_degree = 0;
@@ -67,13 +68,12 @@ void do_diffbfs(diff_view_t<T>* viewh)
             degree_t prior_sz = 65536;
             T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
 
-            //#pragma omp for 
+            #pragma omp for 
             for (vid_t v = 0; v < v_count; v++) {
                 if(false == viewh->has_vertex_changed_out(v)) continue;
                 backup_level = old_status[v];
                 new_level =  status[v];
                 y = new_level;
-                next_level = level + 1;
                 if (!(new_level == level || (backup_level <= level 
                       && (new_level == 255|| new_level == level+1)))) continue;
                 
@@ -99,11 +99,10 @@ void do_diffbfs(diff_view_t<T>* viewh)
                     if (new_level == level - 1) {
                         ++new_level;
                         status[v] = new_level;
-                        next_level = new_level + 1;
                     } else {
+                        //++frontier;
                         if (backup_level == level){
                             new_level = 255;
-                            next_level = 255;
                         } else {
                             continue;
                         }
@@ -125,7 +124,6 @@ void do_diffbfs(diff_view_t<T>* viewh)
                 if (new_level == backup_level) {
                     viewh->reset_vertex_changed_out(v);
                     assert(level == new_level);
-                    assert(next_level == level+1);
                     //send to delta
                     for (degree_t i = diff_degree; i < total_count; ++i) {
                         sid = get_sid(local_adjlist[i]);
@@ -232,9 +230,10 @@ void do_diffbfs(diff_view_t<T>* viewh)
             }
         }
         ++level;
-    } while (frontier != 0 || level < 20);
+    } while (frontier != 0 || level < max_level);
     double end = mywtime();
-    //cout << "time = " << end - start << endl;
+    cout << "time = " << end - start << endl;
+    return level;
 }
 
 template <class T> 
