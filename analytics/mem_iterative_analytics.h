@@ -1552,7 +1552,7 @@ void mem_bfs_snb(gview_t<T>* viewh,
 
 inline void print_bfs_summary(uint8_t* status, uint8_t level, vid_t v_count)
 {
-    for (int l = 1; l < level; ++l) {
+    for (int l = 0; l < level; ++l) {
         vid_t vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) {

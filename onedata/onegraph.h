@@ -130,9 +130,9 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
            && curr->degree.del_count > 16)) {
         compress_nebrs(vid);
     }
+#endif
 	curr->degree.del_count += count;
     assert(curr->degree.del_count >= count);
-#endif
 #if !defined(DEL)
 	assert(0);
 #endif
@@ -647,7 +647,7 @@ degree_t onegraph_t<T>::get_diff_nebrs(vid_t vid, T* ptr, sdegree_t start, sdegr
                     
                     sid = get_sid(local_adjlist[i]);
                     pos = TO_SID(sid);//older position
-                    if (!IS_DEL(sid) || pos >=delta_degree) continue;
+                    if (!IS_DEL(sid) || pos >=delta_degree1) continue;
 
                     dst = find_nebr_bypos(vid, pos);
                     assert(dst);

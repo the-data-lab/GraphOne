@@ -1438,7 +1438,8 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             multi_sstream<dst_id_t>(idir, odir, stream_pr, residue);
             break;
         case 34:
-            multi_diff<dst_id_t>(idir, odir, diff_stream_pr, residue);
+            multi_diff<dst_id_t>(idir, odir, diff_streambfs, residue);
+            //multi_diff<dst_id_t>(idir, odir, diff_stream_pr, residue);
             break;
         case 35:
             archive_sstream<dst_id_t>(idir, odir, stream_bfs, 1);

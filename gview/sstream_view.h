@@ -198,6 +198,8 @@ status_t sstream_t<T>::update_view_help(snapshot_t* new_snapshot)
     //wait for archiving to complete
     if (IS_SIMPLE(flag)) {
         pgraph->waitfor_archive(reader.marker);
+        reader.tail = -1;
+        reader.marker = -1;
     }
     
     return eOK;
