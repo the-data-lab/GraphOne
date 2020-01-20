@@ -95,17 +95,18 @@ void do_diffbfs(diff_view_t<T>* viewh)
                         new_level = min(new_level, status[sid]);
                         if (new_level == level - 1) break;
                     }
+                    assert(new_level >= level - 1);
                     if (new_level == level - 1) {
                         ++new_level;
                         status[v] = new_level;
                         next_level = new_level + 1;
-                    } else if (new_level < level - 1) {
-                        assert(0);
-                    } else if (backup_level == level){
-                        new_level = 255;
-                        next_level = 255;
                     } else {
-                        continue;
+                        if (backup_level == level){
+                            new_level = 255;
+                            next_level = 255;
+                        } else {
+                            continue;
+                        }
                     }
                 }
 
@@ -125,18 +126,13 @@ void do_diffbfs(diff_view_t<T>* viewh)
                     viewh->reset_vertex_changed_out(v);
                     assert(level == new_level);
                     assert(next_level == level+1);
-                    //assert(v == 1);
                     //send to delta
                     for (degree_t i = diff_degree; i < total_count; ++i) {
                         sid = get_sid(local_adjlist[i]);
                         vid = TO_SID(sid);
                         if (IS_DEL(sid)) {
                             if (status[vid] == level+1) {
-                                if (vid == 134139) {
                                 status[vid] = 255;
-                                } else {
-                                status[vid] = 255;
-                                }
                                 viewh->set_vertex_changed_out(vid);
                                 ++frontier;
                             }
@@ -220,7 +216,6 @@ void do_diffbfs(diff_view_t<T>* viewh)
                         sid = get_sid(local_adjlist[i]);
                         vid = TO_SID(sid);
                         if (IS_DEL(sid)) {
-                            //continue;
                             if (backup_level <= level) continue;
                             if (status[vid] == backup_level+1) {
                                 status[vid] = 255;
