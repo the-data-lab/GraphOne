@@ -131,9 +131,10 @@ void onegraph_t<T>::decrement_count_noatomic(vid_t vid, snapshot_t* snapshot, de
         compress_nebrs(vid);
     }
 #endif
+#ifdef DEL
 	curr->degree.del_count += count;
     assert(curr->degree.del_count >= count);
-#if !defined(DEL)
+#else
 	assert(0);
 #endif
 }
