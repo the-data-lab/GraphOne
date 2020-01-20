@@ -79,7 +79,6 @@ uint8_t do_diffbfs(diff_view_t<T>* viewh, uint8_t max_level)
                 
                 //Handle the in-edge traverse case
                 if (new_level == 255 || new_level == level + 1) {
-                    //assert(0);
                     //get the in-edges
                     nebr_count = viewh->get_degree_in(v);
                     if (nebr_count > prior_sz) {
@@ -109,6 +108,7 @@ uint8_t do_diffbfs(diff_view_t<T>* viewh, uint8_t max_level)
                     }
                 }
 
+                //get out-edges
                 nebr_count = viewh->get_diff_degree_out(v);
                 if (nebr_count == 0) {
                     continue;
@@ -228,11 +228,13 @@ uint8_t do_diffbfs(diff_view_t<T>* viewh, uint8_t max_level)
                     }
                 }
             }
+            free(local_adjlist);
         }
         ++level;
     } while (frontier != 0 || level < max_level);
     double end = mywtime();
     cout << "time = " << end - start << endl;
+    free(old_status);
     return level;
 }
 
