@@ -208,7 +208,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
     
     if (!IS_STALE(flag)) {
         reader.blog = pgraph->blog;
-        reader_id = reader.blog->register_reader(&reader);
+        reg_id = reader.blog->register_reader(&reader);
     }
     graph_out = ugraph->sgraph_out[0];
     degree_out = (sdegree_t*) calloc(v_count, sizeof(sdegree_t));
@@ -227,6 +227,7 @@ void snap_t<T>::init_view(pgraph_t<T>* ugraph, index_t a_flag)
 template <class T>
 void snap_t<T>::handle_visibility(index_t marker, index_t snap_marker)
 {
+    this->update_marker = marker;
     if (IS_PRIVATE(flag)) {
         edge_count = marker - snap_marker;
         edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
@@ -242,6 +243,8 @@ void snap_t<T>::handle_visibility(index_t marker, index_t snap_marker)
     } else if (!IS_STALE(flag)) {
         reader.marker = marker;
         reader.tail = snap_marker;
+    } else {
+        this->update_marker = snap_marker;
     }
 }
 
@@ -282,6 +285,8 @@ status_t snap_t<T>::update_view()
     //wait for archiving to complete
     if (IS_SIMPLE(flag)) {
         pgraph->waitfor_archive(reader.marker);
+        reader.tail = -1;
+        reader.marker = -1;
     }
     return eOK;
 }

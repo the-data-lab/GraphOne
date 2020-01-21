@@ -9,6 +9,7 @@ class gview_t {
     pgraph_t<T>*    pgraph; 
     snapshot_t*     snapshot;
     snapshot_t*     prev_snapshot;
+    index_t         update_marker;
     pthread_t       thread;
     void*           algo_meta;//algorithm specific data
     vid_t           v_count;
@@ -39,8 +40,7 @@ class gview_t {
     inline void   set_algometa(void* a_meta) {algo_meta = a_meta;}
     inline void*  get_algometa() {return algo_meta;}
     inline index_t get_snapmarker() {
-        if (snapshot) return snapshot->marker;
-        return 0;
+        return update_marker;
     }
     
     virtual index_t  get_compaction_marker() {
@@ -51,6 +51,7 @@ class gview_t {
         pgraph = 0;
         snapshot = 0;
         prev_snapshot = 0;
+        update_marker = 0;
         algo_meta = 0;
         v_count = 0;
         flag = 0;

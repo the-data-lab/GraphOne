@@ -14,7 +14,6 @@ class stream_t : public gview_t<T> {
         if (reg_id != -1) reader.blog->unregister_reader(reg_id);
     }
     inline edgeT_t<T>* get_edges() { return reader.blog->blog_beg;}
-    inline index_t     get_snapmarker() {return reader.marker;}
     inline void        update_view_done() { reader.tail = reader.marker;}
  public:   
     status_t update_view();
@@ -43,6 +42,7 @@ status_t stream_t<T>::update_view()
         //XXX need to copy it
         reader.tail = reader.marker;
         reader.marker = marker;
+        this->update_marker = marker;
 
         return eOK;
     }
