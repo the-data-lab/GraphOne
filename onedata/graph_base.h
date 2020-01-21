@@ -177,9 +177,9 @@ protected:
                 if (compaction_marker < prev_compaction_marker) continue;
                 prev_compaction_marker = compaction_marker;
                 #ifdef DEL
-                sdegree = get_degree(vid, snap_id1);
+                //sdegree = get_degree(vid, snap_id1);
                 #endif
-                //read value is fine in window case.
+                //read value is fine in window/delete case.
             }
         }
         #ifdef DEL
