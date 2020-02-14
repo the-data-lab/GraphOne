@@ -62,7 +62,7 @@ class sstream_t : public snap_t<T> {
  protected:
     void update_degreesnap();
     void update_degreesnapd();
-    status_t update_view_help(snapshot_t* new_snapshot);
+    status_t update_view_help(snapshot_t* new_snapshot, index_t marker);
     void handle_flagu(sdegree_t* degree, Bitmap* bitmap);
     void handle_flagd(sdegree_t* out_degree, sdegree_t* in_degree);
     void handle_flaguni(sdegree_t* degree, Bitmap* bitmap);
@@ -154,20 +154,20 @@ status_t sstream_t<T>::update_view()
 {
     snapshot_t* new_snapshot = pgraph->get_snapshot();
     if (new_snapshot == 0|| (new_snapshot == prev_snapshot)) return eNoWork;
+    blog_t<T>* blog = pgraph->blog;
+    index_t  marker = blog->blog_head;
     
-    return update_view_help(new_snapshot);
+    return update_view_help(new_snapshot, marker);
 
 }
 
 template <class T>
-status_t sstream_t<T>::update_view_help(snapshot_t* new_snapshot)
+status_t sstream_t<T>::update_view_help(snapshot_t* new_snapshot, index_t marker)
 {
     blog_t<T>* blog = pgraph->blog;
-    index_t  marker = blog->blog_head;
 
     snapshot = new_snapshot;
 
-    if (snapshot == 0|| (snapshot == prev_snapshot)) return eNoWork;
     index_t old_marker = prev_snapshot? prev_snapshot->marker: 0;
     index_t snap_marker = snapshot->marker;
     

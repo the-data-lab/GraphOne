@@ -233,7 +233,7 @@ uint8_t do_diffbfs(diff_view_t<T>* viewh, uint8_t max_level)
         ++level;
     } while (frontier != 0 || level < max_level);
     double end = mywtime();
-    cout << "time = " << end - start << endl;
+    //cout << "time = " << end - start << endl;
     free(old_status);
     return level;
 }

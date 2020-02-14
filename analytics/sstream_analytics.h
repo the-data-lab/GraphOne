@@ -74,16 +74,18 @@ void print_bfs(gview_t<T>* viewh)
 {
     uint8_t* status = (uint8_t*)viewh->get_algometa();
     vid_t    v_count = viewh->get_vcount();
-    int level = 10;
+    int l = 0;
+    vid_t vid_count = 0;
 
-    for (int l = 0; l < 7; ++l) {
-        vid_t vid_count = 0;
+    do {
+        vid_count = 0;
         #pragma omp parallel for reduction (+:vid_count) 
         for (vid_t v = 0; v < v_count; ++v) {
             if (status[v] == l) ++vid_count;
         }
         cout << " Level = " << l << " count = " << vid_count << endl;
-    }
+        ++l;
+    } while(vid_count !=0);
 }
 
 template <class T>
