@@ -107,8 +107,8 @@ void estimate_chain(const string& idirname, const string& odirname)
     index_t total_chain = 0;
     int max_chain = 0;
     vid_t total_hub_vertex = 0;
-    //index_t batching_size = 65536;
-    index_t batching_size = marker;
+    index_t batching_size = (1 << residue); //65536;
+    //index_t batching_size = marker;
     
     for (index_t i = 0; i < marker; i +=batching_size) {
         last = min(i + batching_size, marker);

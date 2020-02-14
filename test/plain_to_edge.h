@@ -212,32 +212,17 @@ void* recovery_func(void* a_arg)
     pgraph_t<T>* ugraph = (pgraph_t<T>*)manager->get_plaingraph();
     blog_t<T>*     blog = ugraph->blog;
     
-    index_t to_read = 0;
-    index_t total_read = 0;
-    index_t batch_size = (1L << residue);
-    cout << "batch_size = " << batch_size << endl;
-        
-    FILE* file = fopen(filename.c_str(), "rb");
-    assert(file != 0);
     index_t size = fsize(filename);
     index_t edge_count = size/sizeof(edgeT_t<T>);
     
     //Lets set the edge log higher
     index_t new_count = upper_power_of_two(edge_count);
     ugraph->alloc_edgelog(new_count);
-    edgeT_t<T>*    edge = blog->blog_beg;
     cout << "edge_count = " << edge_count << endl;
-    cout << "new_count  = " << new_count << endl;
     
-    //XXX some changes require to be made if edge log size is finite.   
-    while (total_read < edge_count) {
-        to_read = min(edge_count - total_read,batch_size);
-        if (to_read != fread(edge + total_read, sizeof(edgeT_t<T>), to_read, file)) {
-            assert(0);
-        }
-        blog->blog_head += to_read;
-        total_read += to_read;
-    }
+    index_t edge_count2 = file_and_insert(filename, "", ugraph);
+    assert(edge_count == edge_count2); 
+    
     return 0;
 }
 
@@ -328,14 +313,20 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
     blog_t<T>*     blog = ugraph->blog;
     
+    if (1 != _source) {//only binary files
+        cout << "this testcase expect binary input file(s)" << endl << std::flush;
+        assert(0);
+    }
+
     free(blog->blog_beg);
     blog->blog_beg = 0;
-    blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
-    
-    //Upper align this, and create a mask for it
+    index_t total_size = alloc_mem_dir(idirname, (char**)&blog->blog_beg, true);
+    blog->blog_head = total_size/sizeof(edgeT_t<T>);
     index_t new_count = upper_power_of_two(blog->blog_head);
     blog->blog_mask = new_count -1;
     
+    read_idir_text(idirname, odirname, pgraph, file_and_insert);
+
     double start = mywtime();
     
     //Make Graph
@@ -358,14 +349,19 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     pgraph_t<T>* ugraph = (pgraph_t<T>*)get_plaingraph();
     blog_t<T>*     blog = ugraph->blog;
     
+    if (1 != _source) {//only binary files
+        cout << "this testcase expect binary input file(s)" << endl << std::flush;
+        assert(0);
+    }
+    
     free(blog->blog_beg);
     blog->blog_beg = 0;
-    blog->blog_head  += read_idir(idirname, &blog->blog_beg, false);
-    
-    //Upper align this, and create a mask for it
+    index_t total_size = alloc_mem_dir(idirname, (char**)&blog->blog_beg, true);
+    blog->blog_head = total_size/sizeof(edgeT_t<T>);
     index_t new_count = upper_power_of_two(blog->blog_head);
     blog->blog_mask = new_count -1;
-    cout << " total edge count" << new_count << endl;
+    
+    read_idir_text(idirname, odirname, pgraph, file_and_insert);
     
     double start = mywtime();
     
@@ -562,7 +558,7 @@ void plaingraph_manager_t<T>::run_bfs(sid_t root/*=1*/)
     pgraph_t<T>* pgraph1 = (pgraph_t<T>*)get_plaingraph();
     
     start = mywtime();
-    snap_t<T>* snaph = create_static_view(pgraph1, STALE_MASK|V_CENTRIC);
+    snap_t<T>* snaph = create_static_view(pgraph1, V_CENTRIC);
     end = mywtime();
     cout << "static View creation = " << end - start << endl;    
     

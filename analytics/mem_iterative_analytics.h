@@ -75,8 +75,8 @@ mem_hop1(gview_t<T>* snaph)
         if (0 == marker) continue;
         #pragma omp parallel for reduction(+:sum1) schedule(static)
         for (index_t j = 0; j < marker ; ++j) {
-            src = edges[j].src_id;
-            dst = get_sid(edges[j].dst_id);
+            src = TO_SID(edges[j].src_id);
+            dst = TO_SID(get_sid(edges[j].dst_id));
             if (src == v) {
                 sum1 += dst;
             }
@@ -447,8 +447,8 @@ void mem_hop2(gview_t<T>* snaph)
             vid_t* vlist = query[q].vlist;
             #pragma omp for schedule(static) nowait 
             for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges[i]);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges[i]));
                 if (src == v) {
                     d1 = __sync_fetch_and_add(&query[q].d, 1);
                     vlist[d1] = dst;
@@ -509,8 +509,8 @@ void mem_hop2(gview_t<T>* snaph)
         index_t marker = snaph->get_nonarchived_edges(edges);
         #pragma omp for reduction(+:sum1) schedule(static) nowait
         for (index_t i = 0; i < marker; ++i) {
-            src = edges[i].src_id;
-            dst = get_dst(edges[i]);
+            src = TO_SID(edges[i].src_id);
+            dst = TO_SID(get_dst(edges[i]));
             for (degree_t j = 0; j < d; ++j) {
                 v = vlist[j];
                 if (src == v) {
@@ -622,8 +622,8 @@ void mem_bfs_simple(gview_t<T>* snaph,
             
             #pragma omp for schedule (static)
             for (index_t i = 0; i < count; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges+i));
                 if (status[src] == 0 && status[dst] == level) {
                     status[src] = level + 1;
                     ++frontier;
@@ -669,7 +669,7 @@ void mem_bfs(gview_t<T>* snaph,
     sid_t           v_count    = snaph->get_vcount();
     
 	double start1 = mywtime();
-    if (snaph->get_degree_out(root) == 0) { root = 0;}
+    //if (snaph->get_degree_out(root) == 0) { root = 0;}
 	status[root] = level;
     
 	do {
@@ -755,10 +755,10 @@ void mem_bfs(gview_t<T>* snaph,
 
             #pragma omp for schedule (static)
             for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges+i));
                 if (status[src] == 0 && status[dst] == level) {
-                    status[src] = level + 1;
+                    status[src] = level + 1; 
                     ++frontier;
                     //cout << " " << src << endl;
                 } 
@@ -789,7 +789,7 @@ void mem_bfs(gview_t<T>* snaph,
 	} while (frontier);
 		
     double end1 = mywtime();
-    cout << "BFS Time = " << end1 - start1 << endl;
+    cout << "BFS root = "<< root << "Time = " << end1 - start1 << endl;
     print_bfs_summary(status, level, v_count);
 }
 
@@ -889,8 +889,8 @@ void mem_pagerank_push(gview_t<T>* snaph, int iteration_count)
             index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
             for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges+i));
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }
@@ -1018,8 +1018,8 @@ void mem_pagerank(gview_t<T>* snaph, int iteration_count)
             index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
             for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges+i));
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }
@@ -1144,8 +1144,8 @@ void mem_pagerank_simple(gview_t<T>* snaph, int iteration_count)
             index_t marker = snaph->get_nonarchived_edges(edges);
             #pragma omp for 
             for (index_t i = 0; i < marker; ++i) {
-                src = edges[i].src_id;
-                dst = get_dst(edges+i);
+                src = TO_SID(edges[i].src_id);
+                dst = TO_SID(get_dst(edges+i));
                 qthread_dincr(rank_array + src, prior_rank_array[dst]);
                 qthread_dincr(rank_array + dst, prior_rank_array[src]);
             }
