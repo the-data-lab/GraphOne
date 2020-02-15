@@ -1,7 +1,7 @@
 # GraphOne
 This repository is for following two papers:  
 **FAST'19 paper**: ["GraphOne: A Data Store for Real-time Analytics on Evolving Graphs"](https://www.usenix.org/system/files/fast19-kumar.pdf)  
-**ACM Transaction on Storage**: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs".  Discusses the concurrent anlaytics mechanism, and many new things and results. 
+**ACM Transaction on Storage'20**: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs".  Discusses the concurrent anlaytics mechanism, and many new things and results. 
 See at the end for bibliography for citation.
 
 
@@ -20,13 +20,13 @@ GraphOne offers a set of vertex-centric API to access the data. However differen
 - **Batch Analytics using Static View**: When an user want to run an analytic over whole data, treating the current data as static, it is called batch analytics. We provide *Static View* for such analytics even while the underlying data store is evolving due to continous arrival of data.  
 - **Stream Analytics using Stream View**: The new focus of today's anlaytics world is to continously run computations so that you will always have updated results. The main idea here is to reuse the results of previously run analytics on slightly older data to get the latest results. The implemention technique in GraphOne is use *Stream View* for such computation. You call an API to update the view to latest data, and then run your increment computation steps on it utilizing the results of the older computation. The features in stream view will let you identify the sets of vertices and/or edges that have changed so that you know how your computation can take advantage of what has changed. We additionally provide a time-window implementation for stream view. And customize it for stateless and stateful analytics both.
 
-- **Concurrent Real-time Analytics**: As we separate computation from data management using GraphView, we are able to run many different analytics, including any of batch or stream analytics together from the same data-store, yes no separate memory footprint for data if you running more than one analytics.
+- **Concurrent Real-time Analytics**: As we separate computation from data management using GraphView, we are able to run many different analytics, including any of batch or stream analytics together from the same data-store, yes, no separate memory footprint for data if you running more than one analytics.
 
 **`Example:`**
 - Static View: `snap_t<T>* snaph = create_static_view(pgraph, STALE_MASK|V_CENTRIC);`
 - Stream View: `sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);`
 
-GraphView simplifies all this access pattern, and many other stuffs by using `statich` and `sstreamh` for all your later access. Kindly read the papers for different kind of APIs.
+GraphView simplifies all this access pattern, and many other stuffs by using `static` and `sstreamh` for all your later access. Kindly read the papers for different kind of APIs.
 
 **`Graph View Flags`**: There are three important flags in create-\*-view() APIs, STALE_MASK, SIMPLE_MASK, PRIVATE_MASK.
 
@@ -36,7 +36,7 @@ GraphView simplifies all this access pattern, and many other stuffs by using `st
 
 **SIMPLE_MASK:** Use this if you do wnat to access of non-archived edges using get-nebrs-\*() API.
 
-**PRIVATE_MASK:** It will coph the non-archived edges in a buffer. Useful for first option above.
+**PRIVATE_MASK:** It will copy the non-archived edges in a buffer. Useful for first option above.
 
 Don't mix stale and simple flags.  
 
@@ -145,6 +145,16 @@ This command ingests the data from text files present in lanl_2017/text_file/ di
 - In memory, undirected, text input, BFS runs concurrently with data ingestion: `./graphone32 -i kron21_16/text_file/  -j 30 -v 2097152 -e 33554432 -r 1` <= r is 1 for one BFS. See concurrent analytics later. BFS runs concurrently to archiving, results in better performance as well as enables concurrent stream analytics.
 - In memory, undirected, text input, BFS runs after each archiving in the archiving context: `./graphone32 -i kron21_16/text_file/  -j 31 -v 2097152 -e 33554432` As BFS run in the context of archiving, or archiving runs as a first step in the analytics (BFS), this mimicks prior streaming works. 
 
+`Internal testcases: We have also written many internal testcases. Some of them are described here:`
+ - `./graphone32 -i ~/data/kron-21/bin/ -j 1 -v 2097152 -s 1 -o ./out/` : -j1 only does logging, and runs bfs from the edge list data.
+ - `./graphone32 -i ~/data/kron-21/bin/ -j 2 -v 2097152 -t2 -s1 -r 16` : -j2 does archiving at the rate of (1<<16) edges at a time. change -r flag to any number to change the archiving threshold.
+ - `./graphone32 -i ~/data/kron-21/bin/ -j 3 -v 2097152 -t2 -s1 -o ./out/` : -j3 converts (1<<18) edges to adjacency list, and leaves the rest as edge list in the edge log. Useful for testing the BFS performance in a mix of adjacency list and edge list.
+ -`./graphone32  -j 4 -v 2097152 -s 1 -i ./out/friend.elog -r 16`: -j 4 recovers adjacency list by using the durable edge log. -r 16 tells us that only (1<<16) edges will be converted to adjacency list at a time.
+ - ignore, -j 5, 6 and 7.
+ - -j9 is like -j 0 except that the data will be ingested from hard-drive directly. In previous cases, the data was first loaded in memory before, logging phase was called. Here, data will be read from disk and logging phase will be performed.
+ - -j50 to -j56 are similar to -j2, expect that BFS/PR/etc will be called multiple times (10 times) to do the benchmarking. Always expects certain value of r.
+ 
+ - -j57 to -j59 are written as simulators to estimate some internal things. I haven't verified those lately.
 
 ## Ingestion of Your Own Data
  You possibly have your own graph data, and want to use GraphOne as a data store. This section describes how to write ingestion testcases. For writing analytics please refer to next section. 
@@ -376,7 +386,24 @@ If you want to cite our paper, use the following bibtex entries:
   year={2019}
 }
 
-Kumar, Pradeep, and H. Howie Huang. "GraphOne: A data store for real-time analytics on evolving graphs." In 17th {USENIX} Conference on File and Storage Technologies ({FAST} 19), pp. 249-263. 2019.  
+@article{10.1145/3364180,
+author = {Kumar, Pradeep and Huang, H. Howie},
+title = {GraphOne: A Data Store for Real-Time Analytics on Evolving Graphs},
+year = {2020},
+issue_date = {February 2020},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {15},
+number = {4},
+issn = {1553-3077},
+url = {https://doi.org/10.1145/3364180},
+doi = {10.1145/3364180},
+journal = {ACM Trans. Storage},
+month = jan,
+articleno = {Article 29},
+numpages = {40},
+keywords = {stream analytics, unified graph data store, batch analytics, graph data management, Graph systems}
+}
+
 ```
 
-ACM TOS version comming soon.
