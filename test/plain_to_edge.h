@@ -321,9 +321,10 @@ void plaingraph_manager_t<T>::prep_graph_adj(const string& idirname, const strin
     free(blog->blog_beg);
     blog->blog_beg = 0;
     index_t total_size = alloc_mem_dir(idirname, (char**)&blog->blog_beg, true);
-    blog->blog_head = total_size/sizeof(edgeT_t<T>);
-    index_t new_count = upper_power_of_two(blog->blog_head);
+    index_t count = total_size/sizeof(edgeT_t<T>);
+    index_t new_count = upper_power_of_two(count);
     blog->blog_mask = new_count -1;
+    blog->blog_count = count;
     
     read_idir_text(idirname, odirname, pgraph, file_and_insert);
 
@@ -357,9 +358,10 @@ void plaingraph_manager_t<T>::prep_graph_mix(const string& idirname, const strin
     free(blog->blog_beg);
     blog->blog_beg = 0;
     index_t total_size = alloc_mem_dir(idirname, (char**)&blog->blog_beg, true);
-    blog->blog_head = total_size/sizeof(edgeT_t<T>);
-    index_t new_count = upper_power_of_two(blog->blog_head);
+    index_t count = total_size/sizeof(edgeT_t<T>);
+    index_t new_count = upper_power_of_two(count);
     blog->blog_mask = new_count -1;
+    blog->blog_count = count;
     
     read_idir_text(idirname, odirname, pgraph, file_and_insert);
     
