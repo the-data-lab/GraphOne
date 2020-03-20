@@ -5,7 +5,10 @@ This repository is for following two papers:
 See at the end for bibliography for citation.
 
 
-**Latest revision contains simplified options than V0.0 release.** We are continously improving GraphOne through code changes as well as  disseminating those information through peer reviewed papers and journals. A number of changes have been made, and are summarized here. A detailed description can be found in this README documents. We now have less number of command line options to work with, clear in-memory/durable execution options. The GraphView APIs are simplified, now there is just one flag to pass with different pre-defined flag values. Allowed values of flags include a thread creation flag. Hope to write more about it in future. **Feel free to raise an issue in github, if you have any problem in using GraphOne.** 
+**Latest revision V0.1 contains simplified options than V0.0 release.** We are continously improving GraphOne through code changes as well as  disseminating those information through peer reviewed papers and journals. A number of changes have been made, and are summarized here. A detailed description can be found in this README documents. We now have less number of command line options to work with, clear in-memory/durable execution options. The GraphView APIs are simplified, now there is just one flag to pass with different pre-defined flag values. Allowed values of flags include a thread creation flag. Hope to write more about it in future. **Feel free to raise an issue in github, if you have any problem in using GraphOne.** 
+
+**Coming Soon:** Version V0.2 coming soon with automatic compaction and eviction, as well as APIs for differntial data access.  
+Distributed GraphOne is coming soon as well.
 
 
 The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. As of GraphOne, we only discussed ingestion for a single type of edges, called single stream graph. E.g. Twitter's follower-followee graph, or facebook's friendship graph. However, this code-base can ingest multi-stream graph, i.e. multi-stream property graph. However, a paper for that portion of codebase is under review. So, I am going to explain single stream graph. Send me an email, if your graph is multi-stream graph.
