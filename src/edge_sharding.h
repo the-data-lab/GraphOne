@@ -431,7 +431,7 @@ void edge_shard_t<T>::classify_d(pgraph_t<T>* pgraph)
         this->work_division(global_range, thd_local, RANGE_COUNT, THD_COUNT, edge_count);
     }
     
-    if (tid == 1) {
+    if (tid == 1 || (tid == 0 && THD_COUNT == 1)) {
         this->work_division(global_range_in, thd_local_in, RANGE_COUNT, THD_COUNT, edge_count);
     }
     #pragma omp barrier 
