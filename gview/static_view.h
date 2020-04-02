@@ -209,15 +209,27 @@ status_t snap_t<T>::update_view()
     }
     //cout << "old marker = " << old_marker << endl << "end marker = " << marker << endl;    
     //need to copy it. TODO
-    if (IS_STALE(flag)) { 
-        edge_count = 0;
-    } else if (IS_PRIVATE(flag)) {
-        edge_count = marker - old_marker;
-        edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
-        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
-    } else {
-        edges     = blog->blog_beg + (old_marker & blog->blog_mask);
-        edge_count = marker - old_marker;
+    edge_count = marker - old_marker;
+
+    if (edge_count != 0) {
+        if (IS_STALE(flag)) { 
+            edge_count = 0;
+        } else if (IS_PRIVATE(flag)) {
+            index_t actual_tail = old_marker & blog->blog_mask;
+            index_t actual_marker = marker & blog->blog_mask;
+            edges = (edgeT_t<T>*)realloc(edges, edge_count*sizeof(edgeT_t<T>));
+            if (actual_tail < actual_marker) {
+                memcpy(edges, blog->blog_beg + actual_tail, sizeof(edgeT_t<T>)*edge_count);
+            } else {
+                index_t rewind_count = blog->blog_count - actual_tail;
+                memcpy(edges, blog->blog_beg + actual_tail, sizeof(edgeT_t<T>)*rewind_count);
+                memcpy(edges + rewind_count, blog->blog_beg, sizeof(edgeT_t<T>)*actual_marker);
+            }
+        } else {
+            //XXX: Fix it
+            edges  = blog->blog_beg + (old_marker & blog->blog_mask);
+            edge_count = marker - old_marker;
+        }
     }
     
     //Degree and actual edge arrays
