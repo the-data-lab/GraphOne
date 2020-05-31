@@ -1273,6 +1273,31 @@ void archive_sstream(const string& idir, const string& odir,
 }
 
 template <class T>
+void multi_sstream1(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn, int count)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    //do some setup for plain graphs
+    manager.setup_graph(_global_vcount);    
+    
+    pgraph_t<T>* pgraph = manager.get_plaingraph();
+    sstream_t<T>** sstreamh = (sstream_t<T>**)malloc(sizeof(sstream_t<T>*)*count);
+    
+    for (int i = 0; i < count; ++i) {
+        sstreamh[i] = reg_sstream_view(pgraph, stream_fn, 
+                            STALE_MASK|E_CENTRIC|C_THREAD, (void*)(i+1));
+    }
+    
+    //CorePin(0);
+    manager.prep_graph(idir, odir);
+    for (int i = 0; i < count; ++i) {
+        void* ret;
+        pthread_join(sstreamh[i]->thread, &ret);
+    }
+}
+
+template <class T>
 void multi_sstream(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn, int count)
 {
@@ -1323,7 +1348,7 @@ void multi_diff(const string& idir, const string& odir,
 }
 
 template <class T>
-void serial_sstream(const string& idir, const string& odir,
+void serial_sstream1(const string& idir, const string& odir,
                      typename callback<T>::sfunc stream_fn)
 {
     plaingraph_manager_t<T> manager;
@@ -1332,6 +1357,23 @@ void serial_sstream(const string& idir, const string& odir,
     pgraph_t<T>* graph = manager.get_plaingraph();
     
     sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|E_CENTRIC|C_THREAD);
+    
+    manager.prep_graph_edgelog(idir, odir);
+    
+    void* ret;
+    pthread_join(sstreamh->thread, &ret);
+}
+
+template <class T>
+void serial_sstream(const string& idir, const string& odir,
+                     typename callback<T>::sfunc stream_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema(_dir);
+    manager.setup_graph(_global_vcount);    
+    pgraph_t<T>* graph = manager.get_plaingraph();
+    
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
     
     manager.prep_graph_edgelog(idir, odir);
     
@@ -1426,20 +1468,19 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         
         case 30:
-            multi_sstream<dst_id_t>(idir, odir, stream_bfs, residue);
+            multi_sstream1<dst_id_t>(idir, odir, stream_bfs1, residue);
             break;
         case 31:
-            serial_sstream<dst_id_t>(idir, odir, stream_serial_bfs1);
+            serial_sstream1<dst_id_t>(idir, odir, stream_serial_bfs1);
             break;
         case 32:
-            multi_sstream<dst_id_t>(idir, odir, diff_streambfs, residue);
+            multi_sstream<dst_id_t>(idir, odir, stream_bfs, residue);
             break;
         case 33:
-            multi_sstream<dst_id_t>(idir, odir, stream_pr, residue);
+            serial_sstream<dst_id_t>(idir, odir, stream_serial_bfs);
             break;
         case 34:
-            multi_diff<dst_id_t>(idir, odir, diff_streambfs, residue);
-            //multi_diff<dst_id_t>(idir, odir, diff_stream_pr, residue);
+            multi_sstream<dst_id_t>(idir, odir, stream_pr, residue);
             break;
         case 35:
             archive_sstream<dst_id_t>(idir, odir, stream_bfs, 1);

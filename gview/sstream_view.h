@@ -176,7 +176,7 @@ status_t sstream_t<T>::update_view()
     if (new_snapshot == 0) { 
         return eNoWork;
     }
-    if (new_snapshot->marker == _edge_count) {
+    if (0 != prev_snapshot && prev_snapshot->marker == _edge_count) {
         return eEndBatch;
     }
     if (new_snapshot == prev_snapshot) {

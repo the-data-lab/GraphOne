@@ -738,3 +738,54 @@ void stream_serial_bfs1(gview_t<T>* viewh)
 
     cout << "update_count = " << update_count << "Time = "<< endn - startn << endl;
 }
+
+template<class T>
+void stream_bfs1(gview_t<T>* viewh)
+{
+    sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
+    vid_t v_count = sstreamh->get_vcount();
+    pgraph_t<T>* pgraph  = sstreamh->pgraph;
+    
+    Bitmap bmap_in1(v_count);
+    Bitmap bmap_out1(v_count);
+    Bitmap all_bmap1(v_count);
+    
+    index_t batch_size = residue;
+    index_t marker = 0; 
+
+    //cout << "starting BFS" << endl;
+    init_bfs1(viewh);
+
+    int update_count = 1;
+    status_t ret = eOK; 
+    double start, end, end1, end2;
+    
+    double startn = mywtime();
+    while (true) {
+        
+        //update the sstream view
+        start = mywtime();
+        ret = sstreamh->update_view();
+        end = mywtime();
+        if (ret == eEndBatch) break;
+        if (ret == eNoWork) {
+            usleep(100);
+            continue;
+        }
+        ++update_count;
+	    
+        end1 = mywtime();
+        do_streambfs1(sstreamh, &bmap_out1, &bmap_in1, &all_bmap1);
+        end2 = mywtime();
+        
+        //cout << "BFS Time at Batch " << update_count << " = " << end - start << endl;
+        cout << " update_count = " << update_count
+             << ":" << viewh->get_snapmarker()
+             << ":" << end - start << ":" << end1 - end  
+             << ":" << end2 - end1 << endl; 
+    } 
+    double endn = mywtime();
+    print_bfs1(viewh); 
+
+    cout << "update_count = " << update_count << "Time = "<< endn - startn << endl;
+}
