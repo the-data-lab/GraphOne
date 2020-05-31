@@ -49,6 +49,7 @@ index_t _edge_count = -1L;
 int _dir = 0;//undirected
 int _persist = 0;//no
 int _source = 0;//text
+int _arg = 0;//e.g. bfs root etc
 
 using std::swap;
 
@@ -177,7 +178,7 @@ void cfinfo_t::new_snapshot(index_t snap_marker)
 
     //if (last) last->drop_ref();
     snapshot_t* oldest = (snapshot_t*)snapshot.prev;
-    while (oldest->snap_id + 5 < next->snap_id) {
+    while (oldest->snap_id + 1 < next->snap_id) {
         //let us delete some snapshopts
         if (1 == oldest->get_ref()) {
             oldest->drop_ref(); //deleted

@@ -121,6 +121,12 @@ class Bitmap {
     std::swap(start_, other->start_);
     std::swap(end_, other->end_);
   }
+  inline void do_or(Bitmap* other) {
+    uint64_t  num_words = end_ - start_;
+    for (uint64_t i = 0; i < num_words; ++i) {
+        start_[i] = start_[i] | other->start_[i];
+    }
+  }
 
  private:
   uint64_t *start_;

@@ -7,6 +7,67 @@
 
 using std::min;
 
+static vid_t MAX_VID = -1L;
+struct bfs_info_t {
+    vid_t*   parent;
+    uint8_t* lstatus;
+    uint8_t* rstatus;
+    Bitmap*  lbitmap;
+    Bitmap*  rbitmap;
+    vid_t    root;
+};
+
+template <class T> 
+void init_bfs1(gview_t<T>* viewh, bool symm = true)
+{
+    vid_t v_count = viewh->get_vcount();
+    index_t meta = (index_t)viewh->get_algometa();
+    vid_t root = _arg;
+
+    bfs_info_t* bfs_info = (bfs_info_t*)malloc(sizeof(bfs_info_t));
+    vid_t* parent = (vid_t*)malloc(v_count*sizeof(vid_t));
+    uint8_t* status = (uint8_t*)malloc(v_count*sizeof(uint8_t));
+    memset(parent, 255, v_count*sizeof(vid_t));
+    memset(status, 255, v_count);
+    
+    status[root] = 0;
+    cout << "root:" << root << endl;
+    bfs_info->lstatus = status;
+    if (true == symm) {
+        bfs_info->rstatus = bfs_info->lstatus;
+    } else {
+        bfs_info->rstatus = (uint8_t*)malloc(v_count*sizeof(uint8_t));
+    }
+    bfs_info->parent = parent;
+    bfs_info->root = root;
+    
+    viewh->set_algometa(bfs_info);
+}
+
+template <class T>
+void print_bfs1(gview_t<T>* viewh) 
+{
+    bfs_info_t* bfs_info = (bfs_info_t*)viewh->get_algometa();
+    uint8_t* status = bfs_info->lstatus;
+    vid_t    v_count = viewh->get_vcount();
+
+    //cout << "root:" << bfs_info->root << endl;
+    vid_t vid_count = 0;
+    int l = 0;
+    do {
+        vid_count = 0;
+        #pragma omp parallel for reduction (+:vid_count) 
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (status[v] == l) {
+                //cerr << v << endl;
+                ++vid_count;
+            }
+        }
+        cout << " Level = " << l << " count = " << vid_count << endl;
+        ++l;
+    } while (vid_count !=0);
+}
+
 template <class T> 
 void do_streambfs(sstream_t<T>* viewh) 
 {
@@ -379,3 +440,301 @@ stream_pagerank_epsilon(gview_t<T>* sstreamh)
 	cout << endl;
 }
 
+//stream bfs when data has deletions
+
+template <class T> 
+index_t do_streambfs1(sstream_t<T>* viewh, Bitmap* bmap_out, Bitmap* bmap_in, Bitmap* all_bmap)
+{
+    vid_t v_count = viewh->get_vcount();
+    bfs_info_t* bfs_info = (bfs_info_t*)viewh->get_algometa();
+    uint8_t* rstatus = bfs_info->rstatus;
+    uint8_t* lstatus = bfs_info->lstatus;
+
+    Bitmap* bitmap_in = viewh->bitmap_in;
+
+    all_bmap->reset();
+    index_t frontiers = 0;
+    index_t total = 0;
+
+    double start = mywtime();
+    edgeT_t<T>* edges = 0;
+    index_t edge_count = viewh->get_new_edges(edges);
+    #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontiers)
+    {
+    degree_t adj_count = 0;
+    vid_t parent;
+    vid_t new_parent;
+    vid_t nebr;
+    vid_t v;
+    bool is_del = false;
+    uint16_t level = 255;
+    uint16_t nebr_level = 255;
+
+    //1
+    #pragma omp for schedule (dynamic, 1024) nowait
+    for (index_t e = 0; e < edge_count; ++e) {
+        nebr = TO_VID(get_src(edges[e]));
+        v =  TO_VID(get_dst(edges+e));
+        is_del = IS_DEL(get_src(edges[e]));
+
+        if ((false == is_del) || (rstatus[v] == 255)) continue;
+            
+        parent = bfs_info->parent[v];
+        if (nebr == parent) {
+            bmap_in->set_bit_atomic(v);
+            ++frontiers;
+            all_bmap->set_bit_atomic(v);
+        }
+    }
+    }
+    total += frontiers;
+    double end1 = mywtime();
+    while (frontiers) {//
+        frontiers = 0;
+        #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontiers)
+        {
+        degree_t prior_sz = 65536;
+        T* adj_list = (T*)malloc(prior_sz*sizeof(T));
+        degree_t adj_count = 0;
+        vid_t parent;
+        vid_t new_parent;
+        vid_t nebr;
+        uint16_t level = 255;
+        uint16_t nebr_level = 255;
+        //1b
+        #pragma omp for schedule (dynamic, 1024) nowait
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (!bmap_in->get_bit(v)) continue;
+            bmap_in->reset_bit(v);
+
+            adj_count = viewh->get_degree_in(v);
+            if (adj_count > prior_sz) {
+                prior_sz = adj_count;
+                adj_list = (T*)realloc(adj_list, prior_sz*sizeof(T));
+            }
+
+            adj_count = viewh->get_nebrs_in(v, adj_list);
+            level = 255;//rstatus[v];
+            parent = bfs_info->parent[v];
+            for (degree_t i = 0; i < adj_count; ++i) {
+                nebr = TO_VID(get_sid(adj_list[i]));
+                nebr_level = lstatus[nebr];
+                if (nebr_level < level) {
+                    level = nebr_level;
+                    new_parent = nebr;
+                }
+            }
+            //== level+1, update parent, do nothing
+            //< level+1, update parent, because of added edge, will be taken care later
+            if (level == rstatus[v] && v != new_parent && parent != new_parent) { //traverse its children
+                rstatus[v]= level+1;
+                assert(rstatus[v] != 0);
+                bfs_info->parent[v] = new_parent;
+                bmap_out->set_bit(v);
+                ++frontiers;
+                continue;
+            } else
+            if (level >= rstatus[v]) { //traverse its children
+                rstatus[v]=255;
+                bfs_info->parent[v] = MAX_VID;
+                bmap_out->set_bit(v);
+                ++frontiers;
+                continue;
+            }
+            rstatus[v] = level + 1;
+            bfs_info->parent[v] = new_parent;
+        }
+        free(adj_list);
+        }
+
+        //bmap_in->reset();
+        if (frontiers == 0) break;
+        frontiers = 0;
+        //double end2 = mywtime();
+
+        //2
+        #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontiers)
+        {
+        degree_t prior_sz = 65536;
+        T* adj_list = (T*)malloc(prior_sz*sizeof(T));
+        degree_t adj_count = 0;
+        vid_t parent;
+        vid_t new_parent;
+        vid_t nebr;
+        uint16_t level = 255;
+        uint16_t nebr_level = 255;
+        #pragma omp for schedule (dynamic, 1024) nowait
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (!bmap_out->get_bit(v)) continue;
+            bmap_out->reset_bit(v);
+            adj_count = viewh->get_degree_out(v);
+            if (adj_count == 0) continue;
+            else if (adj_count > prior_sz) {
+                prior_sz = adj_count;
+                adj_list = (T*)realloc(adj_list, prior_sz*sizeof(T));
+            }
+            adj_count = viewh->get_nebrs_out(v, adj_list);
+            for (degree_t i = 0; i < adj_count; ++i) {
+                nebr = TO_VID(get_sid(adj_list[i]));
+                if (bfs_info->parent[nebr] == v) {
+                    //mark nebr for 1b processing
+                    bmap_in->set_bit_atomic(nebr);
+                    ++frontiers;
+                    all_bmap->set_bit_atomic(nebr);
+                }
+            }
+        }
+        free(adj_list);
+        }
+        total += frontiers;
+        //bmap_out->reset();
+    }
+
+    double end2 = mywtime();
+    frontiers = 0;
+    if (total) {
+        //3. Pull once more for all affected vertex
+        #pragma omp parallel num_threads(THD_COUNT) reduction(+:frontiers)
+        {
+        degree_t prior_sz = 65536;
+        T* adj_list = (T*)malloc(prior_sz*sizeof(T));
+        degree_t adj_count = 0;
+        vid_t parent;
+        vid_t new_parent;
+        vid_t nebr;
+        uint16_t level = 255;
+        uint16_t nebr_level = 255;
+        #pragma omp for schedule (dynamic, 1024) nowait
+        for (vid_t v = 0; v < v_count; ++v) {
+            if (!all_bmap->get_bit(v)) continue;
+            adj_count = viewh->get_degree_in(v);
+            if (adj_count == 0) continue;
+            else if (adj_count > prior_sz) {
+                prior_sz = adj_count;
+                adj_list = (T*)realloc(adj_list, prior_sz*sizeof(T));
+            }
+            adj_count = viewh->get_nebrs_in(v, adj_list);
+            level = rstatus[v];
+            nebr_level = 255;
+            for (degree_t i = 0; i < adj_count; ++i) {
+                nebr = TO_VID(get_sid(adj_list[i]));
+                nebr_level = lstatus[nebr];
+                if (nebr_level+1 < level) {
+                    level = nebr_level + 1;
+                    new_parent = nebr;
+                }
+            }
+            if (level < rstatus[v]) {
+                rstatus[v] = level;
+                bfs_info->parent[v] = new_parent;
+                frontiers++;
+            }
+        }
+        free(adj_list);
+        }
+    }
+
+    double end3 = mywtime();
+    //4.
+    //switch to traditional incremental version
+    Bitmap* lbitmap = all_bmap;//viewh->bitmap_out;
+    Bitmap* rbitmap = bmap_in;
+    rbitmap->reset();
+    lbitmap->do_or(viewh->bitmap_out);
+    
+    do {
+        frontiers = 0;
+        #pragma omp parallel num_threads (THD_COUNT) reduction(+:frontiers)
+        {
+        sid_t sid;
+        uint16_t level = 0;
+        degree_t nebr_count = 0;
+        degree_t prior_sz = 65536;
+        T* local_adjlist = (T*)malloc(prior_sz*sizeof(T));
+
+        #pragma omp for schedule (dynamic, 1024) nowait
+        for (vid_t v = 0; v < v_count; v++) {
+            if(false == lbitmap->get_bit(v) || lstatus[v] == 255) continue;
+            lbitmap->reset_bit(v);
+            level = lstatus[v];
+
+            nebr_count = viewh->get_degree_out(v);
+            if (nebr_count == 0) continue;
+            else if (nebr_count > prior_sz) {
+                prior_sz = nebr_count;
+                local_adjlist = (T*)realloc(local_adjlist, prior_sz*sizeof(T));
+            }
+
+            viewh->get_nebrs_out(v, local_adjlist);
+
+            for (degree_t i = 0; i < nebr_count; ++i) {
+                sid = TO_VID(get_sid(local_adjlist[i]));
+                if (rstatus[sid] > level + 1) {
+                    rstatus[sid] = level + 1;
+                    bfs_info->parent[sid] = v; 
+                    rbitmap->set_bit_atomic(sid);
+                    ++frontiers;
+                    //cout << " " << sid << endl;
+                }
+            }
+        }
+        free(local_adjlist);
+        }
+        //lbitmap->reset();
+        std::swap(lbitmap, rbitmap);
+    } while (frontiers);
+    double end4 = mywtime();
+
+    //cout << end1 - start << ":" << end2 - end1 << ":" << end3 - end2 << ":" << end4 - end3 << endl;
+}
+
+template<class T>
+void stream_serial_bfs1(gview_t<T>* viewh)
+{
+    sstream_t<T>* sstreamh = dynamic_cast<sstream_t<T>*>(viewh);
+    vid_t v_count = sstreamh->get_vcount();
+    pgraph_t<T>* pgraph  = sstreamh->pgraph;
+    
+    Bitmap bmap_in1(v_count);
+    Bitmap bmap_out1(v_count);
+    Bitmap all_bmap1(v_count);
+    
+    index_t batch_size = residue;
+    index_t marker = 0; 
+
+    //cout << "starting BFS" << endl;
+    init_bfs1(viewh);
+
+    int update_count = 1;
+    status_t ret = eOK; 
+    double start, end, end1, end2;
+    
+    double startn = mywtime();
+    while (true) {
+        start = mywtime();
+        marker = min(_edge_count, marker+batch_size); 
+        pgraph->create_marker(marker);
+        pgraph->create_snapshot();
+        end = mywtime();
+        
+        //update the sstream view
+        ret = sstreamh->update_view();
+        end1 = mywtime();
+        if (ret == eEndBatch) break;
+        ++update_count;
+	    
+        //do_streambfs(sstreamh);	
+        do_streambfs1(sstreamh, &bmap_out1, &bmap_in1, &all_bmap1);
+        end2 = mywtime();
+        
+        //cout << "BFS Time at Batch " << update_count << " = " << end - start << endl;
+        cout << " update_count = " << update_count
+             << ":" << viewh->get_snapmarker()
+             << ":" << end - start << ":" << end1 - end  
+             << ":" << end2 - end1 << endl; 
+    } 
+    double endn = mywtime();
+    print_bfs1(viewh); 
+
+    cout << "update_count = " << update_count << "Time = "<< endn - startn << endl;
+}

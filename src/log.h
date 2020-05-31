@@ -109,7 +109,10 @@ class blog_t {
             //assert(0);
             usleep(100);
         }
-        
+        if (IS_DEL(get_src(edge))) {
+            set_src(edge, DEL_SID(-get_src(edge)));
+        }
+
         index_t index1 = (index & blog_mask);
         blog_beg[index1] = edge;
         if (rewind) {

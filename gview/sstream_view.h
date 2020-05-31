@@ -66,7 +66,7 @@ class sstream_t : public snap_t<T> {
     void handle_flagu(sdegree_t* degree, Bitmap* bitmap);
     void handle_flagd(sdegree_t* out_degree, sdegree_t* in_degree);
     void handle_flaguni(sdegree_t* degree, Bitmap* bitmap);
-    void handle_e_centric(index_t snap_marker, index_t old_marker);
+    void handle_e_centric(snapshot_t* sold , snapshot_t* snew);
  public:
     //These two functions are for vertex centric programming
     inline bool has_vertex_changed_out(vid_t v) {return bitmap_out->get_bit(v);}
@@ -136,27 +136,57 @@ void sstream_t<T>::update_degreesnapd()
 }
 
 template <class T>
-void sstream_t<T>::handle_e_centric(index_t snap_marker, index_t old_marker)
+void sstream_t<T>::handle_e_centric(snapshot_t* sold , snapshot_t* snew)
 {
-    //Get the edge copies for edge centric computation XXX
-    if (IS_E_CENTRIC(flag)) { 
-        assert(0);//FIX ME
-        /*
-        new_edge_count = snap_marker - old_marker;
-        new_edges = (edgeT_t<T>*)realloc (new_edges, new_edge_count*sizeof(edgeT_t<T>));
-        memcpy(new_edges, blog->blog_beg + (old_marker & blog->blog_mask), new_edge_count*sizeof(edgeT_t<T>));
-        */
+    if (!IS_E_CENTRIC(flag)) { 
+        return;
     }
+    index_t old = sold? sold->marker : 0;
+    new_edge_count = snew->marker - old;
+    new_edges = (edgeT_t<T>*)realloc(new_edges, new_edge_count*sizeof(edgeT_t<T>));
+
+    index_t start = 0;
+    index_t end = 0;
+    index_t offset = 0;
+    blog_t<T>* blog = pgraph->blog;
+    index_t total = blog->blog_count; 
+    //cout << sold->cleaned_u << " " << snew->cleaned_u << ":"
+    //     << sold->cleaned_d << " " << snew->cleaned_d << endl;
+    start = old & blog->blog_mask;
+    end = snew->marker & blog->blog_mask;
+        //cout << start << " E " << end << endl;
+    if (end >= start) {
+        memcpy(new_edges+offset, blog->blog_beg + start, (end-start)*sizeof(edgeT_t<T>));
+        offset += end - start;
+    } else {
+        memcpy(new_edges+offset, blog->blog_beg + start, (total-start)*sizeof(edgeT_t<T>));
+        offset += total - start;
+        memcpy(new_edges+offset, blog->blog_beg, (end)*sizeof(edgeT_t<T>));
+        offset += end;
+    }
+    //copied, so don't block logging
+    reader.tail = snew->marker;
+    reader.marker = snew->marker;
 }
 
 template <class T>
 status_t sstream_t<T>::update_view()
 {
-    snapshot_t* new_snapshot = pgraph->get_snapshot();
-    if (new_snapshot == 0|| (new_snapshot == prev_snapshot)) return eNoWork;
+    snapshot_t* new_snapshot = pgraph->lock_snapshot();
+    if (new_snapshot == 0) { 
+        return eNoWork;
+    }
+    if (new_snapshot->marker == _edge_count) {
+        return eEndBatch;
+    }
+    if (new_snapshot == prev_snapshot) {
+        new_snapshot->drop_ref();
+        return eNoWork;
+    }
     blog_t<T>* blog = pgraph->blog;
     index_t  marker = blog->blog_head;
     
+    handle_e_centric(prev_snapshot, new_snapshot);
     return update_view_help(new_snapshot, marker);
 
 }

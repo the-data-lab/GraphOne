@@ -10,7 +10,7 @@ extern index_t residue;
 extern vid_t _global_vcount;
 //Required for exiting from the streaming computation
 extern index_t _edge_count;
-extern int _dir, _persist, _source;
+extern int _dir, _persist, _source, _arg;
 
 extern void* alloc_buf();
 
@@ -88,11 +88,18 @@ class cfinfo_t {
     static void* snap_func(void* arg);
     
     virtual status_t create_snapshot();
-    inline snapshot_t* get_snapshot() {
+    inline snapshot_t* lock_snapshot() {
         if (list_empty(&snapshot)) {
             return 0;
         } else { 
             return ((snapshot_t*) snapshot.next)->take_ref();
+        }
+    }
+    inline snapshot_t* get_snapshot() {
+        if (list_empty(&snapshot)) {
+            return 0;
+        } else { 
+            return ((snapshot_t*) snapshot.next);
         }
     }
     void read_snapshot();

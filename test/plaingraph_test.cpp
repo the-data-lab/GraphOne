@@ -1331,7 +1331,7 @@ void serial_sstream(const string& idir, const string& odir,
     manager.setup_graph(_global_vcount);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, stream_fn, STALE_MASK|E_CENTRIC|C_THREAD);
     
     manager.prep_graph_edgelog(idir, odir);
     
@@ -1429,7 +1429,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             multi_sstream<dst_id_t>(idir, odir, stream_bfs, residue);
             break;
         case 31:
-            serial_sstream<dst_id_t>(idir, odir, stream_serial_bfs);
+            serial_sstream<dst_id_t>(idir, odir, stream_serial_bfs1);
             break;
         case 32:
             multi_sstream<dst_id_t>(idir, odir, diff_streambfs, residue);

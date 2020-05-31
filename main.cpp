@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
         {"edgecount",  required_argument,  0, 'e'},
         {"direction",  required_argument,  0, 'd'},
         {"source",  required_argument,  0, 's'},
+        {"arg",  required_argument,  0, 'a'},
         {0,			  0,				  0,  0},
     };
 
@@ -67,7 +68,7 @@ int main(int argc, char* argv[])
     //int i = 0;
     //while (i < 100000) { usleep(10); ++i; }
     g = new graph; 
-	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:d:s:h", longopts, &index)) != -1) {
+	while ((o = getopt_long(argc, argv, "i:c:j:o:q:t:f:r:v:e:d:s:a:h", longopts, &index)) != -1) {
 		switch(o) {
 			case 'v':
 				#ifdef B64
@@ -85,6 +86,9 @@ int main(int argc, char* argv[])
 				idir = optarg;
 				cout << "input dir = " << idir << endl;
 				break;
+            case 'a':
+                _arg = atoi(optarg);
+                break;
             case 'c':
                 category = atoi(optarg);
 				break;
