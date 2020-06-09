@@ -68,6 +68,31 @@ void delete_static_view(snap_t<T>* snaph)
 }
 
 template <class T>
+hsnap_t<T>* create_hsnap_view(pgraph_t<T>* pgraph, index_t end_offset, 
+                              index_t flag = 0)
+{
+    hsnap_t<T>* snaph = new hsnap_t<T>;
+    snaph->init_view(pgraph, flag);
+    snaph->update_view(end_offset);
+    
+    //snaph->sstream_func = func;
+    //snaph->algo_meta = algo_meta;
+    
+    if (IS_THREAD(flag)) {
+        if (0 != pthread_create(&snaph->thread, 0, &sstream_func<T>, snaph)) {
+            assert(0);
+        }
+        cout << "created sstream thread" << endl;
+    }
+    return snaph;
+}
+
+template <class T>
+void delete_views(gview_t<T>* gview) {
+    delete gview;
+}
+
+template <class T>
 sstream_t<T>* reg_sstream_view(pgraph_t<T>* ugraph, typename callback<T>::sfunc func,
                                index_t flag, void* algo_meta = 0)
 {

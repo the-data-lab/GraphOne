@@ -658,16 +658,17 @@ void weighted_dtest0(const string& idir, const string& odir)
 }
 
 template <class T>
-void prior_snap_test(const string& odir)
+void hsnap_test(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema(_dir);
-    g->read_graph_baseline();
     pgraph_t<T>* pgraph = manager.get_plaingraph();
+    manager.setup_graph(_global_vcount);    
+    manager.prep_graph(idir, odir); 
     //manager.run_bfs();
     
-    //Run using prior static view.
-    prior_snap_t<T>* snaph = create_prior_static_view(pgraph, 0, 33554432);
+    //Run using hsnap view.
+    hsnap_t<T>* snaph = create_hsnap_view(pgraph, (33554432>>1), 0);
     uint8_t* level_array = (uint8_t*)calloc(sizeof(uint8_t), snaph->get_vcount());
     mem_bfs_simple(snaph, level_array, 1);
 
@@ -1405,7 +1406,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             recover_test<dst_id_t>(odir);
             break;
         case 6:
-            prior_snap_test<dst_id_t>(odir);
+            hsnap_test<dst_id_t>(idir, odir);
             break;
         case 7://SNB
             test_ingestion_snb<dst_id_t>(idir, odir);
@@ -1432,7 +1433,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             recover_test<netflow_dst_t>(odir);
             break;
         case 15:
-            prior_snap_test<netflow_dst_t>(odir);
+            hsnap_test<netflow_dst_t>(idir, odir);
             break;
         case 16://text to our format
             test_ingestion_full<netflow_dst_t>(idir, odir);
