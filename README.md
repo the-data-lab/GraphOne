@@ -4,11 +4,11 @@ This repository is for following two papers:
 **ACM Transaction on Storage'20**: "GraphOne: A Data Store for Real-time Analytics on Evolving Graphs".  Discusses the concurrent anlaytics mechanism, and many new things and results. 
 See at the end for bibliography for citation.
 
+**We are now trying to develop a full-fledged graph database with snapshot isolation transaction guarantee. People with expertize on query engine developement are welcome to collaborate.** 
 
 **Latest revision V0.1 contains simplified options than V0.0 release.** We are continously improving GraphOne through code changes as well as  disseminating those information through peer reviewed papers and journals. A number of changes have been made, and are summarized here. A detailed description can be found in this README documents. We now have less number of command line options to work with, clear in-memory/durable execution options. The GraphView APIs are simplified, now there is just one flag to pass with different pre-defined flag values. Allowed values of flags include a thread creation flag. Hope to write more about it in future. **Feel free to raise an issue in github, if you have any problem in using GraphOne.** 
 
-**Coming Soon:** Version V0.2 coming soon with automatic compaction and eviction, as well as APIs for differntial data access.  
-Distributed GraphOne is coming soon as well.
+**Analytics  on historical data is supported now.** Use the feature branch.
 
 
 The repository is a storage engine (i.e. Data Store) for dynamic/evolving/streaming graph data. As of GraphOne, we only discussed ingestion for a single type of edges, called single stream graph. E.g. Twitter's follower-followee graph, or facebook's friendship graph. However, this code-base can ingest multi-stream graph, i.e. multi-stream property graph. However, a paper for that portion of codebase is under review. So, I am going to explain single stream graph. Send me an email, if your graph is multi-stream graph.
@@ -23,13 +23,37 @@ GraphOne offers a set of vertex-centric API to access the data. However differen
 - **Batch Analytics using Static View**: When an user want to run an analytic over whole data, treating the current data as static, it is called batch analytics. We provide *Static View* for such analytics even while the underlying data store is evolving due to continous arrival of data.  
 - **Stream Analytics using Stream View**: The new focus of today's anlaytics world is to continously run computations so that you will always have updated results. The main idea here is to reuse the results of previously run analytics on slightly older data to get the latest results. The implemention technique in GraphOne is use *Stream View* for such computation. You call an API to update the view to latest data, and then run your increment computation steps on it utilizing the results of the older computation. The features in stream view will let you identify the sets of vertices and/or edges that have changed so that you know how your computation can take advantage of what has changed. We additionally provide a time-window implementation for stream view. And customize it for stateless and stateful analytics both.
 
+- **Analytics on Historical Data**: The historical snapshot view (Hsnap View)is now working, with an added example (-j 6). The commit no. is c81eb8ce087bf93daa2935add34ab2cb594ab659 and the branch is `feature`.  Here is an example (see the testcode in plaingraph_test.cpp on how to create such a view, analytics code remains same):
+
+```
+pkumar@mira:~/GraphOne/build$ ./graphone32 -i ~/data/kron-21/bin/ -v 2097152 -j 6 -s 1 -d0 -o ./out/
+input dir = /home/pkumar/data/kron-21/bin/
+Global vcount = 2097152
+output dir = ./out/
+Threads Count = 19
+enterting w_func
+ Batching Time = 1.75779 vertex count = 2097152
+Batch Update Time = 1.75794 edges = 33554432
+Durable Graph Time = 1.76259
+Make Graph Time = 1.76996
+BFS Time = 0.045006
+ Level = 0 count = 1
+ Level = 1 count = 1
+ Level = 2 count = 24596
+ Level = 3 count = 795485
+ Level = 4 count = 223717
+ Level = 5 count = 2245
+ Level = 6 count = 17
+```
+
 - **Concurrent Real-time Analytics**: As we separate computation from data management using GraphView, we are able to run many different analytics, including any of batch or stream analytics together from the same data-store, yes, no separate memory footprint for data if you running more than one analytics.
 
 **`Example:`**
 - Static View: `snap_t<T>* snaph = create_static_view(pgraph, STALE_MASK|V_CENTRIC);`
 - Stream View: `sstream_t<T>* sstreamh = reg_sstream_view(pgraph, stream_fn, STALE_MASK|V_CENTRIC|C_THREAD);`
+- Static View: `hsnap_t<T>* snaph = create_static_view(pgraph, offset, 0);`
 
-GraphView simplifies all this access pattern, and many other stuffs by using `static` and `sstreamh` for all your later access. Kindly read the papers for different kind of APIs.
+GraphView simplifies all this access pattern, and many other stuffs by using `static`, `sstream` and `hsnap` view classes for all your later access. Kindly read the papers for different kind of APIs.
 
 **`Graph View Flags`**: There are three important flags in create-\*-view() APIs, STALE_MASK, SIMPLE_MASK, PRIVATE_MASK.
 
